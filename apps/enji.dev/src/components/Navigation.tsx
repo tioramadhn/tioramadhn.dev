@@ -22,7 +22,7 @@ function Navbar() {
 
   return (
     <header
-      className={clsx('fixed top-0 right-0 left-0 z-[1000]', 'fm:absolute')}
+      className={clsx('fixed left-0 right-0 top-0 z-[1000]', 'fm:absolute')}
     >
       <div
         className={clsx(
@@ -67,14 +67,7 @@ function Navbar() {
           <ul className={clsx('flex items-center')}>
             <li className={clsx('hidden', 'sm:block')}>
               <NavIcon
-                href="https://twitter.com/enjidev"
-                icon={<TwitterIcon className={clsx('h-5 w-5')} />}
-                title="Twitter"
-              />
-            </li>
-            <li className={clsx('hidden', 'sm:block')}>
-              <NavIcon
-                href="https://github.com/enjidev"
+                href="https://github.com/tioramadhn"
                 icon={<GitHubIcon className={clsx('h-5 w-5')} />}
                 title="GitHub"
               />

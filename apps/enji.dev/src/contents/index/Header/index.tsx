@@ -10,7 +10,7 @@ function Header() {
     <header
       id="page-header"
       className={clsx(
-        'background-grid background-grid--fade-out pt-36 pb-20',
+        'background-grid background-grid--fade-out pb-20 pt-36',
         'lg:pb-28 lg:pt-52'
       )}
     >
@@ -20,7 +20,7 @@ function Header() {
             <HeaderTitle />
           </div>
           <div className={clsx('mt-6 md:mt-8')}>
-            <HeaderCta isFree={false} />
+            <HeaderCta isFree={true} />
           </div>
           <div className={clsx('mt-20 lg:mt-36')}>
             <HeaderTechStack />
