@@ -22,6 +22,7 @@ function WithReactions(props: ReactionsProps) {
           )}
         >
           {/* eslint-disable-next-line react/jsx-props-no-spreading */}
+          {/* TODO: FIX THIS  */}
           {/* <Reactions {...props} /> */}
         </div>
       </WithTableOfContentsMock>
