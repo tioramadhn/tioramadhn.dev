@@ -18,12 +18,14 @@ function Quote() {
           'dark:text-slate-800'
         )}
       />
+      {/* Where innovation meets aesthetics, extraordinary experiences are born. */}
       <span className={clsx('flex flex-col')}>
         <span className={clsx('leading-[1.15]')}>
-          <em>Beautiful</em>{' '}
+          <em>Where innovation</em>{' '}
         </span>
+
         <span
-          className={clsx('flex items-center gap-2 leading-[1.15]', 'lg:gap-4')}
+          className={clsx('flex flex-col gap-2 leading-[1.15]', 'lg:gap-4')}
         >
           <span
             className={clsx(
@@ -32,25 +34,32 @@ function Quote() {
               'dark:bg-slate-600'
             )}
           />
+
           <span>
+            meets{' '}
             <strong
               className={clsx(
                 'font-extrabold text-slate-600',
                 'dark:text-slate-300'
               )}
             >
-              inside
+              aesthetics,
             </strong>{' '}
-            and{' '}
+          </span>
+
+          <span>
+            {' '}
             <strong
               className={clsx(
                 'font-extrabold text-slate-600',
                 'dark:text-slate-300'
               )}
             >
-              out{' '}
+              extraordinary{' '}
             </strong>
+            experiences
           </span>
+
           <span
             className={clsx(
               'mt-1 h-0.5 w-6 rounded-full bg-slate-400',
@@ -59,8 +68,9 @@ function Quote() {
             )}
           />
         </span>
+
         <span className={clsx('leading-[1.15]')}>
-          is a{' '}
+          are{' '}
           <strong
             className={clsx(
               'relative font-extrabold text-slate-600',
@@ -69,12 +79,12 @@ function Quote() {
           >
             <span
               className={clsx(
-                'absolute -left-0.5 right-0 top-1 bottom-0 z-[-1] rounded-md bg-slate-100 px-1',
-                'lg:-left-1.5 lg:-right-0.5 lg:top-2 lg:bottom-0',
+                'absolute -left-0.5 bottom-0 right-0 top-1 z-[-1] rounded-md bg-slate-100 px-1',
+                'lg:-left-1.5 lg:-right-0.5 lg:bottom-0 lg:top-2',
                 'dark:bg-slate-800'
               )}
             />
-            must.
+            born.
           </strong>
         </span>
       </span>
