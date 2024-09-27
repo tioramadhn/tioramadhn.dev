@@ -85,7 +85,7 @@ function HeaderTitle() {
           transition={{ delay: 0.3 }}
         >
           <span>Bringing full-stack knowledge to the table, I specialize</span>
-          <span className={clsx('block')}>
+          <span className={clsx('sm:block')}>
             {' '}
             in{' '}
             <strong
@@ -99,7 +99,7 @@ function HeaderTitle() {
             transforming complex
           </span>
           <span>
-            <span className={clsx('block md:inline')}>
+            <span className={clsx('sm:block md:inline')}>
               interfaces into seamless, intuitive designs.
             </span>
           </span>
