@@ -94,13 +94,16 @@ function HeaderTitle() {
                 'dark:text-slate-300'
               )}
             >
-              Front-End development
+              Front-End development,
             </strong>
-            , transforming complex
           </span>
-          <span className={clsx('block')}>
+          <span>
             {' '}
-            interfaces into seamless, intuitive designs.
+            transforming complex interfaces into
+            <span className={clsx('block md:inline')}>
+              {' '}
+              seamless, intuitive designs.
+            </span>
           </span>
         </m.h1>
       </span>
