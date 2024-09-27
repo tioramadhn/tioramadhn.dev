@@ -20,7 +20,7 @@ function Blog({ posts }: BlogProps) {
       }}
       headerImage={<HeaderImage />}
     >
-      <BlogContents posts={posts} />
+      {/* <BlogContents posts={posts} /> */}
     </Page>
   );
 }

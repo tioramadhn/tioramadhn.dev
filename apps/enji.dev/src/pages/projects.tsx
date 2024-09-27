@@ -11,7 +11,7 @@ function Projects() {
       }}
       headerImage={<HeaderImage />}
     >
-      <ProjectsContents />
+      {/* <ProjectsContents /> */}
     </Page>
   );
 }
