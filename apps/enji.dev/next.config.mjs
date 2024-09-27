@@ -12,8 +12,18 @@ const nextConfig = {
       permanent: false,
     },
     {
-      source: '/docs',
-      destination: '/docs/tailwindcss-accent',
+      source: '/docs/(.*)',
+      destination: '/',
+      permanent: false,
+    },
+    {
+      source: '/today-i-learned',
+      destination: '/',
+      permanent: false,
+    },
+    {
+      source: '/blog/(.*)',
+      destination: '/',
       permanent: false,
     },
   ],

@@ -112,8 +112,10 @@ function FooterDescription() {
         About Me
       </div>
       <p className={clsx('mb-4 font-normal leading-relaxed')}>
-        I&apos;m Tio, a <strong>front-end developer</strong> who loves
-        intuitive, clean and modern UI design.
+        I&apos;m Tio, a <strong>front-end developer</strong> with a thing for
+        sleek, modern UI designs that don&apos;t just look good, but feel good
+        too. Let&apos;s turn your vision into something you&apos;ll love to
+        click on!
       </p>
       <ul className={clsx('-ml-2 flex gap-1')}>
         <li>
@@ -160,18 +162,13 @@ function Footer() {
                     { title: 'Contact', href: '/work/contact' },
                     { title: 'Experience', href: '/work/experience' },
                     {
-                      title: 'Services',
-                      href: '/work/services',
-                      label: 'soon',
-                    },
-                    {
                       title: 'Skills and Tools',
                       href: '/work/skills-and-tools',
                     },
                     { title: 'Studio', href: '/work/studio' },
                   ]}
                 />
-                <FooterGroup
+                {/* <FooterGroup
                   title="Learn"
                   links={[
                     {
@@ -188,7 +185,7 @@ function Footer() {
                       label: 'new',
                     },
                   ]}
-                />
+                /> */}
               </div>
               <div className={clsx('flex', 'sm:gap-16')}>
                 <FooterGroup
@@ -201,7 +198,7 @@ function Footer() {
                     },
                     {
                       title: 'Source Code',
-                      href: 'https://github.com/enjidev/enji.dev',
+                      href: 'https://github.com/tioramadhn/tioramadhn.dev',
                       isInternal: false,
                     },
                     {

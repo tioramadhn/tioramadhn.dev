@@ -50,12 +50,13 @@ function Navbar() {
               <li>
                 <NavLink title="Projects" href="/projects" />
               </li>
-              <li>
+              {/* TODO: Add */}
+              {/* <li>
                 <NavLink title="Blog" href="/blog" />
-              </li>
-              <li>
+              </li> */}
+              {/* <li>
                 <NavLink title="T.I.L" href="/today-i-learned" />
-              </li>
+              </li> */}
               <li className={clsx('lg:hidden')} data-accent="blue">
                 <NavLinkDropdown title="Work" items={workLinks} />
               </li>

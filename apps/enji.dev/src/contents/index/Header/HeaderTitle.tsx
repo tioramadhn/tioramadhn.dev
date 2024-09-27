@@ -84,10 +84,10 @@ function HeaderTitle() {
           animate={animation.show}
           transition={{ delay: 0.3 }}
         >
-          <span>Bringing full-stack knowledge to the table,</span>
+          <span>Bringing full-stack knowledge to the table, I specialize</span>
           <span className={clsx('block')}>
             {' '}
-            I specialize in{' '}
+            in{' '}
             <strong
               className={clsx(
                 'font-bold lowercase text-slate-700',
@@ -95,14 +95,12 @@ function HeaderTitle() {
               )}
             >
               Front-End development,
-            </strong>
+            </strong>{' '}
+            transforming complex
           </span>
           <span>
-            {' '}
-            transforming complex interfaces into
             <span className={clsx('block md:inline')}>
-              {' '}
-              seamless, intuitive designs.
+              interfaces into seamless, intuitive designs.
             </span>
           </span>
         </m.h1>
