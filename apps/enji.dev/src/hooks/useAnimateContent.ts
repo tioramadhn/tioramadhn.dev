@@ -12,27 +12,28 @@ export const useAnimateContent = (content: Array<Content>) => {
     if (isUserClick) {
       timeOutState = setTimeout(() => {
         animateState = setInterval(() => {
-          setCurrentState((prev) => {
-            return content[
-              content.indexOf(prev) < content.length - 1
-                ? content.indexOf(prev) + 1
-                : 0
-            ];
-          });
+          setCurrentState(
+            (prev) =>
+              content[
+                content.indexOf(prev) < content.length - 1
+                  ? content.indexOf(prev) + 1
+                  : 0
+              ]
+          );
         }, 1000);
 
         setIsUserClick(false);
       }, 5000);
     } else {
       animateState = setInterval(() => {
-        //Make animation to change current state
-        setCurrentState((prev) => {
-          return content[
-            content.indexOf(prev) < content.length - 1
-              ? content.indexOf(prev) + 1
-              : 0
-          ];
-        });
+        setCurrentState(
+          (prev) =>
+            content[
+              content.indexOf(prev) < content.length - 1
+                ? content.indexOf(prev) + 1
+                : 0
+            ]
+        );
       }, 1500);
     }
 
@@ -40,6 +41,6 @@ export const useAnimateContent = (content: Array<Content>) => {
       clearInterval(animateState);
       clearTimeout(timeOutState);
     };
-  }, [isUserClick, currentState]);
+  }, [content, isUserClick, currentState]);
   return { setIsUserClick, currentState, setCurrentState };
 };
