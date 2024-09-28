@@ -77,10 +77,10 @@ function IndexContents() {
       <div className={clsx('hidden', 'lg:-mt-16 lg:mb-24 lg:block')}>
         <FeaturedCardSection />
       </div>
-      <div className={clsx('-mt-12 mb-12', 'md:mt-0 md:mb-24')}>
+      <div className={clsx('-mt-12 mb-12', 'md:mb-24 md:mt-0')}>
         <QuoteSection />
       </div>
-      <section className={clsx('mb-12', 'lg:mb-24')}>
+      <section className={clsx('h-[529px] lg:h-auto', 'mb-12', 'lg:mb-24')}>
         <CleanIntuitive />
       </section>
       <section className={clsx('mb-12', 'lg:mb-24')}>

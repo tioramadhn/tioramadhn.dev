@@ -192,11 +192,6 @@ function Footer() {
                   title="This Site"
                   links={[
                     {
-                      title: 'Design Concept',
-                      href: 'https://www.figma.com/community/file/1176392613303840973',
-                      isInternal: false,
-                    },
-                    {
                       title: 'Source Code',
                       href: 'https://github.com/tioramadhn/tioramadhn.dev',
                       isInternal: false,

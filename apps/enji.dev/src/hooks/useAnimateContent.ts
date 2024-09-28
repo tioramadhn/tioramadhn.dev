@@ -1,12 +1,21 @@
 import { Content } from '@/contents/index/CleanIntuitive';
-import React, { Dispatch, SetStateAction, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import useScreenSize from './useScreenSize';
 
 export const useAnimateContent = (content: Array<Content>) => {
   const [currentState, setCurrentState] = useState<Content>(content[0]);
   const [isUserClick, setIsUserClick] = useState(false);
+  const screenSize = useScreenSize();
+
   useEffect(() => {
-    let animateState;
-    let timeOutState: NodeJS.Timeout | null;
+    let animateState: NodeJS.Timer;
+    let timeOutState: NodeJS.Timeout;
+    // if (screenSize < 1024) {
+    //   return () => {
+    //     clearInterval(animateState);
+    //     clearTimeout(timeOutState);
+    //   };
+    // }
 
     if (isUserClick) {
       timeOutState = setTimeout(() => {
