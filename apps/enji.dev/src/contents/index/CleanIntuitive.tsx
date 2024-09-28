@@ -49,7 +49,7 @@ function CleanIntuitive() {
     useAnimateContent(content);
   return (
     <>
-      <header className={clsx('mb-8')}>
+      <header className={clsx('mb-4')}>
         <SectionTitle
           title="Eye Catching, Modern & Minimalist Design."
           caption="Clean & Intuitive"
@@ -58,9 +58,12 @@ function CleanIntuitive() {
         />
       </header>
       <SectionContent>
-        <div className={clsx('flex', 'lg:gap-12')}>
+        <div className={clsx('flex flex-col gap-8 lg:flex-row', 'lg:gap-12')}>
           <div
-            className={clsx('-mt-8 hidden flex-1 flex-col gap-3', 'lg:flex')}
+            className={clsx(
+              '-mt-8 flex flex-1 flex-row gap-1 lg:flex-col lg:gap-3',
+              'lg:flex'
+            )}
           >
             {content.map((item, i) => (
               <SectionButton
@@ -76,11 +79,12 @@ function CleanIntuitive() {
               />
             ))}
           </div>
+          <p className="text-center lg:hidden">{currentState?.description}</p>
           <div
             className={clsx('relative flex flex-1 items-center justify-center')}
           >
             <div
-              className={clsx('-mt-8 flex gap-4', 'md:gap-6 lg:top-8 lg:mt-0')}
+              className={clsx('mt-0 flex gap-4', 'md:gap-6 lg:top-8 lg:mt-0')}
             >
               <div>
                 <TodoItem

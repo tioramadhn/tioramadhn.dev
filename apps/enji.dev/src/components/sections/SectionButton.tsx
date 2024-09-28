@@ -21,7 +21,7 @@ export function SectionButton({
     <button
       type="button"
       className={clsx(
-        'flex flex-1 items-center gap-4 rounded-2xl border-2 bg-white px-4 py-4 text-left',
+        'flex flex-1 items-center gap-4 rounded-2xl border-2 bg-white p-2 text-left lg:p-4',
         'dark:bg-slate-900',
         active
           ? ['border-accent-400', 'dark:border-accent-400']
@@ -42,10 +42,11 @@ export function SectionButton({
           {icon}
         </span>
       )}
+
       <span className={clsx('flex-1')}>
         <span
           className={clsx(
-            'block font-bold',
+            'block text-center font-bold lg:text-start',
             active
               ? ['text-accent-600', 'dark:text-accent-400']
               : ['text-slate-700', 'dark:text-slate-200']
@@ -53,10 +54,11 @@ export function SectionButton({
         >
           {title}
         </span>
+
         {description && (
           <span
             className={clsx(
-              'mt-1 block text-sm text-slate-600',
+              'mt-1 hidden text-sm text-slate-600 lg:block',
               'dark:text-slate-400'
             )}
           >
