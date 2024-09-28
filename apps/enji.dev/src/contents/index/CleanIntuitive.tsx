@@ -1,5 +1,5 @@
 import clsx from 'clsx';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { SectionButton } from '@/components/sections/SectionButton';
 import SectionContent from '@/components/sections/SectionContent';
@@ -8,8 +8,9 @@ import SectionTitle from '@/components/sections/SectionTitle';
 import TodoItem from '@/contents/index/Cards/TodoItem';
 
 import type { TodoItemState } from '@/contents/index/Cards/TodoItem';
+import { useAnimateContent } from '@/hooks/useAnimateContent';
 
-type Content = {
+export type Content = {
   state: TodoItemState;
   shows: Array<TodoItemState>;
   title: string;
@@ -44,8 +45,8 @@ const content: Array<Content> = [
 ];
 
 function CleanIntuitive() {
-  const [currentState, setCurrentState] = useState<Content | null>(null);
-
+  const { currentState, setCurrentState, setIsUserClick } =
+    useAnimateContent(content);
   return (
     <>
       <header className={clsx('mb-8')}>
@@ -68,7 +69,10 @@ function CleanIntuitive() {
                 description={item.description}
                 icon={i + 1}
                 active={currentState?.state === item.state}
-                onClick={() => setCurrentState(item)}
+                onClick={() => {
+                  setCurrentState(item);
+                  setIsUserClick(true);
+                }}
               />
             ))}
           </div>

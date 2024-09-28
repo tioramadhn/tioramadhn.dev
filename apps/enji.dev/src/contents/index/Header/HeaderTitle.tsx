@@ -96,7 +96,7 @@ function HeaderTitle() {
             >
               Front-End development,
             </strong>{' '}
-            transforming complex
+            transforming complex{' '}
           </span>
           <span>
             <span className={clsx('sm:block md:inline')}>
