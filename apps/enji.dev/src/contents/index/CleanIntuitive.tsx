@@ -40,7 +40,7 @@ const content: Array<Content> = [
     state: 'effects',
     shows: ['typography', 'spacing', 'colors', 'effects'],
     title: 'Effects',
-    description: 'Add effects like borders, shadows, rounded corners, etc.',
+    description: 'Add effects like shadows, rounded corners, etc.',
   },
 ];
 
@@ -79,7 +79,15 @@ function CleanIntuitive() {
               />
             ))}
           </div>
-          <p className="text-center lg:hidden">{currentState?.description}</p>
+          <p
+            className={clsx(
+              'text-slate-600',
+              'dark:text-slate-400',
+              'text-center'
+            )}
+          >
+            {currentState?.description}
+          </p>
           <div
             className={clsx('relative flex flex-1 items-center justify-center')}
           >
