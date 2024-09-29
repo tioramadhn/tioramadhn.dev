@@ -83,7 +83,8 @@ function CleanIntuitive() {
             className={clsx(
               'text-slate-600',
               'dark:text-slate-400',
-              'text-center'
+              'text-center',
+              'lg:hidden'
             )}
           >
             {currentState?.description}
