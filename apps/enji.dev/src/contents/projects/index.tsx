@@ -6,6 +6,14 @@ import SectionContent from '@/components/sections/SectionContent';
 import { Link as LinkMdx } from '@/components/mdx/custom-components/Link';
 import Link from 'next/link';
 
+const animation = {
+  hide: { x: -8, opacity: 0 },
+  show: {
+    x: 0,
+    opacity: 1,
+  },
+};
+
 const projects: Array<CardProjectProps> = [
   {
     title: 'SOM AI',
@@ -122,14 +130,6 @@ function CardProject({
     </m.div>
   );
 }
-
-const animation = {
-  hide: { x: -8, opacity: 0 },
-  show: {
-    x: 0,
-    opacity: 1,
-  },
-};
 
 function ProjectsContents() {
   return (
