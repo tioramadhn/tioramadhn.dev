@@ -68,7 +68,7 @@ function CardProject({
     <m.div
       variants={animation}
       className={clsx(
-        'rounded-lg border p-8 ',
+        'rounded-lg border p-6 md:p-8 ',
         'border-divider-light bg-white',
         'dark:border-divider-dark dark:bg-slate-900',
         'flex flex-col'
