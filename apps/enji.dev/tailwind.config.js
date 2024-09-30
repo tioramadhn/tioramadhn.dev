@@ -11,6 +11,11 @@ module.exports = {
   darkMode: 'class',
   theme: {
     extend: {
+      backgroundImage: {
+        'som-ai': "url('/assets/images/projects/somai-ui-cover.jpeg')",
+        'som-ai-2': "url('/assets/images/projects/somai-ui-cover-2.jpeg')",
+        badr: "url('/assets/images/projects/badr.png')",
+      },
       fontFamily: {
         sans: ['var(--font-sans, "")', ...defaultTheme.fontFamily.sans],
         mono: ['var(--font-mono, "")', ...defaultTheme.fontFamily.mono],

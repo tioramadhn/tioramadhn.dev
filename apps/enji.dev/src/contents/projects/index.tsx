@@ -1,88 +1,156 @@
 import clsx from 'clsx';
-import { useState } from 'react';
-
-import { GitHubIcon, NpmIcon } from '@/components/Icons';
-import { SectionButton } from '@/components/sections/SectionButton';
+import { ReactNode } from 'react';
+import { m } from 'framer-motion';
+import { ChevronRightIcon } from '@/components/Icons';
 import SectionContent from '@/components/sections/SectionContent';
-import SectionTitle from '@/components/sections/SectionTitle';
-import AppWindow from '@/components/wireframes/AppWindow';
-import GitHubWireframe from '@/components/wireframes/GitHub';
-import NpmWireframe from '@/components/wireframes/Npm';
+import { Link as LinkMdx } from '@/components/mdx/custom-components/Link';
+import Link from 'next/link';
 
-function ProjectsContents() {
-  const [currentState, setCurrentState] = useState<'npm' | 'github'>('github');
+const projects: Array<CardProjectProps> = [
+  {
+    title: 'SOM AI',
+    caption: 'Web Development',
+    images: ['bg-som-ai', 'bg-som-ai-2'],
+    description:
+      'A Friendly chat bot AI Based that help students for their homework.',
+    button: {
+      title: 'Learn more',
+      href: '/projects/som-ai',
+      siteUrl: 'https://somai.id/',
+    },
+  },
+  {
+    title: 'Badr Web Redesign',
+    images: ['bg-badr'],
+    caption: 'Web Development',
+    description:
+      'A Portfolio website for Badr Interactive as a software house.',
+    button: {
+      title: 'Learn more',
+      href: '/projects/badr-web',
+      siteUrl: 'https://badr.co.id/',
+    },
+  },
+];
+
+interface CardProjectProps {
+  as?: 'h2' | 'h3';
+  title: string;
+  caption: string;
+  description: string | ReactNode;
+  images: Array<string>;
+  button?: {
+    title: string;
+    href: string;
+    siteUrl: string;
+  } | null;
+}
+
+function CardProject({
+  as = 'h2',
+  title,
+  caption,
+  description,
+  images,
+  button = null,
+}: CardProjectProps) {
+  const Heading = as;
 
   return (
-    <>
-      <SectionTitle
-        title="The dynamic accent colors."
-        caption="tailwindcss-accent"
-        description="Add accent colors for dynamic, flexible color use in your Tailwind CSS project."
-        button={{
-          title: 'learn more',
-          href: '/docs/tailwindcss-accent',
-        }}
+    <m.div
+      variants={animation}
+      className={clsx(
+        'rounded-lg border p-8 ',
+        'border-divider-light bg-white',
+        'dark:border-divider-dark dark:bg-slate-900',
+        'flex flex-col'
+      )}
+    >
+      <div
+        className={clsx(
+          'h-40',
+          images[0],
+          'border-divider-light dark:border-divider-dark border bg-left-top',
+          'bg-contain',
+          'mb-8 w-full rounded-md'
+        )}
       />
-      <SectionContent>
-        <div className={clsx('flex', 'lg:gap-12')}>
-          <div className={clsx('hidden flex-1 flex-col gap-3 pt-8', 'lg:flex')}>
-            <div className={clsx('flex flex-col gap-3')}>
-              <SectionButton
-                title="Available on GitHub"
-                icon={<GitHubIcon className={clsx('my-2 h-16 w-16')} />}
-                description="Access powerful and flexible package on GitHub with MIT license."
-                active={currentState === 'github'}
-                onClick={() => setCurrentState('github')}
-              />
-              <SectionButton
-                title="npm package"
-                icon={<NpmIcon className={clsx('my-2 h-16 w-16')} />}
-                description="Install and use the package with ease thanks to its typed options."
-                active={currentState === 'npm'}
-                onClick={() => setCurrentState('npm')}
-              />
-            </div>
-          </div>
-          <div className={clsx('w-full', 'lg:w-auto')}>
-            <div className={clsx('-mt-[41px]')}>
-              <div className={clsx('w-full', 'lg:h-[400px] lg:w-[600px]')}>
-                <AppWindow
-                  type="browser"
-                  browserTabs={[
-                    {
-                      icon: <GitHubIcon className="h-4 w-4" />,
-                      title: 'enjidev/tailwindcss-accent - GitHub',
-                      isActive: currentState === 'github',
-                    },
-                    {
-                      icon: <NpmIcon className="h-4 w-4" />,
-                      title: 'tailwindcss-accent - npm',
-                      isActive: currentState === 'npm',
-                    },
-                  ]}
-                >
-                  {currentState === 'github' && (
-                    <GitHubWireframe
-                      author="enjidev"
-                      license="MIT"
-                      repository="tailwindcss-accent"
-                      description="Adds accent colors for more dynamic and flexible color utilization."
-                    />
-                  )}
-                  {currentState === 'npm' && (
-                    <NpmWireframe
-                      packageName="tailwindcss-accent"
-                      description="Adds accent colors for more dynamic and flexible color utilization."
-                      isWithTypeScript
-                    />
-                  )}
-                </AppWindow>
-              </div>
-            </div>
-          </div>
-        </div>
-      </SectionContent>
-    </>
+      <Heading
+        className={clsx(
+          'text-accent-600 mb-2 block font-black',
+          'lg:>mb-4',
+          'dark:text-accent-400'
+        )}
+      >
+        {caption}
+      </Heading>
+      <p
+        className={clsx(
+          'mb-4 text-3xl font-black text-slate-700',
+          'lg:text-4xl',
+          'dark:text-slate-200'
+        )}
+      >
+        {title}
+      </p>
+      <p
+        className={clsx(
+          'max-w-lg flex-1 text-slate-600',
+          'dark:text-slate-400'
+        )}
+      >
+        {description}
+      </p>
+      {button && (
+        <m.div
+          initial="hide"
+          animate="show"
+          transition={{ delayChildren: 0.8, staggerChildren: 0.125 }}
+          className={clsx('mt-4', 'md:mt-6', 'space-x-4')}
+        >
+          <m.span variants={animation}>
+            <Link href={button.href} className={clsx('button button--soft')}>
+              {button.title}
+              <ChevronRightIcon className="mt-0.5 h-3 w-3" />
+            </Link>
+          </m.span>
+          <m.span variants={animation}>
+            <LinkMdx href={button.siteUrl}>Visit site</LinkMdx>
+          </m.span>
+        </m.div>
+      )}
+    </m.div>
+  );
+}
+
+const animation = {
+  hide: { x: -8, opacity: 0 },
+  show: {
+    x: 0,
+    opacity: 1,
+  },
+};
+
+function ProjectsContents() {
+  return (
+    <SectionContent>
+      <m.div
+        initial="hide"
+        animate="show"
+        transition={{ delayChildren: 0.6, staggerChildren: 0.025 }}
+        className="-mt-20 grid grid-cols-1 gap-4 md:grid-cols-2"
+      >
+        {projects.map((project) => (
+          <CardProject
+            title={project.title}
+            caption={project.caption}
+            description={project.description}
+            images={project.images}
+            button={project.button}
+          />
+        ))}
+      </m.div>
+    </SectionContent>
   );
 }
 
