@@ -1,0 +1,90 @@
+export const meta = {
+  slug: 'octo-cimb-niaga',
+  caption: 'Banking Platform',
+  title: 'OCTO by CIMB Niaga',
+  description:
+    'Design system, domain migrations, and shared infrastructure on an 11-service micro-frontend banking platform.',
+};
+
+## Overview
+
+**OCTO by CIMB Niaga** is the bank's digital banking platform. I joined the platform revamp team, which is rebuilding the legacy banking web app as a micro-frontend architecture: **11 independently deployable services** behind a single app shell, built by around **30 engineers**.
+
+My work sits in the shared layer — the internal component library, the typed API package, and the form engine that every transactional journey runs on — plus frontend delivery for three of the migrated domains.
+
+**Role**: Frontend Web Developer (On-site, Jakarta)  
+**Duration**: February 2025 – Present
+
+---
+
+## Design System and Shared Widgets
+
+I own component API design and implementation in the internal **UIKit** consumed by all 11 services.
+
+- **Receipt widget** (~1,450 lines): the confirmation surface shared by transfer, payment, investment, and settings — one component covering every transaction type's receipt layout, status states, and actions.
+- **Consent Dialog** (~900 lines): a regulatory consent flow used across the platform.
+- **Form and overlay primitives**: Autocomplete, Select, Table, Stepper, Input/PIN, Dialog, and Popover.
+- **46 Storybook stories** with **MSW**-based API mocking, so every widget can be developed and reviewed without a running backend.
+
+The hard part of shared components in a large org is not the rendering — it is designing an API that eleven teams can adopt without forking it. Most of my time here goes into prop surface and composition boundaries.
+
+---
+
+## Legacy Platform Migration
+
+I delivered the frontend for moving three major domains off the legacy banking web app:
+
+- **Settings**: card management, BI-FAST alias lifecycle, security and personal settings — roughly **25 transaction flows**.
+- **Online Registration**: savings account and credit card onboarding.
+- **Investment**: mutual funds, bonds, and government retail bonds (SBN).
+
+I also built **My Account** transaction history and mutation detail views for CASA and credit card accounts.
+
+---
+
+## WhatsApp OTP Verification
+
+I led end-to-end delivery of OTP verification over WhatsApp, from first product to platform-wide rollout.
+
+- Shipped first across **five Transfer products**, then rolled out to apply, payment, and registration.
+- Rebuilt the shared OTP component into composable parts, cutting it down by **~40%**.
+- Extended the OTP query and model layer to carry the new delivery channel.
+- Gated the rollout behind **Flagr** feature flags with per-service payload and OTP-type routing, so each service could be switched on independently — the rollout completed with no incidents.
+
+---
+
+## Config-Driven Form Engine
+
+Every transactional journey on the platform runs on a shared lifecycle form engine built on **json-logic** rules with **Vest** validation. I extended it with:
+
+- **Form-value-driven conditional steps**, so a journey's shape can depend on what the user has already entered.
+- **MFA step overrides** per journey.
+- **Per-step OTP parameter overrides**.
+
+Each of these replaced logic that services had been duplicating locally with declarative configuration in one place.
+
+---
+
+## Shared API Layer
+
+I authored typed endpoints, request/response models, and **React Query** hooks in the shared service package across the payment, settings, registration, investment, and transfer domains.
+
+While building it out I drove the request/response naming convention that was later adopted codebase-wide.
+
+---
+
+## Micro-Frontend Delivery
+
+I scaffolded and shipped two services end-to-end, **Payment** and **Investment**:
+
+- **Vite** and **Module Federation** build configuration.
+- Multi-environment setup and **nginx** serving.
+- Host registration in the app shell.
+
+Both deploy independently of the other services, with no cross-module coupling.
+
+---
+
+## Tech Stack
+
+React · TypeScript · Vite Module Federation · Turborepo · TanStack Router/Query · React Hook Form · Vest · Zod · Tailwind CSS · Radix UI · Storybook · MSW · Flagr · Tolgee/i18next · Biome

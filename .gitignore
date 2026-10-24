@@ -1,41 +1,34 @@
-dist
-
 # dependencies
 node_modules
 .pnp
 .pnp.js
 
-# testing
-coverage
+# next
+.next
+next-env.d.ts
+out
 
-# next.js
-.next/
-out/
-build
-.swc/
+# cloudflare / opennext
+.open-next
+.wrangler
+cloudflare-env.d.ts
+
+# env & secrets
+.env
+.env*.local
+.dev.vars
 
 # misc
 .DS_Store
 *.pem
 *.tsbuildinfo
+.vercel
 
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+.pnpm-debug.log*
 
-# local env files
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
-
-# turbo
-.turbo
-
-# next-sitemap
-robots.txt
-sitemap.xml
-
-# prevent accidentally committing and pushing draft files/directories
-*((DRAFT))*
+# legacy tree from the v1 (Turborepo + Pages Router) site, safe to delete
+.legacy

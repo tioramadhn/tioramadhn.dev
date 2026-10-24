@@ -1,0 +1,13 @@
+# Copy to `.dev.vars` for local development (`pnpm dev` / `pnpm preview`).
+# In production set these as Worker secrets instead:
+#   pnpm wrangler secret put ADMIN_PASSWORD
+#   pnpm wrangler secret put AUTH_SECRET
+
+NEXTJS_ENV=development
+
+# Password for the /admin writing interface.
+ADMIN_PASSWORD=change-me
+
+# Signing key for the admin session cookie. Generate one with:
+#   openssl rand -base64 32
+AUTH_SECRET=change-me-to-a-long-random-string

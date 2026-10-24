@@ -1,0 +1,37 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tioramadhn-dev",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+
+  // The site is served from the custom domain only. Leaving workers.dev on
+  // would expose a second copy of the site — including /admin — on
+  // tioramadhn-dev.<account>.workers.dev.
+  "workers_dev": false,
+  "preview_urls": false,
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  "observability": {
+    "enabled": true,
+  },
+
+  // Blog storage: markdown bodies under `posts/`, uploaded media under `media/`.
+  // Create it once with: pnpm wrangler r2 bucket create tioramadhn-blog
+  "r2_buckets": [
+    {
+      "binding": "BLOG_BUCKET",
+      "bucket_name": "tioramadhn-blog",
+    },
+  ],
+
+  "vars": {
+    "NEXT_PUBLIC_SITE_URL": "https://tioramadhn.com",
+  },
+
+  // ADMIN_PASSWORD and AUTH_SECRET are secrets, not vars:
+  //   pnpm wrangler secret put ADMIN_PASSWORD
+  //   pnpm wrangler secret put AUTH_SECRET
+}
