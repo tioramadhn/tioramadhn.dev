@@ -12,6 +12,8 @@ const ALLOWED: Record<string, string> = {
   'image/gif': 'gif',
   'image/avif': 'avif',
   'image/svg+xml': 'svg',
+  // Documents, so the CV can be swapped from the profile form.
+  'application/pdf': 'pdf',
 };
 
 /** Upload endpoint for the admin editor. Returns the public `/media/...` URL. */
@@ -60,6 +62,9 @@ export async function POST(request: Request) {
 
   return Response.json({
     url: `/${key}`,
-    markdown: `![${base}](/${key})`,
+    markdown:
+      file.type === 'application/pdf'
+        ? `[${base}](/${key})`
+        : `![${base}](/${key})`,
   });
 }

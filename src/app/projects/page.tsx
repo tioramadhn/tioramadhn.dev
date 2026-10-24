@@ -3,9 +3,11 @@ import clsx from 'clsx';
 import { ProjectCard } from '@/components/project-card';
 import { Container, PageHeader } from '@/components/ui';
 
-import { projects } from '@/content/projects';
+import { getProjects } from '@/lib/content';
 
 import type { Metadata } from 'next';
+
+export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: 'Projects',
@@ -13,7 +15,9 @@ export const metadata: Metadata = {
     'Platform work, products with real users, and redesigns — with a write-up for each.',
 };
 
-export default function ProjectsPage() {
+export default async function ProjectsPage() {
+  const projects = await getProjects();
+
   return (
     <Container className={clsx('py-14', 'md:py-20')}>
       <PageHeader

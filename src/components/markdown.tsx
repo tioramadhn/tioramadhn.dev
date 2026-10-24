@@ -22,12 +22,21 @@ const components: Components = {
       </a>
     );
   },
-  // Post images come from R2 via /media/*, already sized by the uploader, so a
-  // plain <img> (with lazy loading) beats routing them through next/image.
-  img({ src, alt, ...props }) {
+  // Images come from R2 via /media/*, already sized by the uploader, so a plain
+  // <img> (with lazy loading) beats routing them through next/image.
+  //
+  // Two markdown conventions replace what previously needed MDX components:
+  //   ![caption](/clip.webm)       -> an autoplaying muted video
+  //   ![alt](/shot.png "caption")  -> a figure with a visible caption
+  img({ src, alt, title, ...props }) {
     if (typeof src !== 'string') return null;
 
-    return (
+    const isVideo = /\.(webm|mp4|mov)(\?.*)?$/i.test(src);
+    const caption = title || (isVideo ? alt : '');
+
+    const media = isVideo ? (
+      <video src={src} autoPlay loop muted playsInline />
+    ) : (
       // eslint-disable-next-line @next/next/no-img-element
       <img
         src={src}
@@ -36,6 +45,15 @@ const components: Components = {
         decoding="async"
         {...props}
       />
+    );
+
+    if (!caption) return media;
+
+    return (
+      <figure>
+        {media}
+        <figcaption>{caption}</figcaption>
+      </figure>
     );
   },
 };

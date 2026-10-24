@@ -1,3 +1,4 @@
+import { getSettings } from '@/lib/content';
 import { listPosts } from '@/lib/posts';
 import { absoluteUrl, site } from '@/lib/site';
 
@@ -13,7 +14,7 @@ function escapeXml(value: string) {
 }
 
 export async function GET() {
-  const posts = await listPosts();
+  const [posts, { profile }] = await Promise.all([listPosts(), getSettings()]);
 
   const items = posts
     .map((post) => {
@@ -32,9 +33,9 @@ export async function GET() {
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
   <channel>
-    <title>${escapeXml(site.name)}</title>
+    <title>${escapeXml(profile.name)}</title>
     <link>${site.url}</link>
-    <description>${escapeXml(site.description)}</description>
+    <description>${escapeXml(profile.description)}</description>
     <language>en</language>
     <atom:link href="${absoluteUrl('/rss.xml')}" rel="self" type="application/rss+xml" />
 ${items}

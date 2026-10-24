@@ -3,9 +3,12 @@ import Link from 'next/link';
 
 import { Container } from '@/components/ui';
 
-import { nav, site, socials } from '@/lib/site';
+import { getSettings } from '@/lib/content';
+import { nav } from '@/lib/site';
 
-export function SiteFooter() {
+export async function SiteFooter() {
+  const { profile, socials } = await getSettings();
+
   return (
     <footer className={clsx('border-ink mt-24 border-t-[3px]')}>
       <Container>
@@ -16,17 +19,17 @@ export function SiteFooter() {
           )}
         >
           <div className={clsx('max-w-sm')}>
-            <p className={clsx('display-text text-2xl')}>{site.name}</p>
+            <p className={clsx('display-text text-2xl')}>{profile.name}</p>
             <p className={clsx('text-ink-soft mt-3 text-sm')}>
-              {site.role} · {site.location}
+              {profile.role} · {profile.location}
             </p>
             <a
-              href={`mailto:${site.email}`}
+              href={`mailto:${profile.email}`}
               className={clsx(
                 'hover:bg-lime mt-4 inline-block font-mono text-xs font-bold underline decoration-[3px] underline-offset-4 hover:text-[#11100f]'
               )}
             >
-              {site.email}
+              {profile.email}
             </a>
           </div>
 
@@ -88,7 +91,7 @@ export function SiteFooter() {
           )}
         >
           <span>
-            © {new Date().getFullYear()} {site.name}
+            © {new Date().getFullYear()} {profile.name}
           </span>
           <span>Next.js · Cloudflare Workers · R2</span>
         </div>

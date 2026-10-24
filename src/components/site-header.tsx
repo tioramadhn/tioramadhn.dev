@@ -8,9 +8,9 @@ import { useState } from 'react';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Container } from '@/components/ui';
 
-import { nav, site } from '@/lib/site';
+import { nav } from '@/lib/site';
 
-export function SiteHeader() {
+export function SiteHeader({ handle }: { handle: string }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -28,7 +28,7 @@ export function SiteHeader() {
             className={clsx('display-text text-xl', 'md:text-2xl')}
             onClick={() => setOpen(false)}
           >
-            {site.handle}
+            {handle}
             <span className={clsx('text-brand')}>.</span>
           </Link>
 

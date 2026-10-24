@@ -1,6 +1,7 @@
 import clsx from 'clsx';
 import Link from 'next/link';
 
+import { AdminNav } from '@/components/admin/admin-nav';
 import { Container } from '@/components/ui';
 
 import { isAuthenticated } from '@/lib/auth';
@@ -55,6 +56,12 @@ export default async function AdminLayout({
             </form>
           ) : null}
         </div>
+
+        {authed ? (
+          <div className={clsx('mb-8')}>
+            <AdminNav />
+          </div>
+        ) : null}
 
         {children}
       </Container>

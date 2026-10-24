@@ -3,9 +3,9 @@ import Link from 'next/link';
 
 import { Chip } from '@/components/ui';
 
-import type { Project } from '@/content/projects';
+import type { ProjectRecord } from '@/lib/content-types';
 
-export function ProjectCard({ project }: { project: Project }) {
+export function ProjectCard({ project }: { project: ProjectRecord }) {
   return (
     <article className={clsx('panel panel-interactive flex flex-col')}>
       <Link
@@ -14,7 +14,10 @@ export function ProjectCard({ project }: { project: Project }) {
       >
         <div
           className={clsx(
-            'border-ink flex h-40 items-end border-b-[3px] bg-cover bg-left-top p-4',
+            'border-ink flex h-40 items-end border-b-[3px] bg-no-repeat p-4',
+            project.cover && project.coverFit === 'contain'
+              ? 'bg-white bg-contain bg-center'
+              : 'bg-cover bg-left-top',
             !project.cover && project.accent
           )}
           style={

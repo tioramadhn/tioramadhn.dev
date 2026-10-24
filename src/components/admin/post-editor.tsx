@@ -2,9 +2,15 @@
 
 import clsx from 'clsx';
 import { useRouter } from 'next/navigation';
-import { useRef, useState, useTransition } from 'react';
+import { useState, useTransition } from 'react';
 
-import { Markdown } from '@/components/markdown';
+import {
+  Field,
+  TextArea,
+  TextInput,
+  fieldClass,
+} from '@/components/admin/fields';
+import { MarkdownField } from '@/components/admin/markdown-field';
 import { Mascot } from '@/components/mascot';
 
 import { parseFrontMatter } from '@/lib/front-matter';
@@ -14,7 +20,6 @@ import { savePostAction } from '@/app/admin/actions';
 
 import type { SavePostPayload } from '@/app/admin/actions';
 import type { PostStatus } from '@/lib/posts';
-import type { ChangeEvent, ClipboardEvent, DragEvent } from 'react';
 
 export interface PostEditorValues {
   originalSlug: string;
@@ -28,162 +33,22 @@ export interface PostEditorValues {
   status: PostStatus;
 }
 
-const fieldClass =
-  'border-ink bg-paper text-ink w-full border-[3px] px-3 py-2 font-mono text-sm';
-
-const labelClass =
-  'font-mono text-[11px] font-bold tracking-[0.08em] uppercase';
-
 const toolbarButtonClass =
   'border-ink bg-paper-raised border-2 px-2 py-1 font-mono text-[11px] font-bold uppercase hover:bg-lime hover:text-[#11100f]';
-
-interface Snippet {
-  label: string;
-  before: string;
-  after: string;
-  placeholder: string;
-}
-
-const snippets: Snippet[] = [
-  { label: 'H2', before: '## ', after: '', placeholder: 'Heading' },
-  { label: 'H3', before: '### ', after: '', placeholder: 'Heading' },
-  { label: 'Bold', before: '**', after: '**', placeholder: 'bold text' },
-  { label: 'Italic', before: '_', after: '_', placeholder: 'italic text' },
-  { label: 'Link', before: '[', after: '](https://)', placeholder: 'label' },
-  { label: 'Code', before: '`', after: '`', placeholder: 'code' },
-  {
-    label: 'Block',
-    before: '```ts\n',
-    after: '\n```',
-    placeholder: 'const x = 1;',
-  },
-  { label: 'Quote', before: '> ', after: '', placeholder: 'quote' },
-  { label: 'List', before: '- ', after: '', placeholder: 'item' },
-  { label: 'Rule', before: '\n---\n', after: '', placeholder: '' },
-];
 
 export function PostEditor({ initial }: { initial: PostEditorValues }) {
   const router = useRouter();
   const [values, setValues] = useState(initial);
   const [slugLocked, setSlugLocked] = useState(!!initial.originalSlug);
-  const [preview, setPreview] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [pending, startTransition] = useTransition();
-  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
   const set = <K extends keyof PostEditorValues>(
     key: K,
     value: PostEditorValues[K]
   ) => setValues((current) => ({ ...current, [key]: value }));
-
-  const onTitleChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const title = event.target.value;
-
-    setValues((current) => ({
-      ...current,
-      title,
-      // Keep the slug in step with the title until it is edited by hand.
-      slug: slugLocked ? current.slug : slugify(title),
-    }));
-  };
-
-  /** Inserts markdown around the current selection and restores the caret. */
-  const insert = (snippet: Snippet) => {
-    const textarea = bodyRef.current;
-    if (!textarea) return;
-
-    const { selectionStart, selectionEnd, value } = textarea;
-    const selected = value.slice(selectionStart, selectionEnd);
-    const content = selected || snippet.placeholder;
-    const next =
-      value.slice(0, selectionStart) +
-      snippet.before +
-      content +
-      snippet.after +
-      value.slice(selectionEnd);
-
-    set('body', next);
-
-    const caret = selectionStart + snippet.before.length;
-    requestAnimationFrame(() => {
-      textarea.focus();
-      textarea.setSelectionRange(caret, caret + content.length);
-    });
-  };
-
-  const insertAtCaret = (text: string) => {
-    const textarea = bodyRef.current;
-
-    if (!textarea) {
-      setValues((current) => ({
-        ...current,
-        body: `${current.body}\n${text}\n`,
-      }));
-      return;
-    }
-
-    const { selectionStart, selectionEnd, value } = textarea;
-    setValues((current) => ({
-      ...current,
-      body: value.slice(0, selectionStart) + text + value.slice(selectionEnd),
-    }));
-  };
-
-  const uploadFiles = async (files: File[]) => {
-    const images = files.filter((file) => file.type.startsWith('image/'));
-    if (images.length === 0) return;
-
-    setUploading(true);
-    setError(null);
-
-    try {
-      for (const file of images) {
-        const form = new FormData();
-        form.append('file', file);
-
-        const response = await fetch('/api/media', {
-          method: 'POST',
-          body: form,
-        });
-        const data = (await response.json()) as {
-          markdown?: string;
-          url?: string;
-          error?: string;
-        };
-
-        if (!response.ok || !data.markdown) {
-          throw new Error(data.error ?? 'Upload failed.');
-        }
-
-        insertAtCaret(`\n${data.markdown}\n`);
-        setMessage(`Uploaded ${file.name}`);
-      }
-    } catch (uploadError) {
-      setError(
-        uploadError instanceof Error ? uploadError.message : 'Upload failed.'
-      );
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const onPaste = (event: ClipboardEvent<HTMLTextAreaElement>) => {
-    const files = Array.from(event.clipboardData.files);
-    if (files.length === 0) return;
-
-    event.preventDefault();
-    void uploadFiles(files);
-  };
-
-  const onDrop = (event: DragEvent<HTMLTextAreaElement>) => {
-    const files = Array.from(event.dataTransfer.files);
-    if (files.length === 0) return;
-
-    event.preventDefault();
-    void uploadFiles(files);
-  };
 
   /** Fills the form from a local .md/.mdx file, front matter included. */
   const importMarkdownFile = async (file: File) => {
@@ -206,6 +71,35 @@ export function PostEditor({ initial }: { initial: PostEditorValues }) {
     }));
     setSlugLocked(true);
     setMessage(`Imported ${file.name}. Review it, then save.`);
+  };
+
+  const uploadCover = async (file: File) => {
+    setUploading(true);
+    setError(null);
+
+    try {
+      const form = new FormData();
+      form.append('file', file);
+
+      const response = await fetch('/api/media', {
+        method: 'POST',
+        body: form,
+      });
+      const data = (await response.json()) as { url?: string; error?: string };
+
+      if (!response.ok || !data.url) {
+        throw new Error(data.error ?? 'Upload failed.');
+      }
+
+      set('cover', data.url);
+      setMessage('Cover uploaded.');
+    } catch (uploadError) {
+      setError(
+        uploadError instanceof Error ? uploadError.message : 'Upload failed.'
+      );
+    } finally {
+      setUploading(false);
+    }
   };
 
   const submit = (status: PostStatus) => {
@@ -245,77 +139,66 @@ export function PostEditor({ initial }: { initial: PostEditorValues }) {
   return (
     <div className={clsx('flex flex-col gap-6')}>
       <div className={clsx('panel flex flex-col gap-4 p-6')}>
-        <label className={clsx('flex flex-col gap-2')}>
-          <span className={labelClass}>Title</span>
+        <Field label="Title">
           <input
             value={values.title}
-            onChange={onTitleChange}
+            onChange={(event) => {
+              const title = event.target.value;
+              setValues((current) => ({
+                ...current,
+                title,
+                slug: slugLocked ? current.slug : slugify(title),
+              }));
+            }}
             placeholder="What is this post about?"
             className={clsx(fieldClass, 'text-base font-bold')}
           />
-        </label>
+        </Field>
 
         <div className={clsx('grid gap-4', 'md:grid-cols-2')}>
-          <label className={clsx('flex flex-col gap-2')}>
-            <span className={labelClass}>Slug</span>
-            <input
+          <Field label="Slug" hint={`/blog/${values.slug || '…'}`}>
+            <TextInput
               value={values.slug}
-              onChange={(event) => {
+              onChange={(v) => {
                 setSlugLocked(true);
-                set('slug', event.target.value);
+                set('slug', v);
               }}
               placeholder="post-url"
-              className={fieldClass}
             />
-            <span className={clsx('text-ink-soft font-mono text-[11px]')}>
-              /blog/{values.slug || '…'}
-            </span>
-          </label>
-
-          <label className={clsx('flex flex-col gap-2')}>
-            <span className={labelClass}>Date</span>
-            <input
+          </Field>
+          <Field label="Date">
+            <TextInput
               type="date"
               value={values.date}
-              onChange={(event) => set('date', event.target.value)}
-              className={fieldClass}
+              onChange={(v) => set('date', v)}
             />
-          </label>
+          </Field>
         </div>
 
-        <label className={clsx('flex flex-col gap-2')}>
-          <span className={labelClass}>Description</span>
-          <textarea
-            value={values.description}
-            onChange={(event) => set('description', event.target.value)}
+        <Field label="Description">
+          <TextArea
             rows={2}
+            value={values.description}
+            onChange={(v) => set('description', v)}
             placeholder="One or two sentences for the post list and social cards."
-            className={fieldClass}
           />
-        </label>
+        </Field>
 
         <div className={clsx('grid gap-4', 'md:grid-cols-2')}>
-          <label className={clsx('flex flex-col gap-2')}>
-            <span className={labelClass}>Tags</span>
-            <input
+          <Field label="Tags" hint="Comma separated, up to six.">
+            <TextInput
               value={values.tags}
-              onChange={(event) => set('tags', event.target.value)}
+              onChange={(v) => set('tags', v)}
               placeholder="react, cloudflare, notes"
-              className={fieldClass}
             />
-            <span className={clsx('text-ink-soft font-mono text-[11px]')}>
-              Comma separated, up to six.
-            </span>
-          </label>
+          </Field>
 
-          <label className={clsx('flex flex-col gap-2')}>
-            <span className={labelClass}>Cover image</span>
+          <Field label="Cover image">
             <div className={clsx('flex gap-2')}>
-              <input
+              <TextInput
                 value={values.cover}
-                onChange={(event) => set('cover', event.target.value)}
+                onChange={(v) => set('cover', v)}
                 placeholder="/media/2026/10/cover.png"
-                className={fieldClass}
               />
               <label
                 className={clsx(
@@ -323,128 +206,44 @@ export function PostEditor({ initial }: { initial: PostEditorValues }) {
                   'flex shrink-0 cursor-pointer items-center'
                 )}
               >
-                Upload
+                {uploading ? 'Uploading…' : 'Upload'}
                 <input
                   type="file"
                   accept="image/*"
                   hidden
-                  onChange={async (event) => {
+                  onChange={(event) => {
                     const file = event.target.files?.[0];
-                    if (!file) return;
-
-                    setUploading(true);
-                    setError(null);
-
-                    try {
-                      const form = new FormData();
-                      form.append('file', file);
-
-                      const response = await fetch('/api/media', {
-                        method: 'POST',
-                        body: form,
-                      });
-                      const data = (await response.json()) as {
-                        url?: string;
-                        error?: string;
-                      };
-
-                      if (!response.ok || !data.url) {
-                        throw new Error(data.error ?? 'Upload failed.');
-                      }
-
-                      set('cover', data.url);
-                      setMessage('Cover uploaded.');
-                    } catch (uploadError) {
-                      setError(
-                        uploadError instanceof Error
-                          ? uploadError.message
-                          : 'Upload failed.'
-                      );
-                    } finally {
-                      setUploading(false);
-                    }
+                    if (file) void uploadCover(file);
+                    event.target.value = '';
                   }}
                 />
               </label>
             </div>
+          </Field>
+        </div>
+      </div>
+
+      <MarkdownField
+        value={values.body}
+        onChange={(body) => set('body', body)}
+        onError={setError}
+        onMessage={setMessage}
+        extraToolbar={
+          <label className={clsx(toolbarButtonClass, 'cursor-pointer')}>
+            Import .md
+            <input
+              type="file"
+              accept=".md,.mdx,text/markdown"
+              hidden
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void importMarkdownFile(file);
+                event.target.value = '';
+              }}
+            />
           </label>
-        </div>
-      </div>
-
-      <div className={clsx('panel p-6')}>
-        <div
-          className={clsx(
-            'mb-3 flex flex-wrap items-center justify-between gap-3'
-          )}
-        >
-          <div className={clsx('flex flex-wrap gap-1.5')}>
-            {snippets.map((snippet) => (
-              <button
-                key={snippet.label}
-                type="button"
-                onClick={() => insert(snippet)}
-                className={toolbarButtonClass}
-              >
-                {snippet.label}
-              </button>
-            ))}
-          </div>
-
-          <div className={clsx('flex gap-1.5')}>
-            <label className={clsx(toolbarButtonClass, 'cursor-pointer')}>
-              Import .md
-              <input
-                type="file"
-                accept=".md,.mdx,text/markdown"
-                hidden
-                onChange={(event) => {
-                  const file = event.target.files?.[0];
-                  if (file) void importMarkdownFile(file);
-                  event.target.value = '';
-                }}
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => setPreview((value) => !value)}
-              className={clsx(
-                toolbarButtonClass,
-                preview && 'bg-lime text-[#11100f]'
-              )}
-            >
-              {preview ? 'Edit' : 'Preview'}
-            </button>
-          </div>
-        </div>
-
-        {preview ? (
-          <div
-            className={clsx(
-              'border-ink bg-paper max-h-[32rem] overflow-y-auto border-[3px] p-5'
-            )}
-          >
-            <Markdown source={values.body || '_Nothing to preview yet._'} />
-          </div>
-        ) : (
-          <textarea
-            ref={bodyRef}
-            value={values.body}
-            onChange={(event) => set('body', event.target.value)}
-            onPaste={onPaste}
-            onDrop={onDrop}
-            rows={24}
-            spellCheck
-            placeholder="Write in markdown. Paste or drop an image to upload it straight to R2."
-            className={clsx(fieldClass, 'resize-y leading-relaxed')}
-          />
-        )}
-
-        <p className={clsx('text-ink-soft mt-3 font-mono text-[11px]')}>
-          {uploading
-            ? 'Uploading image…'
-            : 'Paste or drop images anywhere in the body to upload them to R2.'}
-        </p>
-      </div>
+        }
+      />
 
       {error ? (
         <div

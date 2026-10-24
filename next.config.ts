@@ -1,12 +1,10 @@
-import createMDX from '@next/mdx';
 import { initOpenNextCloudflareForDev } from '@opennextjs/cloudflare';
 
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  pageExtensions: ['ts', 'tsx', 'mdx'],
   images: {
-    // Cover images are served from R2 through /media/*, already sized by the
+    // Images are served from R2 through /media/*, already sized by the
     // uploader, so Next's optimizer would only add a hop.
     unoptimized: true,
   },
@@ -19,15 +17,7 @@ const nextConfig: NextConfig = {
   },
 };
 
-const withMDX = createMDX({
-  options: {
-    // Turbopack needs plugins referenced by name, not by imported function.
-    remarkPlugins: ['remark-gfm'],
-    rehypePlugins: ['rehype-slug'],
-  },
-});
-
-export default withMDX(nextConfig);
+export default nextConfig;
 
 // Gives `next dev` the same bindings (R2, secrets) the Worker gets in production.
 void initOpenNextCloudflareForDev();

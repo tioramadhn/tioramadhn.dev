@@ -1,18 +1,33 @@
-import { MdxPage } from '@/components/mdx-page';
+import { notFound } from 'next/navigation';
 
-import Content, { meta } from './content.mdx';
+import { ContentPage } from '@/components/content-page';
+
+import { getPage } from '@/lib/content';
 
 import type { Metadata } from 'next';
 
-export const metadata: Metadata = {
-  title: meta.title,
-  description: meta.description,
-};
+const SLUG = 'skills-and-tools';
 
-export default function Page() {
+export const dynamic = 'force-dynamic';
+
+export async function generateMetadata(): Promise<Metadata> {
+  const page = await getPage(SLUG);
+  if (!page) return {};
+
+  return { title: page.title, description: page.description };
+}
+
+export default async function Page() {
+  const page = await getPage(SLUG);
+  if (!page) notFound();
+
   return (
-    <MdxPage meta={meta} mascot="excited">
-      <Content />
-    </MdxPage>
+    <ContentPage
+      caption={page.caption}
+      title={page.title}
+      description={page.description}
+      mascot={page.mascot}
+      body={page.body}
+    />
   );
 }

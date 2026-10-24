@@ -55,6 +55,31 @@ AUTH_SECRET=$(openssl rand -base64 32)   # signs the session cookie
 Drafts are invisible everywhere public — the post page 404s, and they are left
 out of `/blog`, the sitemap and the RSS feed.
 
+### Everything else
+
+`/admin` also edits the rest of the site:
+
+- **Profile** — name, role, email, location, bio, the “open to opportunities”
+  badge, social links, the homepage headline/intro/CTA, the stack chips, the
+  three highlight cards, and the CV (upload a PDF or point at a URL).
+- **Projects** — full CRUD with reordering: title, slug, captions, descriptions,
+  tech stack, live URL, cover image, accent colour, mascot, and the markdown
+  write-up.
+- **Pages** — Experience, Skills and Tools, Contact and Credits, each a markdown
+  body plus its title, caption and mascot.
+
+All of it lives in the same R2 bucket:
+
+```
+site/settings.json   profile, hero, stack, highlights, socials
+site/projects.json   projects, in display order, with their bodies
+site/pages.json      the four long-form pages
+```
+
+**Nothing needs seeding.** `src/content/defaults.ts` holds the current site copy,
+and R2 is layered on top — so a fresh bucket renders the real site, and the
+first save in `/admin` takes over.
+
 ### How a post is stored
 
 One R2 object per post:

@@ -4,6 +4,7 @@ import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
 import { themeInitScript } from '@/components/theme-toggle';
 
+import { getSettings } from '@/lib/content';
 import { site } from '@/lib/site';
 
 import type { Metadata, Viewport } from 'next';
@@ -29,29 +30,26 @@ const mono = JetBrains_Mono({
   display: 'swap',
 });
 
-export const metadata: Metadata = {
-  metadataBase: new URL(site.url),
-  title: {
-    default: `${site.name} · ${site.role}`,
-    template: `%s · ${site.name}`,
-  },
-  description: site.description,
-  openGraph: {
-    type: 'website',
-    siteName: site.name,
-    url: site.url,
-    title: `${site.name} · ${site.role}`,
-    description: site.description,
-    images: ['/assets/images/og-image.png'],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    creator: `@${site.handle}`,
-  },
-  alternates: {
-    types: { 'application/rss+xml': '/rss.xml' },
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { profile } = await getSettings();
+  const title = `${profile.name} · ${profile.role}`;
+
+  return {
+    metadataBase: new URL(site.url),
+    title: { default: title, template: `%s · ${profile.name}` },
+    description: profile.description,
+    openGraph: {
+      type: 'website',
+      siteName: profile.name,
+      url: site.url,
+      title,
+      description: profile.description,
+      images: ['/assets/images/og-image.png'],
+    },
+    twitter: { card: 'summary_large_image', creator: `@${profile.handle}` },
+    alternates: { types: { 'application/rss+xml': '/rss.xml' } },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: [
@@ -60,11 +58,13 @@ export const viewport: Viewport = {
   ],
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const { profile } = await getSettings();
+
   return (
     <html
       lang="en"
@@ -82,7 +82,7 @@ export default function RootLayout({
         >
           Skip to content
         </a>
-        <SiteHeader />
+        <SiteHeader handle={profile.handle} />
         <main id="main">{children}</main>
         <SiteFooter />
       </body>

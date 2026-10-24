@@ -5,12 +5,16 @@ import { Mascot } from '@/components/mascot';
 import { ProjectCard } from '@/components/project-card';
 import { ButtonLink, Chip, Container, SectionHeading } from '@/components/ui';
 
-import { site } from '@/lib/site';
+import { getProjects, getSettings } from '@/lib/content';
 
-import { projects } from '@/content/projects';
-import { favouriteStack, highlights } from '@/content/stack';
+export const dynamic = 'force-dynamic';
 
-export default function HomePage() {
+export default async function HomePage() {
+  const [{ profile, hero, stack, highlights }, projects] = await Promise.all([
+    getSettings(),
+    getProjects(),
+  ]);
+
   return (
     <>
       <section className={clsx('border-ink border-b-[3px] py-16', 'md:py-24')}>
@@ -23,7 +27,7 @@ export default function HomePage() {
           >
             <div className={clsx('min-w-0 flex-1')}>
               <div className={clsx('flex flex-col gap-3')}>
-                {site.openToWork ? (
+                {profile.openToWork ? (
                   <Chip className={clsx('bg-lime w-fit text-[#11100f]')}>
                     <span
                       aria-hidden
@@ -39,9 +43,11 @@ export default function HomePage() {
                     'sm:text-6xl md:text-7xl lg:text-8xl'
                   )}
                 >
-                  Tio
-                  <br />
-                  Ramadhan
+                  {hero.headline.split('\n').map((line, index) => (
+                    <span key={line || index} className={clsx('block')}>
+                      {line}
+                    </span>
+                  ))}
                 </h1>
 
                 <p
@@ -51,12 +57,9 @@ export default function HomePage() {
                   )}
                 >
                   <strong className={clsx('bg-amber px-1 text-[#11100f]')}>
-                    {site.role}
+                    {profile.role}
                   </strong>{' '}
-                  building production apps for fintech and AI. I turn complex
-                  banking flows into interfaces that feel obvious — design
-                  systems, micro-frontends, and the shared plumbing eleven teams
-                  rely on.
+                  {hero.intro}
                 </p>
               </div>
 
@@ -65,27 +68,31 @@ export default function HomePage() {
                 <ButtonLink href="/projects" tone="outline">
                   See projects
                 </ButtonLink>
-                <ButtonLink href={site.resume} tone="accent" external>
-                  Résumé
-                </ButtonLink>
+                {profile.resumeUrl ? (
+                  <ButtonLink href={profile.resumeUrl} tone="accent" external>
+                    Résumé
+                  </ButtonLink>
+                ) : null}
               </div>
 
-              <div className={clsx('mt-12')}>
-                <p
-                  className={clsx(
-                    'text-ink-soft mb-3 font-mono text-[11px] tracking-[0.08em] uppercase'
-                  )}
-                >
-                  Current favourite stack
-                </p>
-                <ul className={clsx('flex flex-wrap gap-2')}>
-                  {favouriteStack.map((item) => (
-                    <li key={item}>
-                      <Chip className={clsx('bg-paper-raised')}>{item}</Chip>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              {stack.length > 0 ? (
+                <div className={clsx('mt-12')}>
+                  <p
+                    className={clsx(
+                      'text-ink-soft mb-3 font-mono text-[11px] tracking-[0.08em] uppercase'
+                    )}
+                  >
+                    Current favourite stack
+                  </p>
+                  <ul className={clsx('flex flex-wrap gap-2')}>
+                    {stack.map((item) => (
+                      <li key={item}>
+                        <Chip className={clsx('bg-paper-raised')}>{item}</Chip>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
             </div>
 
             <Mascot
@@ -97,23 +104,25 @@ export default function HomePage() {
         </Container>
       </section>
 
-      <section className={clsx('border-ink border-b-[3px] py-14')}>
-        <Container>
-          <div className={clsx('grid gap-5', 'md:grid-cols-3')}>
-            {highlights.map((item) => (
-              <div key={item.label} className={clsx('panel p-6')}>
-                <Chip className={clsx('bg-pink mb-4 text-[#11100f]')}>
-                  {item.label}
-                </Chip>
-                <p className={clsx('text-xl font-bold')}>{item.title}</p>
-                <p className={clsx('text-ink-soft mt-2 text-sm')}>
-                  {item.detail}
-                </p>
-              </div>
-            ))}
-          </div>
-        </Container>
-      </section>
+      {highlights.length > 0 ? (
+        <section className={clsx('border-ink border-b-[3px] py-14')}>
+          <Container>
+            <div className={clsx('grid gap-5', 'md:grid-cols-3')}>
+              {highlights.map((item) => (
+                <div key={item.label} className={clsx('panel p-6')}>
+                  <Chip className={clsx('bg-pink mb-4 text-[#11100f]')}>
+                    {item.label}
+                  </Chip>
+                  <p className={clsx('text-xl font-bold')}>{item.title}</p>
+                  <p className={clsx('text-ink-soft mt-2 text-sm')}>
+                    {item.detail}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </Container>
+        </section>
+      ) : null}
 
       <section className={clsx('py-16')}>
         <Container>
@@ -146,12 +155,9 @@ export default function HomePage() {
           >
             <div>
               <h2 className={clsx('display-text text-3xl', 'md:text-4xl')}>
-                Got something to build?
+                {hero.ctaTitle}
               </h2>
-              <p className={clsx('mt-3 max-w-md text-base')}>
-                I am open to frontend and full-stack work. Tell me what you are
-                working on.
-              </p>
+              <p className={clsx('mt-3 max-w-md text-base')}>{hero.ctaBody}</p>
             </div>
             <Link
               href="/work/contact"

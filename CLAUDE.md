@@ -40,25 +40,58 @@ Worker secrets in production. `.dev.vars.example` is the template.
 
 ## Architecture
 
-### Content lives in two places
+### All content is editable, and all of it is markdown
 
-1. **Static pages** — MDX on disk. Each content page is a pair:
-   `src/app/<path>/content.mdx` (exports `meta` + the body) and
-   `page.tsx` (imports both, renders `<MdxPage meta={meta}>`).
-   `pageExtensions` is `['ts','tsx','mdx']`, so only `page.*` files are routes —
-   a `content.mdx` sibling is just an import.
-   Global MDX components (`Video`, `Figure`, link handling) are in the root
-   `mdx-components.tsx`. Remark/rehype plugins are configured **by name string**
-   in `next.config.ts` because Turbopack cannot receive JS functions.
+There is no MDX and no content in JSX. Every word a visitor reads comes from R2,
+falling back to a built-in default:
 
-2. **Blog posts** — markdown in Cloudflare R2, written from `/admin`. One object
-   per post at `posts/<slug>.md`; all metadata (title, description, date, tags,
-   status, cover, readingTime) is R2 **custom metadata**, so `listPosts()` is a
-   single `bucket.list({ include: ['customMetadata'] })` with no body reads.
-   Uploaded images go to `media/<yyyy>/<mm>/<name>-<rand>.<ext>`.
+| What                                      | R2 key                | Default            |
+| ----------------------------------------- | --------------------- | ------------------ |
+| Profile, hero, stack, highlights, socials | `site/settings.json`  | `DEFAULT_SETTINGS` |
+| Projects (meta + markdown body)           | `site/projects.json`  | `DEFAULT_PROJECTS` |
+| Work pages and credits                    | `site/pages.json`     | `DEFAULT_PAGES`    |
+| Blog posts                                | `posts/<slug>.md`     | —                  |
+| Uploads (images, CV)                      | `media/<yyyy>/<mm>/…` | —                  |
 
-`src/lib/posts.ts` is the only module that knows the storage layout. Go through
-it rather than touching the bucket directly.
+**The defaults in `src/content/defaults.ts` are the real site copy**, not
+placeholders. A fresh deploy against an empty bucket renders the finished site,
+and there is no migration step: the first save in `/admin` starts overriding it.
+Never make a reader throw on a cold bucket — `src/lib/content.ts` swallows R2
+errors and returns defaults, deliberately.
+
+`src/lib/content.ts` (site content) and `src/lib/posts.ts` (blog) are the only
+modules that know the storage layout. Go through them rather than touching the
+bucket. Settings merge per section, so a settings file written before a new
+section existed still picks that section up from defaults.
+
+Blog post metadata (title, description, date, tags, status, cover, readingTime)
+rides as R2 **custom metadata**, so `listPosts()` is a single
+`bucket.list({ include: ['customMetadata'] })` with no body reads.
+
+Because every page reads R2, **every route is `force-dynamic`**. That is the
+price of full editability and it is intentional; do not "optimise" a content
+page back to static without moving its content back into the bundle.
+
+### Markdown conventions
+
+One renderer for everything: `src/components/markdown.tsx` (react-markdown +
+remark-gfm + rehype-slug + rehype-highlight). Two conventions replace what used
+to need MDX components:
+
+- `![caption](/clip.webm)` — a `.webm`/`.mp4`/`.mov` source renders as an
+  autoplaying muted `<video>`, with the alt text as its caption.
+- `![alt](/shot.png "caption")` — a title renders a `<figure>` + `<figcaption>`.
+
+### Admin
+
+`/admin` has four sections, all behind the same session: **Posts**, **Profile**,
+**Projects**, **Pages**. `src/app/admin/actions.ts` holds post actions and
+`content-actions.ts` the rest; both re-check auth per action.
+
+`src/components/admin/markdown-field.tsx` is the shared editing surface
+(toolbar, preview, paste/drop image upload) used by all three editors — extend
+it rather than copying it. `src/components/admin/fields.tsx` holds the form
+primitives.
 
 ### Cloudflare specifics
 

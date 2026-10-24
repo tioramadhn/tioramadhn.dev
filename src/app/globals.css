@@ -221,6 +221,18 @@
     height: auto;
   }
 
+  & figure > * + * {
+    margin-top: 0.5rem;
+  }
+
+  & figcaption {
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-ink-soft);
+  }
+
   & :not(pre) > code {
     font-family: var(--font-mono);
     font-size: 0.875em;
