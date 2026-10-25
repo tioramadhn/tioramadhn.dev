@@ -1,5 +1,5 @@
 import { getProjects } from '@/lib/content';
-import { listPosts } from '@/lib/posts';
+import { allSeries, listPosts } from '@/lib/posts';
 import { absoluteUrl } from '@/lib/site';
 
 import type { MetadataRoute } from 'next';
@@ -42,6 +42,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         url: absoluteUrl(`/blog/${post.slug}`),
         lastModified: new Date(post.updatedAt),
         priority: 0.8,
+      })),
+      ...allSeries(posts).map((series) => ({
+        url: absoluteUrl(`/blog/series/${series.slug}`),
+        priority: 0.7,
       }))
     );
   } catch {

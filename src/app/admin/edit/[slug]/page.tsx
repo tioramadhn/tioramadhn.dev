@@ -40,6 +40,7 @@ export default async function EditPostPage({
           date: post.date,
           tags: post.tags.join(', '),
           cover: post.cover ?? '',
+          series: post.series?.title ?? '',
           body: post.body,
           status: post.status,
         }}

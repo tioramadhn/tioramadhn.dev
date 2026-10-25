@@ -29,6 +29,7 @@ export interface PostEditorValues {
   date: string;
   tags: string;
   cover: string;
+  series: string;
   body: string;
   status: PostStatus;
 }
@@ -67,6 +68,7 @@ export function PostEditor({ initial }: { initial: PostEditorValues }) {
         : current.date,
       tags: meta.tags ?? current.tags,
       cover: meta.cover ?? current.cover,
+      series: meta.series ?? current.series,
       body,
     }));
     setSlugLocked(true);
@@ -193,34 +195,49 @@ export function PostEditor({ initial }: { initial: PostEditorValues }) {
             />
           </Field>
 
-          <Field label="Cover image">
-            <div className={clsx('flex gap-2')}>
-              <TextInput
-                value={values.cover}
-                onChange={(v) => set('cover', v)}
-                placeholder="/media/2026/10/cover.png"
-              />
-              <label
-                className={clsx(
-                  toolbarButtonClass,
-                  'flex shrink-0 cursor-pointer items-center'
-                )}
-              >
-                {uploading ? 'Uploading…' : 'Upload'}
-                <input
-                  type="file"
-                  accept="image/*"
-                  hidden
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) void uploadCover(file);
-                    event.target.value = '';
-                  }}
-                />
-              </label>
-            </div>
+          <Field
+            label="Series"
+            hint={
+              values.series
+                ? `Ordered by date · /blog/series/${slugify(values.series)}`
+                : 'Leave empty for a standalone post.'
+            }
+          >
+            <TextInput
+              value={values.series}
+              onChange={(v) => set('series', v)}
+              placeholder="Tutorial Web 3"
+            />
           </Field>
         </div>
+
+        <Field label="Cover image">
+          <div className={clsx('flex gap-2')}>
+            <TextInput
+              value={values.cover}
+              onChange={(v) => set('cover', v)}
+              placeholder="/media/2026/10/cover.png"
+            />
+            <label
+              className={clsx(
+                toolbarButtonClass,
+                'flex shrink-0 cursor-pointer items-center'
+              )}
+            >
+              {uploading ? 'Uploading…' : 'Upload'}
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                onChange={(event) => {
+                  const file = event.target.files?.[0];
+                  if (file) void uploadCover(file);
+                  event.target.value = '';
+                }}
+              />
+            </label>
+          </div>
+        </Field>
       </div>
 
       <MarkdownField

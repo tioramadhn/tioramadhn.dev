@@ -64,9 +64,24 @@ modules that know the storage layout. Go through them rather than touching the
 bucket. Settings merge per section, so a settings file written before a new
 section existed still picks that section up from defaults.
 
-Blog post metadata (title, description, date, tags, status, cover, readingTime)
-rides as R2 **custom metadata**, so `listPosts()` is a single
+Blog post metadata (title, description, date, tags, status, cover, series,
+readingTime) rides as R2 **custom metadata**, so `listPosts()` is a single
 `bucket.list({ include: ['customMetadata'] })` with no body reads.
+
+### Series
+
+A post joins a series by naming one in the editor's **Series** field (or a
+`series:` front-matter key on import). Only the display title is stored; the
+slug is derived from it with `slugify`, so there is one source of truth and
+renaming a series renames `/blog/series/<slug>` with it.
+
+Order within a series is **date ascending** — the reverse of the blog index —
+and there is no separate order number, so resequencing means changing dates.
+`getSeriesContext()` reads published posts only, so an unpublished middle
+instalment never leaves a dead "next" link; the chain closes over it. Series
+surface in three places: the footer nav on a post (`components/series-nav.tsx`,
+a native `<details>` so the post page stays a server component), the
+`/blog/series/[slug]` page, and a "Baca berurutan" block on `/blog`.
 
 Because every page reads R2, **every route is `force-dynamic`**. That is the
 price of full editability and it is intentional; do not "optimise" a content
@@ -75,8 +90,10 @@ page back to static without moving its content back into the bundle.
 ### Markdown conventions
 
 One renderer for everything: `src/components/markdown.tsx` (react-markdown +
-remark-gfm + rehype-slug + rehype-highlight). Two conventions replace what used
-to need MDX components:
+remark-gfm + rehype-slug + rehype-highlight). highlight.js ships no Solidity
+grammar, so `highlightjs-solidity` is passed to rehype-highlight's `languages`
+option — add any other missing grammar the same way, not by registering it on a
+global `hljs`. Two conventions replace what used to need MDX components:
 
 - `![caption](/clip.webm)` — a `.webm`/`.mp4`/`.mov` source renders as an
   autoplaying muted `<video>`, with the alt text as its caption.

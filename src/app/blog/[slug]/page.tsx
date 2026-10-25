@@ -1,11 +1,13 @@
 import clsx from 'clsx';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
 import { Markdown } from '@/components/markdown';
+import { SeriesNav } from '@/components/series-nav';
 import { ButtonLink, Chip, Container } from '@/components/ui';
 
 import { formatDate } from '@/lib/markdown';
-import { getPost } from '@/lib/posts';
+import { getPost, getSeriesContext } from '@/lib/posts';
 import { absoluteUrl } from '@/lib/site';
 
 import type { Metadata } from 'next';
@@ -50,6 +52,8 @@ export default async function PostPage({ params }: PostPageProps) {
     notFound();
   }
 
+  const seriesContext = await getSeriesContext(post);
+
   return (
     <Container className={clsx('py-14', 'md:py-20')}>
       <article>
@@ -61,6 +65,17 @@ export default async function PostPage({ params }: PostPageProps) {
             <Chip className={clsx('text-ink-soft border-dashed')}>
               {post.readingTime} min read
             </Chip>
+            {seriesContext ? (
+              <Link
+                href={`/blog/series/${seriesContext.series.slug}`}
+                className={clsx('hover:underline')}
+              >
+                <Chip className={clsx('bg-lime text-[#11100f]')}>
+                  {seriesContext.series.title} · {seriesContext.index + 1}/
+                  {seriesContext.items.length}
+                </Chip>
+              </Link>
+            ) : null}
           </div>
 
           <h1
@@ -102,6 +117,8 @@ export default async function PostPage({ params }: PostPageProps) {
 
         <Markdown source={post.body} />
       </article>
+
+      {seriesContext ? <SeriesNav context={seriesContext} /> : null}
 
       <div className={clsx('border-ink mt-16 border-t-[3px] pt-8')}>
         <ButtonLink href="/blog" tone="outline">

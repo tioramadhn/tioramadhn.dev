@@ -48,3 +48,11 @@ export function formatDate(date: string): string {
 export function today(): string {
   return new Date().toISOString().slice(0, 10);
 }
+
+/** Reading time for a whole series: minutes under an hour, quarter hours above. */
+export function formatTotalReadingTime(minutes: number): string {
+  if (minutes < 60) return `${minutes} menit baca`;
+
+  const hours = Math.round((minutes / 60) * 4) / 4;
+  return `±${hours} jam baca`;
+}

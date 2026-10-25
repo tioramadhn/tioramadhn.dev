@@ -24,6 +24,7 @@ export default async function NewPostPage() {
           date: today(),
           tags: '',
           cover: '',
+          series: '',
           body: '',
           status: 'draft',
         }}

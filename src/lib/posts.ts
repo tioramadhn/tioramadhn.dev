@@ -3,6 +3,16 @@ import { readingTimeMinutes, slugify } from '@/lib/markdown';
 
 export type PostStatus = 'draft' | 'published';
 
+/**
+ * A series groups posts meant to be read in order — a course, a multi-part
+ * write-up. Only the display title is stored; the slug is derived from it, so
+ * there is one source of truth and renaming a series renames its URL with it.
+ */
+export interface PostSeries {
+  slug: string;
+  title: string;
+}
+
 export interface PostMeta {
   slug: string;
   title: string;
@@ -11,6 +21,7 @@ export interface PostMeta {
   tags: string[];
   status: PostStatus;
   cover: string | null;
+  series: PostSeries | null;
   updatedAt: string;
   readingTime: number;
 }
@@ -27,6 +38,8 @@ export interface PostInput {
   tags: string[];
   status: PostStatus;
   cover: string | null;
+  /** Free text; empty means the post belongs to no series. */
+  series: string;
   body: string;
 }
 
@@ -55,6 +68,7 @@ function toCustomMetadata(input: PostInput): Record<string, string> {
     tags: input.tags.join(','),
     status: input.status,
     cover: input.cover ?? '',
+    series: input.series.trim(),
     updatedAt: new Date().toISOString(),
     readingTime: String(readingTimeMinutes(input.body)),
   };
@@ -66,6 +80,7 @@ function fromCustomMetadata(
   uploaded: Date
 ): PostMeta {
   const raw = meta ?? {};
+  const seriesTitle = raw.series?.trim() ?? '';
 
   return {
     slug,
@@ -78,6 +93,9 @@ function fromCustomMetadata(
       .filter(Boolean),
     status: raw.status === 'published' ? 'published' : 'draft',
     cover: raw.cover ? raw.cover : null,
+    series: seriesTitle
+      ? { slug: slugify(seriesTitle), title: seriesTitle }
+      : null,
     updatedAt: raw.updatedAt || uploaded.toISOString(),
     readingTime: Number(raw.readingTime) > 0 ? Number(raw.readingTime) : 1,
   };
@@ -177,4 +195,81 @@ export async function renamePost(from: string, to: string): Promise<void> {
 
 export function allTags(posts: PostMeta[]): string[] {
   return [...new Set(posts.flatMap((post) => post.tags))].sort();
+}
+
+/**
+ * A series reads oldest-first — the order the posts were written to be read in,
+ * which is the reverse of how the blog index lists them. Date is the only
+ * ordering signal; `updatedAt` breaks ties so a same-day series stays stable.
+ */
+function byDateAsc(a: PostMeta, b: PostMeta) {
+  return a.date === b.date
+    ? a.updatedAt.localeCompare(b.updatedAt)
+    : a.date.localeCompare(b.date);
+}
+
+export function seriesPosts(posts: PostMeta[], slug: string): PostMeta[] {
+  return posts.filter((post) => post.series?.slug === slug).sort(byDateAsc);
+}
+
+export interface SeriesSummary extends PostSeries {
+  count: number;
+  readingTime: number;
+}
+
+/** Every series that has at least one post, for listings. */
+export function allSeries(posts: PostMeta[]): SeriesSummary[] {
+  const found = new Map<string, SeriesSummary>();
+
+  for (const post of posts) {
+    if (!post.series) continue;
+
+    const existing = found.get(post.series.slug);
+
+    if (existing) {
+      existing.count += 1;
+      existing.readingTime += post.readingTime;
+    } else {
+      found.set(post.series.slug, {
+        ...post.series,
+        count: 1,
+        readingTime: post.readingTime,
+      });
+    }
+  }
+
+  return [...found.values()].sort((a, b) => a.title.localeCompare(b.title));
+}
+
+export interface SeriesContext {
+  series: PostSeries;
+  items: PostMeta[];
+  /** Zero-based position of the current post within `items`. */
+  index: number;
+  previous: PostMeta | null;
+  next: PostMeta | null;
+}
+
+/**
+ * The series a post sits in, with its neighbours. Drafts are left out, so an
+ * unpublished middle instalment never becomes a dead "next" link — the chain
+ * closes over it instead.
+ */
+export async function getSeriesContext(
+  post: PostMeta
+): Promise<SeriesContext | null> {
+  if (!post.series) return null;
+
+  const items = seriesPosts(await listPosts(), post.series.slug);
+  const index = items.findIndex((item) => item.slug === post.slug);
+
+  if (index === -1) return null;
+
+  return {
+    series: post.series,
+    items,
+    index,
+    previous: items[index - 1] ?? null,
+    next: items[index + 1] ?? null,
+  };
 }

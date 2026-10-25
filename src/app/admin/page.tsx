@@ -1,6 +1,7 @@
 import clsx from 'clsx';
 import Link from 'next/link';
 
+import { BulkImport } from '@/components/admin/bulk-import';
 import { Mascot } from '@/components/mascot';
 
 import { requireAuth } from '@/lib/auth';
@@ -42,6 +43,8 @@ export default async function AdminPage() {
           + New post
         </Link>
       </div>
+
+      <BulkImport />
 
       {posts.length === 0 ? (
         <div

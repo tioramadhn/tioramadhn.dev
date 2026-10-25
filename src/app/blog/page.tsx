@@ -1,10 +1,12 @@
 import clsx from 'clsx';
+import Link from 'next/link';
 
 import { Mascot } from '@/components/mascot';
 import { PostCard } from '@/components/post-card';
 import { Chip, Container, PageHeader } from '@/components/ui';
 
-import { allTags, listPosts } from '@/lib/posts';
+import { formatTotalReadingTime } from '@/lib/markdown';
+import { allSeries, allTags, listPosts } from '@/lib/posts';
 
 import type { Metadata } from 'next';
 
@@ -21,6 +23,7 @@ export const dynamic = 'force-dynamic';
 export default async function BlogPage() {
   const posts = await listPosts();
   const tags = allTags(posts);
+  const series = allSeries(posts);
 
   return (
     <Container className={clsx('py-14', 'md:py-20')}>
@@ -30,6 +33,48 @@ export default async function BlogPage() {
         description="Notes on frontend engineering, design systems, and shipping software other people depend on."
         mascot={posts.length === 0 ? 'sleeping' : 'writing'}
       />
+
+      {series.length > 0 ? (
+        <section className={clsx('mb-12')}>
+          <h2
+            className={clsx(
+              'text-ink-soft mb-4 font-mono text-[11px] font-bold tracking-[0.08em] uppercase'
+            )}
+          >
+            Baca berurutan
+          </h2>
+          <div className={clsx('grid gap-4', 'md:grid-cols-2')}>
+            {series.map((item) => (
+              <Link
+                key={item.slug}
+                href={`/blog/series/${item.slug}`}
+                className={clsx(
+                  'panel panel-interactive flex items-center justify-between gap-4 p-5'
+                )}
+              >
+                <span className={clsx('min-w-0')}>
+                  <span
+                    className={clsx('display-text block text-xl break-words')}
+                  >
+                    {item.title}
+                  </span>
+                  <span
+                    className={clsx(
+                      'text-ink-soft mt-1 block font-mono text-[11px]'
+                    )}
+                  >
+                    {item.count} materi ·{' '}
+                    {formatTotalReadingTime(item.readingTime)}
+                  </span>
+                </span>
+                <span className={clsx('shrink-0 text-2xl')} aria-hidden>
+                  →
+                </span>
+              </Link>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       {tags.length > 0 ? (
         <ul className={clsx('mb-10 flex flex-wrap gap-2')}>

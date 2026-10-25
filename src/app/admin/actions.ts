@@ -61,6 +61,12 @@ export async function logout(): Promise<void> {
   redirect('/admin/login');
 }
 
+/** A post joining or leaving a series changes that series' page and its siblings. */
+function revalidateSeries(title: string | undefined): void {
+  const slug = slugify(title ?? '');
+  if (slug) revalidatePath(`/blog/series/${slug}`);
+}
+
 function parseTags(raw: string): string[] {
   return [
     ...new Set(
@@ -81,6 +87,8 @@ export interface SavePostPayload {
   date: string;
   tags: string;
   cover: string;
+  /** Display title of the series this post belongs to; empty for none. */
+  series: string;
   body: string;
   status: PostStatus;
 }
@@ -124,12 +132,14 @@ export async function savePostAction(
     tags: parseTags(payload.tags),
     status: payload.status,
     cover: payload.cover.trim() || null,
+    series: payload.series,
     body: payload.body,
   });
 
   revalidatePath('/admin');
   revalidatePath('/blog');
   revalidatePath(`/blog/${slug}`);
+  revalidateSeries(payload.series);
   if (isRename) revalidatePath(`/blog/${payload.originalSlug}`);
 
   return { slug };
@@ -147,11 +157,12 @@ export async function setStatusAction(
     return { error: 'That post no longer exists.' };
   }
 
-  await savePost({ ...post, status });
+  await savePost({ ...post, status, series: post.series?.title ?? '' });
 
   revalidatePath('/admin');
   revalidatePath('/blog');
   revalidatePath(`/blog/${slug}`);
+  revalidateSeries(post.series?.title);
 
   return {};
 }

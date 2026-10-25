@@ -1,10 +1,15 @@
 import clsx from 'clsx';
+import { solidity, yul } from 'highlightjs-solidity';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeSlug from 'rehype-slug';
 import remarkGfm from 'remark-gfm';
 
 import type { Components } from 'react-markdown';
+
+// highlight.js has no Solidity grammar of its own, so `language-solidity`
+// fences would render as flat monospace without this.
+const languages = { solidity, yul };
 
 const components: Components = {
   a({ href, children, ...props }) {
@@ -69,7 +74,7 @@ export function Markdown({
     <div className={clsx('prose-brutal', className)}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
-        rehypePlugins={[rehypeSlug, rehypeHighlight]}
+        rehypePlugins={[rehypeSlug, [rehypeHighlight, { languages }]]}
         components={components}
       >
         {source}

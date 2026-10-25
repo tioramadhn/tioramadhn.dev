@@ -11,6 +11,9 @@ importers:
       clsx:
         specifier: 2.1.1
         version: 2.1.1
+      highlightjs-solidity:
+        specifier: 2.0.6
+        version: 2.0.6
       jose:
         specifier: 6.2.13
         version: 6.2.13
@@ -2252,6 +2255,9 @@ packages:
   highlight.js@11.11.2:
     resolution: {integrity: sha512-oaXMACAU0kzOMXBjWpNcX+vlwSBCIAiZ9BHa7gA15NOTtT2L/l8OSZDuqS2XppOhZBPJ7hm4o8ep2kyuip2uEQ==}
     engines: {node: '>=12.0.0'}
+
+  highlightjs-solidity@2.0.6:
+    resolution: {integrity: sha512-DySXWfQghjm2l6a/flF+cteroJqD4gI8GSdL4PtvxZSsAHie8m3yVe2JFoRg03ROKT6hp2Lc/BxXkqerNmtQYg==}
 
   html-url-attributes@3.0.1:
     resolution: {integrity: sha512-ol6UPyBWqsrO6EJySPz2O7ZSr856WDrEzM5zMqp+FJJLGMW35cLYmmZnl0vztAZxRUoNZJFTCohfjuIJ8I4QBQ==}
@@ -6305,6 +6311,8 @@ snapshots:
       hermes-estree: 0.25.1
 
   highlight.js@11.11.2: {}
+
+  highlightjs-solidity@2.0.6: {}
 
   html-url-attributes@3.0.1: {}
 

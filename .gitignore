@@ -32,3 +32,4 @@ yarn-error.log*
 
 # legacy tree from the v1 (Turborepo + Pages Router) site, safe to delete
 .legacy
+content-drafts
