@@ -83,6 +83,12 @@ surface in three places: the footer nav on a post (`components/series-nav.tsx`,
 a native `<details>` so the post page stays a server component), the
 `/blog/series/[slug]` page, and a "Baca berurutan" block on `/blog`.
 
+`/blog` lists a series **once**, as that block, and filters its instalments out
+of the feed below — otherwise one course buries every standalone post. The tag
+row is derived from the feed, not the whole archive, so it never advertises a
+tag nothing visible carries. RSS is unfiltered on purpose: it is a feed of
+everything written.
+
 Because every page reads R2, **every route is `force-dynamic`**. That is the
 price of full editability and it is intentional; do not "optimise" a content
 page back to static without moving its content back into the bundle.

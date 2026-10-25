@@ -18,11 +18,6 @@ export function PostCard({ post }: { post: PostMeta }) {
           <Chip className={clsx('text-ink-soft border-dashed')}>
             {post.readingTime} min read
           </Chip>
-          {post.series ? (
-            <Chip className={clsx('bg-lime text-[#11100f]')}>
-              {post.series.title}
-            </Chip>
-          ) : null}
           {post.status === 'draft' ? (
             <Chip className={clsx('bg-coral text-[#11100f]')}>Draft</Chip>
           ) : null}

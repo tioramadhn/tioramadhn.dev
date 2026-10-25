@@ -20,10 +20,19 @@ export const metadata: Metadata = {
 // and a publish shows up immediately — no build or revalidation step.
 export const dynamic = 'force-dynamic';
 
+const sectionLabelClass =
+  'text-ink-soft font-mono text-[11px] font-bold tracking-[0.08em] uppercase';
+
 export default async function BlogPage() {
   const posts = await listPosts();
-  const tags = allTags(posts);
   const series = allSeries(posts);
+
+  // A series is listed once, as its own entry, so its instalments stay out of
+  // the feed below — otherwise one course buries every standalone post. The
+  // tag row follows the feed, not the whole archive, so it never advertises a
+  // tag nothing visible carries.
+  const standalone = posts.filter((post) => !post.series);
+  const tags = allTags(standalone);
 
   return (
     <Container className={clsx('py-14', 'md:py-20')}>
@@ -36,13 +45,7 @@ export default async function BlogPage() {
 
       {series.length > 0 ? (
         <section className={clsx('mb-12')}>
-          <h2
-            className={clsx(
-              'text-ink-soft mb-4 font-mono text-[11px] font-bold tracking-[0.08em] uppercase'
-            )}
-          >
-            Baca berurutan
-          </h2>
+          <h2 className={clsx(sectionLabelClass, 'mb-4')}>Baca berurutan</h2>
           <div className={clsx('grid gap-4', 'md:grid-cols-2')}>
             {series.map((item) => (
               <Link
@@ -96,13 +99,20 @@ export default async function BlogPage() {
             The first one is being written. Check back soon.
           </p>
         </div>
-      ) : (
-        <div className={clsx('flex flex-col gap-6')}>
-          {posts.map((post) => (
-            <PostCard key={post.slug} post={post} />
-          ))}
-        </div>
-      )}
+      ) : null}
+
+      {standalone.length > 0 ? (
+        <section>
+          {series.length > 0 ? (
+            <h2 className={clsx(sectionLabelClass, 'mb-4')}>Tulisan lepas</h2>
+          ) : null}
+          <div className={clsx('flex flex-col gap-6')}>
+            {standalone.map((post) => (
+              <PostCard key={post.slug} post={post} />
+            ))}
+          </div>
+        </section>
+      ) : null}
     </Container>
   );
 }
