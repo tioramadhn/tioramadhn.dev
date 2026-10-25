@@ -26,6 +26,7 @@ interface ImportResult {
 export function BulkImport() {
   const router = useRouter();
   const [results, setResults] = useState<ImportResult[]>([]);
+  const [replaceExisting, setReplaceExisting] = useState(false);
   const [busy, setBusy] = useState(false);
   const [, startTransition] = useTransition();
 
@@ -55,6 +56,7 @@ export function BulkImport() {
           series: meta.series ?? '',
           body,
           status,
+          replaceExisting,
         });
 
         collected.push(
@@ -97,6 +99,27 @@ export function BulkImport() {
             front matter says{' '}
             <code className={clsx('font-mono')}>published</code>.
           </p>
+
+          <label
+            className={clsx(
+              'mt-3 flex cursor-pointer items-start gap-2 text-sm'
+            )}
+          >
+            <input
+              type="checkbox"
+              checked={replaceExisting}
+              onChange={(event) => setReplaceExisting(event.target.checked)}
+              className={clsx('border-ink mt-0.5 size-4 shrink-0 border-2')}
+            />
+            <span>
+              Replace posts that already exist
+              <span className={clsx('text-ink-soft block text-[13px]')}>
+                Overwrites the body and metadata of a matching slug. Whether a
+                post is published stays as it is, so re-importing an edited
+                draft never takes a live post down.
+              </span>
+            </span>
+          </label>
         </div>
 
         <label

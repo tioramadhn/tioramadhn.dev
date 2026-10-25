@@ -39,7 +39,7 @@ export default async function BlogPage() {
       <PageHeader
         caption="Writing"
         title="Blog"
-        description="Tutorial panjang dan catatan kerja. Sebagian besar berbahasa Indonesia — termasuk kursus Web3 19 bagian di bawah."
+        description="Tutorial panjang dan catatan kerja. Sebagian besar berbahasa Indonesia, termasuk kursus Web3 19 bagian di bawah."
         mascot={posts.length === 0 ? 'sleeping' : 'writing'}
       />
 

@@ -91,6 +91,12 @@ export interface SavePostPayload {
   series: string;
   body: string;
   status: PostStatus;
+  /**
+   * Overwrite a post that already has this slug instead of refusing. Used by
+   * the bulk importer's replace mode; the stored status wins over `status`, so
+   * re-importing an edited draft never unpublishes what is already live.
+   */
+  replaceExisting?: boolean;
 }
 
 export async function savePostAction(
@@ -115,8 +121,13 @@ export async function savePostAction(
   }
 
   const isRename = !!payload.originalSlug && payload.originalSlug !== slug;
+  const replacing = payload.replaceExisting ? await getPost(slug) : null;
 
-  if ((isRename || !payload.originalSlug) && (await postExists(slug))) {
+  if (
+    !replacing &&
+    (isRename || !payload.originalSlug) &&
+    (await postExists(slug))
+  ) {
     return { error: `A post with the slug "${slug}" already exists.` };
   }
 
@@ -130,7 +141,7 @@ export async function savePostAction(
     description: payload.description.trim(),
     date: /^\d{4}-\d{2}-\d{2}$/.test(payload.date) ? payload.date : today(),
     tags: parseTags(payload.tags),
-    status: payload.status,
+    status: replacing ? replacing.status : payload.status,
     cover: payload.cover.trim() || null,
     series: payload.series,
     body: payload.body,

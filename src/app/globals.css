@@ -350,3 +350,69 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Collapsible answers inside long-form content. An exercise whose answer is
+   visible below it is not an exercise, so `> [!jawaban]` renders as a details
+   the reader opens on purpose. See src/lib/remark-reveal.ts. */
+@layer components {
+  .prose-brutal details.reveal {
+    border: 3px solid var(--color-ink);
+    background: var(--color-paper-raised);
+    margin-block: 1.5rem;
+    padding: 0;
+  }
+
+  .prose-brutal details.reveal > summary {
+    cursor: pointer;
+    list-style: none;
+    padding: 0.75rem 1.25rem;
+    font-family: var(--font-jetbrains-mono), monospace;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0;
+  }
+
+  .prose-brutal details.reveal > summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .prose-brutal details.reveal > summary::before {
+    content: '▸';
+    transition: transform 150ms ease;
+  }
+
+  .prose-brutal details.reveal[open] > summary::before {
+    transform: rotate(90deg);
+  }
+
+  .prose-brutal details.reveal > summary:hover {
+    background: var(--color-lime);
+    color: #11100f;
+  }
+
+  .prose-brutal details.reveal[open] > summary {
+    border-bottom: 3px solid var(--color-ink);
+  }
+
+  /* A hint is a nudge, an answer is the end of the exercise: colour them apart. */
+  .prose-brutal details.reveal[data-reveal='petunjuk'] > summary {
+    background: var(--color-paper-sunken);
+  }
+
+  .prose-brutal details.reveal > *:not(summary) {
+    padding-inline: 1.25rem;
+  }
+
+  .prose-brutal details.reveal > *:not(summary):first-of-type {
+    padding-top: 1rem;
+  }
+
+  .prose-brutal details.reveal > *:last-child {
+    padding-bottom: 1rem;
+  }
+}

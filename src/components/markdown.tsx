@@ -5,6 +5,8 @@ import rehypeHighlight from 'rehype-highlight';
 import rehypeSlug from 'rehype-slug';
 import remarkGfm from 'remark-gfm';
 
+import { remarkReveal } from '@/lib/remark-reveal';
+
 import type { Components } from 'react-markdown';
 
 // highlight.js has no Solidity grammar of its own, so `language-solidity`
@@ -73,7 +75,7 @@ export function Markdown({
   return (
     <div className={clsx('prose-brutal', className)}>
       <ReactMarkdown
-        remarkPlugins={[remarkGfm]}
+        remarkPlugins={[remarkGfm, remarkReveal]}
         rehypePlugins={[rehypeSlug, [rehypeHighlight, { languages }]]}
         components={components}
       >

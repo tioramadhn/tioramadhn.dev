@@ -104,6 +104,12 @@ global `hljs`. Two conventions replace what used to need MDX components:
 - `![caption](/clip.webm)` — a `.webm`/`.mp4`/`.mov` source renders as an
   autoplaying muted `<video>`, with the alt text as its caption.
 - `![alt](/shot.png "caption")` — a title renders a `<figure>` + `<figcaption>`.
+- A blockquote opening with `[!jawaban]`, `[!pembahasan]`, `[!petunjuk]` or
+  `[!hasil]` renders as a **collapsed `<details>`** (`src/lib/remark-reveal.ts`).
+  Text after the marker overrides the summary: `> [!petunjuk] Masih buntu?`.
+  Exercise answers must use this — an answer sitting in plain sight below the
+  question is not an exercise. It is a native `<details>`, so no client
+  JavaScript and the post stays a server component.
 
 ### Admin
 
@@ -196,6 +202,25 @@ Empty (the default) renders no beacon at all, which is why local development is
 never counted. `/admin` is excluded by path — a server component has no
 `usePathname`, and this site has no middleware, so `components/analytics.tsx`
 reads the adapter's `x-opennext-initial-url` header instead.
+
+### Writing style for Indonesian content
+
+The blog's long-form content is in Bahasa Indonesia. Two habits make that prose
+read like machine translation, and both were cleaned out of the Web3 series once
+already:
+
+- **Em dashes.** Indonesian rarely uses `—`. Prefer a comma, a period, a colon,
+  or parentheses, and restructure the clause rather than reaching for a dash.
+  The only `—` left in `content-drafts/` is the standalone "nil" marker inside
+  table cells. Headings and list labels use `:` or a period (`### Latihan 3:
+Fuzz test`, `**Komunikasi.** Umumkan …`), never a dash.
+- **Literal English constructions.** "To be fair" is not "Adil juga dicatat"
+  (use "Supaya adil"); "cases where" is not "kasus di mana" (use "keadaan
+  yang"); and `ia` for an inanimate subject is awkward, so repeat the noun or
+  recast the sentence.
+
+English UI copy is a separate matter: an em dash there is ordinary English
+style, not a tell, and those were deliberately left alone.
 
 ## Conventions
 
