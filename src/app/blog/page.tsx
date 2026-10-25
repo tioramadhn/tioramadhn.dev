@@ -13,7 +13,7 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Blog',
   description:
-    'Notes on frontend engineering, design systems, and shipping software that other people depend on.',
+    'Long-form tutorials and working notes — including a 19-part Web3 course written in Bahasa Indonesia.',
 };
 
 // Posts live in R2 and are written from /admin, so the list is read per request
@@ -39,7 +39,7 @@ export default async function BlogPage() {
       <PageHeader
         caption="Writing"
         title="Blog"
-        description="Notes on frontend engineering, design systems, and shipping software other people depend on."
+        description="Tutorial panjang dan catatan kerja. Sebagian besar berbahasa Indonesia — termasuk kursus Web3 19 bagian di bawah."
         mascot={posts.length === 0 ? 'sleeping' : 'writing'}
       />
 
@@ -83,7 +83,15 @@ export default async function BlogPage() {
         <ul className={clsx('mb-10 flex flex-wrap gap-2')}>
           {tags.map((tag) => (
             <li key={tag}>
-              <Chip className={clsx('bg-paper-raised')}>#{tag}</Chip>
+              <Link href={`/blog/tag/${tag}`}>
+                <Chip
+                  className={clsx(
+                    'bg-paper-raised hover:bg-lime hover:text-[#11100f]'
+                  )}
+                >
+                  #{tag}
+                </Chip>
+              </Link>
             </li>
           ))}
         </ul>

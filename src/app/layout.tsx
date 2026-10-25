@@ -1,5 +1,6 @@
 import { Archivo_Black, JetBrains_Mono, Space_Grotesk } from 'next/font/google';
 
+import { Analytics } from '@/components/analytics';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
 import { themeInitScript } from '@/components/theme-toggle';
@@ -85,6 +86,7 @@ export default async function RootLayout({
         <SiteHeader handle={profile.handle} />
         <main id="main">{children}</main>
         <SiteFooter />
+        <Analytics />
       </body>
     </html>
   );

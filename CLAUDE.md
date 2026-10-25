@@ -177,6 +177,26 @@ CSS-first config:
   long-form content (MDX pages, blog posts, and the editor preview).
 - Prefer these utilities over repeating `border-[3px] shadow-brutal` strings.
 
+### Social cards and analytics
+
+Every post and series page gets a generated OG image from `/api/og/[slug]` and
+`/api/og/series/[slug]`, drawn by `src/lib/og-card.tsx`. Two things to keep in
+mind:
+
+- The title is read from R2 **by slug**, never from a query string, so the route
+  cannot be used to render arbitrary text under this site's branding.
+- `next/og` pulls in resvg + satori, which is most of the jump from ~1.5 MiB to
+  ~2.3 MiB gzipped. That is the single largest thing in the Worker; check
+  `pnpm exec wrangler deploy --dry-run` before adding anything else sizeable.
+- The display font is served through the `ASSETS` binding (`readAsset` in
+  `src/lib/env.ts`), not bundled, so it costs nothing against that limit.
+
+`WEB_ANALYTICS_TOKEN` in `wrangler.jsonc` turns on Cloudflare Web Analytics.
+Empty (the default) renders no beacon at all, which is why local development is
+never counted. `/admin` is excluded by path — a server component has no
+`usePathname`, and this site has no middleware, so `components/analytics.tsx`
+reads the adapter's `x-opennext-initial-url` header instead.
+
 ## Conventions
 
 - Class names composed with `clsx`, one responsive breakpoint per string

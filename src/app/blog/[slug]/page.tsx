@@ -38,7 +38,7 @@ export async function generateMetadata({
       url: absoluteUrl(`/blog/${post.slug}`),
       publishedTime: post.date,
       tags: post.tags,
-      images: [post.cover ?? '/assets/images/og-image.png'],
+      images: [absoluteUrl(`/api/og/${post.slug}`)],
     },
   };
 }
@@ -97,7 +97,15 @@ export default async function PostPage({ params }: PostPageProps) {
             <ul className={clsx('mt-6 flex flex-wrap gap-2')}>
               {post.tags.map((tag) => (
                 <li key={tag}>
-                  <Chip className={clsx('bg-paper-raised')}>#{tag}</Chip>
+                  <Link href={`/blog/tag/${tag}`}>
+                    <Chip
+                      className={clsx(
+                        'bg-paper-raised hover:bg-lime hover:text-[#11100f]'
+                      )}
+                    >
+                      #{tag}
+                    </Chip>
+                  </Link>
                 </li>
               ))}
             </ul>

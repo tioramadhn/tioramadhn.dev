@@ -2,6 +2,7 @@ import clsx from 'clsx';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
+import { ResumeSeries } from '@/components/series-progress';
 import { ButtonLink, Chip, Container, PageHeader } from '@/components/ui';
 
 import { formatDate, formatTotalReadingTime } from '@/lib/markdown';
@@ -45,10 +46,7 @@ export async function generateMetadata({
       title: series.title,
       description,
       url: absoluteUrl(`/blog/series/${series.slug}`),
-      images: [
-        items.find((item) => item.cover)?.cover ??
-          '/assets/images/og-image.png',
-      ],
+      images: [absoluteUrl(`/api/og/series/${series.slug}`)],
     },
   };
 }
@@ -81,6 +79,11 @@ export default async function SeriesPage({ params }: SeriesPageProps) {
           {formatTotalReadingTime(totalTime)}
         </Chip>
       </div>
+
+      <ResumeSeries
+        seriesSlug={series.slug}
+        items={items.map((item) => ({ slug: item.slug, title: item.title }))}
+      />
 
       <ol className={clsx('panel flex flex-col p-0')}>
         {items.map((item, index) => (

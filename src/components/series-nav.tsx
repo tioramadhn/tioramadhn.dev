@@ -1,6 +1,7 @@
 import clsx from 'clsx';
 import Link from 'next/link';
 
+import { MarkRead } from '@/components/series-progress';
 import { Chip } from '@/components/ui';
 
 import type { SeriesContext } from '@/lib/posts';
@@ -40,6 +41,12 @@ export function SeriesNav({ context }: { context: SeriesContext }) {
           <span className={clsx('text-ink-soft font-mono text-[11px]')}>
             Bagian {position} dari {items.length}
           </span>
+          <div className={clsx('ms-auto')}>
+            <MarkRead
+              seriesSlug={series.slug}
+              postSlug={items[index]?.slug ?? ''}
+            />
+          </div>
         </div>
 
         {/* One segment per instalment: filled up to and including this one.
