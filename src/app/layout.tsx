@@ -3,6 +3,7 @@ import { Archivo_Black, JetBrains_Mono, Space_Grotesk } from 'next/font/google';
 import { Analytics } from '@/components/analytics';
 import { SiteFooter } from '@/components/site-footer';
 import { SiteHeader } from '@/components/site-header';
+import { seriesNavInitScript } from '@/components/series-nav-toggle';
 import { themeInitScript } from '@/components/theme-toggle';
 
 import { getSettings } from '@/lib/content';
@@ -73,8 +74,10 @@ export default async function RootLayout({
       className={`${display.variable} ${sans.variable} ${mono.variable}`}
     >
       <head>
-        {/* Applies the stored theme before first paint to avoid a flash. */}
+        {/* Applies the stored theme and course-rail state before first paint,
+            so neither one flashes in. */}
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
+        <script dangerouslySetInnerHTML={{ __html: seriesNavInitScript }} />
       </head>
       <body className="antialiased">
         <a

@@ -449,21 +449,46 @@ But if you're short on time, here are the platforms I use most:
   {
     slug: 'credits',
     title: 'Credits',
-    description: 'Big thanks to everyone whose work made this site possible.',
+    description:
+      'What this site is built on, who it borrowed from, and where to buy me a coffee.',
     caption: '',
     mascot: 'happy',
     body: `## Special Thanks
 
-- **[Enji Kusnadi](https://enji.dev)** — the first version of this site was built on top of his
-  [enji.dev](https://github.com/enjidev/enji.dev) portfolio, and a lot of the
-  original structure and ideas came from there. The site has since been rebuilt
-  from scratch, but the starting point was his.
+- **[Enji Kusnadi](https://enji.dev)** — the first version of this site was built
+  on top of his [enji.dev](https://github.com/enjidev/enji.dev) portfolio. It has
+  since been rebuilt from scratch, but the starting point was his, and a lot of
+  the original ideas stuck around.
 
 ## Built With
 
 - **[Next.js](https://nextjs.org)** — App Router, React Server Components.
 - **[Tailwind CSS](https://tailwindcss.com)** — the neobrutalist theme is a handful of CSS variables and three box-shadows.
 - **[Cloudflare Workers](https://workers.cloudflare.com)** via **[OpenNext](https://opennext.js.org/cloudflare)** — hosting.
-- **[Cloudflare R2](https://developers.cloudflare.com/r2/)** — blog posts and images, written straight from the \`/admin\` editor.`,
+- **[Cloudflare R2](https://developers.cloudflare.com/r2/)** — every word on this site, written straight from the \`/admin\` editor and stored as markdown.
+- **[Archivo Black](https://github.com/Omnibus-Type/ArchivoBlack)** by Omnibus-Type — the display face, here and on every social card.
+- **[react-markdown](https://github.com/remarkjs/react-markdown)** with remark and rehype — one renderer for posts, pages, and the editor preview.
+- **[highlightjs-solidity](https://github.com/highlightjs/highlightjs-solidity)** — highlight.js ships no Solidity grammar, and a course full of smart contracts needed one.
+- **[lottie-web](https://github.com/airbnb/lottie-web)** — the mascot, on the light build with expressions compiled out.
+
+## Buy Me a Coffee
+
+Everything here is free to read, the [19-part Web3 course](/blog/series/tutorial-web-3)
+included. No paywall, no ads, nothing to sign up for. If something here saved you
+an afternoon, a coffee is always welcome:
+
+\`\`\`
+0x88Ed4a365555B47bC3d05106768EaFF00D181c34
+\`\`\`
+
+Any **EVM** network reaches that address: Ethereum mainnet, Base, Arbitrum,
+Optimism, or Polygon. On a Layer 2 the gas costs a fraction of mainnet, so for a
+small amount that is the kinder route — which is the whole argument of
+[Modul 11](/blog/modul-11-layer-2-optimasi-gas).
+
+One warning, and it is the same one from
+[Modul 4](/blog/modul-4-ethereum-wallet-transaksi): send only from an EVM chain.
+Anything sent from Bitcoin, Solana, or Tron cannot arrive at this address, and
+there is no way to recover it.`,
   },
 ];

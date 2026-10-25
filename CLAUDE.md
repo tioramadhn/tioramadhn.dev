@@ -79,9 +79,29 @@ Order within a series is **date ascending** — the reverse of the blog index �
 and there is no separate order number, so resequencing means changing dates.
 `getSeriesContext()` reads published posts only, so an unpublished middle
 instalment never leaves a dead "next" link; the chain closes over it. Series
-surface in three places: the footer nav on a post (`components/series-nav.tsx`,
-a native `<details>` so the post page stays a server component), the
-`/blog/series/[slug]` page, and a "Baca berurutan" block on `/blog`.
+surface in three places: the navigation on a post (`components/series-nav.tsx`),
+the `/blog/series/[slug]` page, and a "Baca berurutan" block on `/blog`.
+
+`--header-height` in `@theme` is the one place SiteHeader's size is written
+down (`h-16` plus its 3px border); the rail's sticky offset reads it rather than
+guessing, which is what kept it from sliding under the navbar.
+
+On a post, `series-nav.tsx` exports three pieces: `SeriesSidebar` (the sticky
+left rail, `lg` and up), `SeriesSummary` (the same information stacked above the
+article below `lg`), and `SeriesSteps` (previous/next, under the article at
+every width — it belongs where the reader is when they finish, and the titles
+are far too long for a 16rem rail). A post in a series widens to `max-w-6xl` so
+the rail does not eat the prose; everything else stays `max-w-5xl`.
+
+`SeriesNavToggle` hides the rail. It floats (`position: fixed`, bottom-right)
+so it is in reach at any scroll position — bottom-_left_ was tried first and
+covered the very list it opens, and sitting it after the article meant nobody
+found it. Like `ThemeToggle` it keeps **no React state**:
+it writes `data-series-nav="hidden"` on `<html>`, `seriesNavInitScript` applies
+that before first paint, and CSS does the rest. Note that `.series-sidebar`
+carries no Tailwind `hidden lg:block` — utilities sit in a later cascade layer
+than `@layer components`, so a display utility would beat the hide rule and the
+rail could never close.
 
 `/blog` lists a series **once**, as that block, and filters its instalments out
 of the feed below — otherwise one course buries every standalone post. The tag
@@ -104,6 +124,10 @@ global `hljs`. Two conventions replace what used to need MDX components:
 - `![caption](/clip.webm)` — a `.webm`/`.mp4`/`.mov` source renders as an
   autoplaying muted `<video>`, with the alt text as its caption.
 - `![alt](/shot.png "caption")` — a title renders a `<figure>` + `<figcaption>`.
+- Every fenced block is wrapped by `components/copy-button.tsx`, which adds a
+  copy button. It reads the rendered DOM at click time, not the AST, and strips
+  trailing newlines — a wallet address with a stray `\n` is rejected by some
+  wallets.
 - A blockquote opening with `[!jawaban]`, `[!pembahasan]`, `[!petunjuk]` or
   `[!hasil]` renders as a **collapsed `<details>`** (`src/lib/remark-reveal.ts`).
   Text after the marker overrides the summary: `> [!petunjuk] Masih buntu?`.
@@ -173,6 +197,9 @@ CSS-first config:
 - `@theme` holds the palette (`--color-paper`, `--color-ink`, `--color-brand`,
   `--color-lime`, …) and the three shadows (`--shadow-brutal{,-sm,-lg}`), which
   Tailwind turns into `bg-*`/`text-*`/`shadow-*` utilities.
+- `--color-code` is the code-block canvas and is deliberately **not**
+  `--color-ink`: in light mode the border is ink, and filling the block with the
+  same value swallows its own border and hard shadow.
 - Dark mode is a `.dark` class on `<html>` that redefines those colour variables,
   so borders and shadows flip automatically. The `@custom-variant dark` at the
   top of the file wires up the `dark:` variant. `ThemeToggle` writes the class

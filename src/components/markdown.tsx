@@ -5,6 +5,8 @@ import rehypeHighlight from 'rehype-highlight';
 import rehypeSlug from 'rehype-slug';
 import remarkGfm from 'remark-gfm';
 
+import { CodeBlock } from '@/components/copy-button';
+
 import { remarkReveal } from '@/lib/remark-reveal';
 
 import type { Components } from 'react-markdown';
@@ -14,6 +16,16 @@ import type { Components } from 'react-markdown';
 const languages = { solidity, yul };
 
 const components: Components = {
+  // Every fenced block gets a copy button. The wrapper becomes the direct
+  // child of .prose-brutal, so it inherits the `& > * + *` spacing the <pre>
+  // had before.
+  pre({ children, ...props }) {
+    return (
+      <CodeBlock>
+        <pre {...props}>{children}</pre>
+      </CodeBlock>
+    );
+  },
   a({ href, children, ...props }) {
     const isExternal = !!href && /^https?:\/\//.test(href);
 

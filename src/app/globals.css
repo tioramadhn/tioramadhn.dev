@@ -4,12 +4,24 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
+  /* SiteHeader is `sticky top-0`: h-16 plus its 3px bottom border. Anything
+     that has to sit clear of it reads this rather than guessing. */
+  --header-height: calc(4rem + 3px);
+
   /* Surfaces and ink flip in dark mode via the overrides further down. */
   --color-paper: #fdf7e9;
   --color-paper-raised: #ffffff;
   --color-paper-sunken: #f4ecd8;
   --color-ink: #11100f;
   --color-ink-soft: #4b4846;
+
+  /* The code canvas is deliberately NOT --color-ink: in light mode the border
+     is ink, and a block filled with the same value swallows its own border and
+     hard shadow. Warm charcoal keeps the terminal feel and lets the outline
+     read. One value serves both themes, since in dark mode the border flips to
+     light anyway. */
+  --color-code: #2b2621;
+  --color-code-ink: #f7f3e8;
 
   /* Flat accents. No gradients anywhere in this theme. */
   --color-brand: #7c5cff;
@@ -249,8 +261,8 @@
     line-height: 1.7;
     border: 3px solid var(--color-ink);
     box-shadow: var(--shadow-brutal);
-    background-color: #11100f;
-    color: #f7f3e8;
+    background-color: var(--color-code);
+    color: var(--color-code-ink);
     padding: 1.25rem;
     overflow-x: auto;
   }
@@ -414,5 +426,105 @@
 
   .prose-brutal details.reveal > *:last-child {
     padding-bottom: 1rem;
+  }
+}
+
+/* Course rail for posts in a series. Whether it shows is driven by
+   `data-series-nav` on <html>, written by SeriesNavToggle and pre-applied by
+   seriesNavInitScript, so there is no React state and no flash on load. */
+@layer components {
+  .series-shell {
+    display: grid;
+    gap: 2.5rem;
+  }
+
+  .series-nav-when-hidden {
+    display: none;
+  }
+
+  /* The rail owns its own responsive display rather than wearing Tailwind's
+     `hidden lg:block`: utilities sit in a later layer than components, so a
+     utility would beat the hide rule below and the rail would never close. */
+  .series-sidebar {
+    display: none;
+  }
+
+  /* Bottom-right rather than bottom-left: the rail it controls lives on the
+     left, and a floating button there covered the very list it opens. Only
+     ever rendered from `lg` up, which is where the rail exists at all. */
+  .series-nav-toggle {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    z-index: 40;
+    box-shadow: var(--shadow-brutal);
+  }
+
+  /* The rail sticks below the header, not under it, and never grows taller
+     than the space left beneath it. */
+  .series-rail {
+    position: sticky;
+    top: calc(var(--header-height) + 1.5rem);
+    max-height: calc(100vh - var(--header-height) - 3rem);
+    display: flex;
+    flex-direction: column;
+  }
+
+  @media (min-width: 1024px) {
+    .series-shell {
+      grid-template-columns: 16rem minmax(0, 1fr);
+    }
+
+    .series-sidebar {
+      display: block;
+    }
+
+    :root[data-series-nav='hidden'] .series-shell {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    :root[data-series-nav='hidden'] .series-sidebar {
+      display: none;
+    }
+
+    /* Without the rail the column would stretch to the full container, so the
+       prose is re-centred at a width that is still comfortable to read. */
+    :root[data-series-nav='hidden'] .series-main {
+      max-width: 52rem;
+      margin-inline: auto;
+    }
+
+    :root[data-series-nav='hidden'] .series-nav-when-hidden {
+      display: inline;
+    }
+
+    :root[data-series-nav='hidden'] .series-nav-when-shown {
+      display: none;
+    }
+  }
+}
+
+/* Copy button for fenced code blocks. It lives in the wrapper rather than in
+   the <pre>, which scrolls horizontally and would carry the button off with
+   long lines. See src/components/copy-button.tsx. */
+@layer components {
+  .code-block {
+    position: relative;
+  }
+
+  /* Always visible, just quiet: hiding it until hover would leave a touch
+     reader hunting, and the wallet address on /credits is precisely the block
+     whose copy button has to be obvious. */
+  .code-block-copy {
+    position: absolute;
+    top: 0.625rem;
+    right: 0.625rem;
+    opacity: 0.55;
+    transition: opacity 120ms ease;
+  }
+
+  .code-block:hover .code-block-copy,
+  .code-block-copy:focus-visible {
+    opacity: 1;
   }
 }
