@@ -241,6 +241,95 @@ export function allSeries(posts: PostMeta[]): SeriesSummary[] {
   return [...found.values()].sort((a, b) => a.title.localeCompare(b.title));
 }
 
+/**
+ * One folder in the admin list: a series with its instalments, or the posts
+ * that belong to no series at all (`series: null`).
+ */
+export interface PostGroup {
+  /** Stable key for UI state; a series slug, or `*none` for loose posts. */
+  key: string;
+  series: PostSeries | null;
+  posts: PostMeta[];
+  published: number;
+  drafts: number;
+  readingTime: number;
+  /**
+   * Dates carried by more than one instalment. Series order is read off the
+   * date alone, so a shared date leaves the reading order arbitrary and able
+   * to flip between deploys. Always empty for the loose group, which has no
+   * reading order to get wrong.
+   */
+  clashingDates: string[];
+}
+
+export const LOOSE_GROUP_KEY = '*none';
+
+function findClashingDates(posts: PostMeta[]): string[] {
+  const seen = new Map<string, number>();
+
+  for (const post of posts) {
+    seen.set(post.date, (seen.get(post.date) ?? 0) + 1);
+  }
+
+  return [...seen.entries()]
+    .filter(([, count]) => count > 1)
+    .map(([date]) => date);
+}
+
+function toGroup(
+  key: string,
+  series: PostSeries | null,
+  posts: PostMeta[]
+): PostGroup {
+  return {
+    key,
+    series,
+    posts,
+    published: posts.filter((post) => post.status === 'published').length,
+    drafts: posts.filter((post) => post.status === 'draft').length,
+    readingTime: posts.reduce((total, post) => total + post.readingTime, 0),
+    clashingDates: series ? findClashingDates(posts) : [],
+  };
+}
+
+/**
+ * Folds a flat post list into per-series folders for the admin list. Inside a
+ * folder the order is the reading order (date ascending), the same order the
+ * series nav shows a reader, so a wrong position is visible here rather than
+ * only on the live site. The folders themselves sort by their most recent
+ * instalment, which floats whatever is being written now to the top, and the
+ * loose posts come last keeping the newest-first order `listPosts` gave them.
+ */
+export function groupPostsBySeries(posts: PostMeta[]): PostGroup[] {
+  // The series is kept beside its members rather than read back off
+  // `items[0]`, so the group's own type never depends on an indexed lookup.
+  const bySeries = new Map<string, { series: PostSeries; posts: PostMeta[] }>();
+  const loose: PostMeta[] = [];
+
+  for (const post of posts) {
+    if (!post.series) {
+      loose.push(post);
+      continue;
+    }
+
+    const existing = bySeries.get(post.series.slug);
+    if (existing) existing.posts.push(post);
+    else bySeries.set(post.series.slug, { series: post.series, posts: [post] });
+  }
+
+  const latestDate = (group: PostGroup) => group.posts.at(-1)?.date ?? '';
+
+  const groups = [...bySeries.entries()]
+    .map(([slug, found]) =>
+      toGroup(slug, found.series, [...found.posts].sort(byDateAsc))
+    )
+    .sort((a, b) => latestDate(b).localeCompare(latestDate(a)));
+
+  return loose.length
+    ? [...groups, toGroup(LOOSE_GROUP_KEY, null, loose)]
+    : groups;
+}
+
 export interface SeriesContext {
   series: PostSeries;
   items: PostMeta[];

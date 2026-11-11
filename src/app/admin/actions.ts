@@ -13,6 +13,7 @@ import { slugify, today } from '@/lib/markdown';
 import {
   deletePost,
   getPost,
+  listPosts,
   postExists,
   renamePost,
   savePost,
@@ -188,4 +189,174 @@ export async function deletePostAction(slug: string): Promise<ActionResult> {
   revalidatePath(`/blog/${slug}`);
 
   return {};
+}
+
+/**
+ * Bulk actions take a list of slugs straight from the admin list's checkboxes,
+ * so every slug is re-derived and de-duplicated here. The cap is a stop on a
+ * runaway request: a Worker has a subrequest budget, and each target costs a
+ * read plus a write.
+ */
+const BULK_LIMIT = 200;
+
+function cleanSlugs(slugs: string[]): string[] {
+  return [...new Set(slugs.map((slug) => slugify(slug)).filter(Boolean))].slice(
+    0,
+    BULK_LIMIT
+  );
+}
+
+export interface BulkResult extends ActionResult {
+  /** Posts actually written. A post already in the target state is skipped. */
+  changed: number;
+}
+
+/** Everything a batch touched, revalidated once instead of per post. */
+function revalidateBatch(slugs: string[], seriesSlugs: Set<string>): void {
+  revalidatePath('/admin');
+  revalidatePath('/blog');
+
+  for (const slug of slugs) {
+    revalidatePath(`/blog/${slug}`);
+  }
+
+  for (const slug of seriesSlugs) {
+    revalidatePath(`/blog/series/${slug}`);
+  }
+}
+
+function missingNote(missing: number): string | undefined {
+  if (!missing) return undefined;
+
+  return missing === 1
+    ? '1 selected post no longer exists and was skipped.'
+    : `${missing} selected posts no longer exist and were skipped.`;
+}
+
+export async function bulkSetStatusAction(
+  slugs: string[],
+  status: PostStatus
+): Promise<BulkResult> {
+  await assertAuthenticated();
+
+  const targets = cleanSlugs(slugs);
+
+  if (!targets.length) {
+    return { changed: 0, error: 'Nothing selected.' };
+  }
+
+  const touchedSeries = new Set<string>();
+  let changed = 0;
+  let missing = 0;
+
+  for (const slug of targets) {
+    const post = await getPost(slug);
+
+    if (!post) {
+      missing += 1;
+      continue;
+    }
+
+    if (post.series) touchedSeries.add(post.series.slug);
+
+    // Already in the target state: skip the write so a mixed selection does
+    // not rewrite `updatedAt` on posts it did not actually change.
+    if (post.status === status) continue;
+
+    await savePost({ ...post, status, series: post.series?.title ?? '' });
+    changed += 1;
+  }
+
+  revalidateBatch(targets, touchedSeries);
+
+  return { changed, error: missingNote(missing) };
+}
+
+/**
+ * Moves a batch into a series, or out of every series when `series` is empty.
+ * This is the counterpart to the grouped admin list: fixing a mistyped series
+ * name across twenty instalments is otherwise twenty trips to the editor.
+ */
+export async function bulkSetSeriesAction(
+  slugs: string[],
+  series: string
+): Promise<BulkResult> {
+  await assertAuthenticated();
+
+  const targets = cleanSlugs(slugs);
+
+  if (!targets.length) {
+    return { changed: 0, error: 'Nothing selected.' };
+  }
+
+  const title = series.trim();
+
+  if (title && !slugify(title)) {
+    return { changed: 0, error: 'That series name has no usable characters.' };
+  }
+
+  const touchedSeries = new Set<string>();
+  if (title) touchedSeries.add(slugify(title));
+
+  let changed = 0;
+  let missing = 0;
+
+  for (const slug of targets) {
+    const post = await getPost(slug);
+
+    if (!post) {
+      missing += 1;
+      continue;
+    }
+
+    // The old series page loses an instalment, so it needs revalidating too.
+    if (post.series) touchedSeries.add(post.series.slug);
+
+    if ((post.series?.title ?? '') === title) continue;
+
+    await savePost({ ...post, series: title });
+    changed += 1;
+  }
+
+  revalidateBatch(targets, touchedSeries);
+
+  return { changed, error: missingNote(missing) };
+}
+
+export async function bulkDeleteAction(slugs: string[]): Promise<BulkResult> {
+  await assertAuthenticated();
+
+  const targets = cleanSlugs(slugs);
+
+  if (!targets.length) {
+    return { changed: 0, error: 'Nothing selected.' };
+  }
+
+  // One index read tells us which series pages go stale. Reading each post
+  // individually would double the request count for no extra information.
+  const index = await listPosts({ includeDrafts: true });
+  const seriesBySlug = new Map(
+    index.map((post) => [post.slug, post.series?.slug ?? null])
+  );
+
+  const touchedSeries = new Set<string>();
+  let changed = 0;
+  let missing = 0;
+
+  for (const slug of targets) {
+    if (!seriesBySlug.has(slug)) {
+      missing += 1;
+      continue;
+    }
+
+    const seriesSlug = seriesBySlug.get(slug);
+    if (seriesSlug) touchedSeries.add(seriesSlug);
+
+    await deletePost(slug);
+    changed += 1;
+  }
+
+  revalidateBatch(targets, touchedSeries);
+
+  return { changed, error: missingNote(missing) };
 }
