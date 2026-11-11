@@ -1,8 +1,8 @@
 ---
-title: 'Modul 20: Testing Backend'
+title: 'Modul 21: Testing Backend'
 description: Yang paling berbahaya bukan fitur yang jelas rusak, melainkan yang rusak hanya pada keadaan tertentu. Menguji konkurensi, otorisasi, idempotensi, dan migrasi terhadap Postgres sungguhan.
-date: 2026-12-25
-slug: modul-20-testing-backend
+date: 2026-12-28
+slug: modul-21-testing-backend
 tags: tutorial backend
 series: Tutorial Backend
 status: draft
@@ -134,6 +134,7 @@ Tiga keputusan penting di penyiapan itu:
 **Tiga, satu kontainer untuk seluruh berkas test.** Vitest menjalankan berkas secara paralel, jadi setiap pekerja butuh isolasinya sendiri. Dua pilihan: satu kontainer per pekerja, atau satu kontainer dengan skema terpisah per pekerja. Yang kedua lebih cepat:
 
 ```ts
+// test/basis-data.ts, lanjutan
 // Isolasi antar pekerja paralel dengan skema terpisah
 const skema = `uji_${process.env.VITEST_WORKER_ID ?? '1'}`;
 
@@ -148,6 +149,7 @@ Alternatif untuk test yang tidak perlu melihat efek lintas transaksi: **jalankan
 Paling murah, paling cepat, dan nilainya tinggi karena aturan bisnis adalah tempat kesalahan paling mahal.
 
 ```ts
+// test/aturan-peminjaman.test.ts
 import { describe, it, expect } from 'vitest';
 import { bolehMeminjam, hitungDenda, hitungJatuhTempo } from '@/fitur/peminjaman/aturan';
 
@@ -217,6 +219,7 @@ Tiga hal yang membedakan test ini dari test yang hanya mengejar cakupan:
 Inilah keterampilan khas backend, dan hampir tidak pernah ada di rangkaian test yang dibuat tanpa sengaja.
 
 ```ts
+// test/konkurensi.test.ts
 describe('pengurangan stok', () => {
   it('tidak pernah minus pada 100 permintaan bersamaan', async () => {
     const varian = await buatVarian({ stok: 5, hargaRp: 20_000 });
@@ -290,7 +293,7 @@ Empat prinsip uji konkurensi:
 
 **Satu, uji invarian, bukan hasil per pemanggilan.** Yang penting bukan pemanggilan mana yang berhasil, melainkan bahwa stok akhirnya nol dan tidak minus, dan total uang tidak berubah. Invarian itu yang Anda pertahankan, bukan urutan keberhasilan.
 
-**Dua, jalankan test ini berulang kali di CI.** Bug konkurensi bersifat probabilistik: ia mungkin lolos satu kali dari sepuluh. Jalankan 20 kali dengan `--repeat`, atau naikkan jumlah permintaan bersamaan sampai konsisten memicu masalah.
+**Dua, jalankan test ini berulang kali di CI.** Bug konkurensi bersifat probabilistik, dan mungkin lolos satu kali dari sepuluh. Jalankan 20 kali dengan `--repeat`, atau naikkan jumlah permintaan bersamaan sampai konsisten memicu masalah.
 
 **Tiga, jangan percaya test yang hijau pada satu proses tanpa jeda.** Tambahkan jeda kecil antara pembacaan dan penulisan di jalur yang diuji saat mode pengujian aktif, supaya jendela balapannya lebar dan bugnya pasti muncul.
 
@@ -298,9 +301,10 @@ Empat prinsip uji konkurensi:
 
 ## Uji otorisasi dan isolasi tenant
 
-Enam puluh kombinasi dari modul 11 diuji sebagai tabel, bukan sebagai enam puluh fungsi test yang ditulis tangan.
+Enam puluh kombinasi dari modul 12 diuji sebagai tabel, bukan sebagai enam puluh fungsi test yang ditulis tangan.
 
 ```ts
+// test/otorisasi.test.ts
 const KASUS = [
   { peran: 'pembeli',    metode: 'GET',   jalur: '/v1/pesanan/{milik-sendiri}', harap: 200 },
   { peran: 'pembeli',    metode: 'GET',   jalur: '/v1/pesanan/{milik-orang-lain}', harap: 404 },
@@ -352,13 +356,14 @@ describe('isolasi tenant', () => {
 });
 ```
 
-Dua catatan: `app.inject` dari Fastify menjalankan permintaan tanpa membuka port, sehingga test API cepat dan tidak bentrok antar pekerja paralel. Dan test isolasi tenant kedua adalah yang paling berharga di seluruh rangkaian, karena ia menguji bahwa **kesalahan pemrograman di masa depan tidak akan berakibat.**
+Dua catatan: `app.inject` dari Fastify menjalankan permintaan tanpa membuka port, sehingga test API cepat dan tidak bentrok antar pekerja paralel. Dan test isolasi tenant kedua adalah yang paling berharga di seluruh rangkaian, karena yang diuji adalah bahwa **kesalahan pemrograman di masa depan tidak akan berakibat.**
 
 ## Uji idempotensi dengan perbandingan keadaan
 
 Teknik yang menjawab pertanyaan "apakah konsumen saya benar-benar idempoten" tanpa memeriksa satu per satu.
 
 ```ts
+// test/idempotensi.test.ts
 async function fotoKeadaan() {
   const [hasil] = await db.execute(sql`
     SELECT
@@ -380,7 +385,7 @@ it('memproses ulang seluruh peristiwa tidak mengubah keadaan apa pun', async () 
 
   const sebelum = await fotoKeadaan();
 
-  // Paksa seluruh outbox dikirim ulang, seperti Latihan 2 modul 15
+  // Paksa seluruh outbox dikirim ulang, seperti Latihan 2 modul 16
   await db.execute(sql`UPDATE outbox SET terkirim_pada = NULL`);
   await jalankanPengirimOutboxSekali();
   await tungguSemuaKonsumenSelesai();
@@ -392,11 +397,12 @@ it('memproses ulang seluruh peristiwa tidak mengubah keadaan apa pun', async () 
 });
 ```
 
-Satu `expect` itu menguji idempotensi enam konsumen sekaligus, dan akan merah begitu ada konsumen baru yang ditambahkan tanpa penjaga idempotensi. Pola ini jauh lebih kuat daripada menulis test terpisah per konsumen, karena ia menangkap konsumen yang **belum ada saat test ini ditulis**.
+Satu `expect` itu menguji idempotensi enam konsumen sekaligus, dan akan merah begitu ada konsumen baru yang ditambahkan tanpa penjaga idempotensi. Pola ini jauh lebih kuat daripada menulis test terpisah per konsumen, karena pola ini menangkap konsumen yang **belum ada saat test ini ditulis**.
 
 ## Uji migrasi
 
 ```ts
+// test/migrasi.test.ts
 describe('migrasi', () => {
   it('jalan dari basis data kosong tanpa langkah manual', async () => {
     const baru = await new PostgreSqlContainer('postgres:17').start();
@@ -422,7 +428,7 @@ describe('migrasi', () => {
 
     const nama = new Set(indeks.map((i) => i.indexname));
 
-    // Indeks yang keberadaannya menjadi syarat performa, dari modul 9
+    // Indeks yang keberadaannya menjadi syarat performa, dari modul 10
     for (const wajib of [
       'peminjaman_anggota_waktu_idx',
       'satu_pinjaman_aktif_per_salinan',
@@ -511,14 +517,14 @@ Empat jenis uji beban, dan masing-masing menjawab pertanyaan berbeda:
 Yang paling berharga adalah stress, dan bukan karena angkanya. Yang berharga adalah **mengetahui apa yang patah lebih dulu**, karena hampir selalu bukan yang Anda duga. Pada layanan yang dibangun di seri ini, urutan yang khas:
 
 ```text
-1. Pool sambungan basis data penuh        (modul 7)
-2. Latensi kueri naik karena perebutan    (modul 9)
+1. Pool sambungan basis data penuh        (modul 8)
+2. Latensi kueri naik karena perebutan    (modul 10)
 3. Lag event loop naik                    (modul 2)
-4. Health check mulai gagal               (modul 19)
-5. Permintaan ditolak 503                 (modul 19, dan ini perilaku yang benar)
+4. Health check mulai gagal               (modul 20)
+5. Permintaan ditolak 503                 (modul 20, dan ini perilaku yang benar)
 ```
 
-Dan soak test adalah yang paling sering dilewati, padahal ia menemukan kelas bug yang tidak bisa ditemukan uji lain: jumlah sambungan SSE yang naik monoton dari modul 16, pekerjaan queue yang menumpuk pelan, dan memori yang bertambah 50 MB per jam.
+Dan soak test adalah yang paling sering dilewati, padahal soak test menemukan kelas bug yang tidak bisa ditemukan uji lain: jumlah sambungan SSE yang naik monoton dari modul 17, pekerjaan queue yang menumpuk pelan, dan memori yang bertambah 50 MB per jam.
 
 ## Test yang kadang merah kadang hijau
 
@@ -533,6 +539,7 @@ Lima penyebab khas di backend, dan semuanya bisa dihapus:
 | Urutan baris tanpa `ORDER BY` | Selalu urutkan di test maupun di kode |
 
 ```ts
+// Dua pola untuk dibandingkan, bukan untuk disalin keduanya
 // Jangan: menunggu waktu
 await tidur(2_000);
 expect(await hitungPoin(pembeli.id)).toBe(100);
@@ -584,9 +591,48 @@ jobs:
       - run: k6 run beban/pesanan.js --vus 50 --duration 2m
 ```
 
-Dua keputusan di pipeline itu: **test cepat berjalan lebih dulu dan terpisah**, sehingga kesalahan tipe dan lint memberi umpan balik dalam satu menit, bukan setelah sepuluh menit uji integrasi. Dan **uji beban hanya di `main`**, karena ia butuh beberapa menit dan tidak perlu dijalankan di setiap commit.
+Dua keputusan di pipeline itu: **test cepat berjalan lebih dulu dan terpisah**, sehingga kesalahan tipe dan lint memberi umpan balik dalam satu menit, bukan setelah sepuluh menit uji integrasi. Dan **uji beban hanya di `main`**, karena uji beban butuh beberapa menit dan tidak perlu dijalankan di setiap commit.
 
 Dua aturan yang membuat pipeline tetap berguna: **di bawah sepuluh menit untuk pull request**, dan **kegagalannya selalu berarti.** Pipeline yang lambat akan dilewati dengan `--no-verify`, dan pipeline yang sering merah tanpa sebab akan diabaikan.
+
+## Buktikan jalan
+
+Rangkaian test yang hijau belum tentu rangkaian test yang berguna. Empat pemeriksaan.
+
+```bash
+pnpm test
+```
+
+```text
+ ✓ test/aturan-peminjaman.test.ts (14 tests) 11ms
+ ✓ test/otorisasi.test.ts (28 tests) 892ms
+ ✓ test/konkurensi.test.ts (3 tests) 4210ms
+ ✓ test/idempotensi.test.ts (6 tests) 1180ms
+ ✓ test/migrasi.test.ts (2 tests) 3402ms
+
+ Test Files  5 passed (5)
+      Tests  53 passed (53)
+   Duration  9.88s
+```
+
+**Pertama, buktikan test Anda bisa merah.** Test yang belum pernah gagal belum terbukti menguji apa pun. Balik satu tanda pembanding di `aturan.ts`, misalnya `>=` jadi `>`, lalu jalankan lagi:
+
+```text
+ FAIL  test/aturan-peminjaman.test.ts > batas tiga buku ditegakkan
+ AssertionError: expected { boleh: true } to match { boleh: false }
+```
+
+Kembalikan perubahannya setelah merah. Ulangi untuk uji konkurensi dengan menghapus `WHERE stok >= $2`: kalau tetap hijau, uji konkurensi Anda tidak benar-benar bersamaan.
+
+**Kedua, jalankan berulang.** Bug konkurensi probabilistik, jadi satu kali hijau tidak berarti apa-apa:
+
+```bash
+pnpm vitest run test/konkurensi.test.ts --repeat 20
+```
+
+**Ketiga, periksa test berjalan terhadap Postgres sungguhan**, bukan tiruan. Matikan Docker, lalu jalankan `pnpm test`: kalau tetap hijau, Anda sedang menguji tiruan dan batasan basis data Anda tidak pernah ikut diuji.
+
+**Keempat, ukur waktunya.** Rangkaian yang butuh lebih dari sepuluh menit akan berhenti dijalankan orang sebelum push, dan test yang tidak dijalankan sama nilainya dengan test yang tidak ada.
 
 ## Latihan
 
@@ -649,7 +695,7 @@ Tulis uji konkurensi untuk enam jalur di layanan Anda, masing-masing menguji inv
 >
 > Empat hal yang akan Anda temukan:
 >
-> 1. **Nomor 3 akan merah pada implementasi tanpa kunci baris anggota.** Itu persis Latihan 4 modul 8, dan sekarang jadi test yang menjaganya selamanya.
+> 1. **Nomor 3 akan merah pada implementasi tanpa kunci baris anggota.** Itu persis Latihan 4 modul 9, dan sekarang jadi test yang menjaganya selamanya.
 > 2. **Nomor 6 akan hijau tanpa usaha apa pun**, karena `EXCLUDE` dari modul 5 sudah menjaminnya di basis data. Itu bukti bahwa batasan basis data lebih kuat daripada kode: Anda tidak perlu menulis logika apa pun, dan tidak ada urutan permintaan yang bisa melanggarnya.
 > 3. **Nomor 5 menguji dua hal sekaligus**: tepat satu pesanan, dan respons yang identik untuk semua pemanggil. Yang kedua sering terlewat.
 > 4. **Jalankan dengan `--repeat=10`.** Test konkurensi yang hijau satu kali belum membuktikan apa pun, karena balapan bersifat probabilistik.
@@ -657,6 +703,9 @@ Tulis uji konkurensi untuk enam jalur di layanan Anda, masing-masing menguji inv
 ### Latihan 2: Matriks otorisasi lengkap
 
 Tulis seluruh matriks peran kali endpoint sebagai test tabel, dan pastikan tidak ada kombinasi yang terlewat.
+
+> [!petunjuk]
+> Menulis matriks sebagai daftar panjang `it(...)` akan bekerja, dan tidak akan menangkap hal terpenting: endpoint baru yang ditambahkan enam bulan lagi tanpa ada yang memutuskan siapa boleh mengaksesnya. Supaya tertangkap, matriks Anda harus dibandingkan dengan **daftar rute yang sebenarnya terdaftar di aplikasi**, bukan dengan daftar yang Anda ketik sendiri. Fastify bisa memberi daftar itu saat runtime.
 
 > [!jawaban]
 >
@@ -691,11 +740,11 @@ Tulis seluruh matriks peran kali endpoint sebagai test tabel, dan pastikan tidak
 > });
 > ```
 >
-> Test "kelengkapan matriks" itu yang paling berharga di seluruh latihan ini: **ia merah saat seseorang menambahkan endpoint baru tanpa memutuskan siapa yang boleh mengaksesnya.** Dengan itu, pertanyaan otorisasi jadi bagian wajib dari setiap fitur baru, bukan sesuatu yang bisa terlupakan.
+> Test "kelengkapan matriks" itu yang paling berharga di seluruh latihan ini: **test itu merah saat seseorang menambahkan endpoint baru tanpa memutuskan siapa yang boleh mengaksesnya.** Dengan itu, pertanyaan otorisasi jadi bagian wajib dari setiap fitur baru, bukan sesuatu yang bisa terlupakan.
 >
 > Tiga catatan tambahan:
 >
-> 1. **Kasus 404 versus 403 harus eksplisit di tabel**, karena itu keputusan desain dari modul 11 yang mudah dibatalkan tanpa sengaja.
+> 1. **Kasus 404 versus 403 harus eksplisit di tabel**, karena itu keputusan desain dari modul 12 yang mudah dibatalkan tanpa sengaja.
 > 2. **Tambahkan kasus tanpa token dan dengan token kedaluwarsa** untuk setiap rute, atau minimal untuk satu rute per kelompok.
 > 3. **Jalankan juga dengan kunci API**, karena cakupannya berbeda dari peran manusia, dan itu jalur yang sering tidak diuji.
 
@@ -771,7 +820,7 @@ Jalankan uji beban bertangga pada Proyek 4 sampai patah, catat urutan patahnya, 
 > | 250 per detik | 1.400 ms | 2% | Pool penuh, permintaan menunggu sambungan |
 > | 400 per detik | 8.000 ms | 34% | Batas waktu, health check gagal, 503 mulai muncul |
 >
-> **Diagnosis dengan metrik dari modul 18:**
+> **Diagnosis dengan metrik dari modul 19:**
 >
 > | Metrik | Nilai saat patah | Artinya |
 > | --- | --- | --- |
@@ -789,19 +838,19 @@ Jalankan uji beban bertangga pada Proyek 4 sampai patah, catat urutan patahnya, 
 > | Tambahkan indeks yang kurang untuk kueri stok | 520 jadi 610 per detik |
 > | Naikkan pool dari 8 jadi 16 | **Turun** jadi 540 per detik |
 >
-> Baris terakhir adalah temuan yang paling berharga dari seluruh latihan, dan membuktikan pelajaran modul 7: **menambah sambungan menurunkan kapasitas** saat basis datanya sudah jenuh. Enam belas sambungan memperebutkan dua inti prosesor menghasilkan perebutan yang membuat semua kueri melambat.
+> Baris terakhir adalah temuan yang paling berharga dari seluruh latihan, dan membuktikan pelajaran modul 8: **menambah sambungan menurunkan kapasitas** saat basis datanya sudah jenuh. Enam belas sambungan memperebutkan dua inti prosesor menghasilkan perebutan yang membuat semua kueri melambat.
 >
 > Tiga pelajaran dari latihan ini:
 >
 > 1. **Titik sempit hampir selalu basis data, bukan Node.** Pada layanan yang ditulis dengan pola di seri ini, aplikasi jarang jadi batasnya.
 > 2. **Perbaikan harus diukur, bukan diasumsikan.** Dua dari empat perbaikan di atas memberi hasil besar, satu memberi hasil kecil, dan satu memperburuk.
-> 3. **Perilaku saat patah lebih penting daripada titik patahnya.** Pada 400 per detik, yang benar bukan "semua permintaan 8 detik dan 34% gagal", melainkan "sebagian ditolak 503 dengan cepat, sisanya tetap di bawah 200 ms". Kalau layanan Anda tidak berperilaku begitu, penolakan beban dari modul 19 belum terpasang benar.
+> 3. **Perilaku saat patah lebih penting daripada titik patahnya.** Pada 400 per detik, yang benar bukan "semua permintaan 8 detik dan 34% gagal", melainkan "sebagian ditolak 503 dengan cepat, sisanya tetap di bawah 200 ms". Kalau layanan Anda tidak berperilaku begitu, penolakan beban dari modul 20 belum terpasang benar.
 
 ## Batasnya
 
 Rangkaian test yang baik memberi keyakinan untuk mengubah kode, dan tidak menjanjikan tiga hal.
 
-**Test tidak menangkap yang tidak Anda pikirkan.** Semua test adalah hipotesis penulisnya. Jenis bug yang paling merepotkan justru yang tidak terbayang, dan di situlah observability dari modul 18 mengambil alih.
+**Test tidak menangkap yang tidak Anda pikirkan.** Semua test adalah hipotesis penulisnya. Jenis bug yang paling merepotkan justru yang tidak terbayang, dan di situlah observability dari modul 19 mengambil alih.
 
 **Lingkungan uji bukan produksi.** Data produksi lebih besar, lebih aneh, dan lalu lintasnya lebih tidak merata. Uji beban memberi perkiraan, bukan kepastian.
 

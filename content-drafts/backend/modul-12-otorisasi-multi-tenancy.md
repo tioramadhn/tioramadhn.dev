@@ -1,8 +1,8 @@
 ---
-title: 'Modul 11: Otorisasi dan Multi-tenancy'
+title: 'Modul 12: Otorisasi dan Multi-tenancy'
 description: Satu pemeriksaan yang terlewat membuat data satu pelanggan terlihat pelanggan lain. Model peran dan izin, fungsi otorisasi terpusat, dan isolasi tenant yang dijamin basis data.
-date: 2026-12-14
-slug: modul-11-otorisasi-multi-tenancy
+date: 2026-12-16
+slug: modul-12-otorisasi-multi-tenancy
 tags: tutorial backend
 series: Tutorial Backend
 status: draft
@@ -183,6 +183,7 @@ Lima keputusan di dalamnya, dan masing-masing mencegah satu kelas bug:
 Pemakaiannya di handler jadi dua baris:
 
 ```ts
+// src/fitur/pesanan/rute.ts, otorisasi lewat satu fungsi terpusat
 app.get('/v1/pesanan/:id', { onRequest: [app.autentikasi] }, async (req) => {
   const pesanan = await repoPesanan.ambil(req.params.id);
 
@@ -206,6 +207,7 @@ Dua jalur yang hampir selalu terlewat, dan keduanya lebih berbahaya daripada end
 **Kesalahan pertama: identitas diambil dari permintaan.**
 
 ```ts
+// Jangan disalin: dua kesalahan otorisasi yang paling sering
 // Berbahaya: pemanggil menentukan sendiri data siapa yang dibaca
 app.get('/v1/pesanan', async (req) => {
   return repoPesanan.daftar({ pembeliId: req.query.pembeliId });
@@ -225,7 +227,8 @@ app.get('/v1/pesanan', async (req) => {
 **Kesalahan kedua: endpoint daftar tidak diperiksa seperti endpoint detail.** Fungsi `bolehkan` di atas bekerja untuk satu sumber daya, dan pada endpoint daftar tidak ada satu sumber daya untuk diperiksa. Jawabannya bukan memeriksa setiap baris setelah diambil, melainkan **memasukkan cakupan ke dalam kueri sebagai syarat**:
 
 ```ts
-// Repository tidak menerima filter bebas. Ia menerima pelaku,
+// src/fitur/pesanan/repo.ts
+// Repository tidak menerima filter bebas, melainkan pelaku,
 // dan menurunkan sendiri penyaringan yang wajib.
 async function daftarPesanan(pelaku: Pelaku, filter: FilterPesanan) {
   return db
@@ -272,6 +275,7 @@ CREATE POLICY isolasi_tenant ON pesanan
 ```
 
 ```ts
+// src/db/konteks-tenant.ts
 // Setel variabel sesi di awal setiap transaksi
 export async function denganTenant<T>(
   tenantId: string,
@@ -312,6 +316,7 @@ CREATE UNIQUE INDEX ON peran (tenant_id, id);
 **Impersonasi untuk dukungan pelanggan.** Staf dukungan perlu melihat apa yang dilihat pengguna untuk membantunya. Ini fitur berbahaya yang pantas dibuat dengan hati-hati:
 
 ```ts
+// src/fitur/admin/impersonasi.ts
 export async function mulaiImpersonasi(staf: Pelaku, targetId: string, alasan: string) {
   pastikanBoleh(staf, 'pengguna:impersonasi');
 
@@ -345,6 +350,7 @@ Kadang pertanyaannya bukan "boleh melihat baris ini" tapi "boleh melihat kolom i
 Dua cara, dan yang pertama lebih baik:
 
 ```ts
+// src/fitur/pengguna/skema.ts
 // A. Skema respons per peran. Field yang tidak didaftarkan tidak akan terkirim.
 const pesananUntukPembeli = z.object({
   id: z.string(), total: z.number(), status: z.string(),
@@ -387,7 +393,61 @@ CREATE TABLE kunci_api (
 
 Empat aturan: kunci ditampilkan sekali saat dibuat lalu hanya hash-nya yang disimpan, prefiks disimpan terpisah supaya pengguna bisa mengenali kuncinya di daftar, cakupan selalu lebih sempit daripada peran manusia, dan ada masa berlaku beserta cara mencabut.
 
-Untuk layanan internal, pertimbangkan mTLS atau token berumur sangat pendek yang diterbitkan penyedia identitas, bukan kunci statis yang hidup selamanya di variabel lingkungan. Modul 22 kembali ke topik ini.
+Untuk layanan internal, pertimbangkan mTLS atau token berumur sangat pendek yang diterbitkan penyedia identitas, bukan kunci statis yang hidup selamanya di variabel lingkungan. Modul 23 kembali ke topik ini.
+
+## Buktikan jalan
+
+Kebocoran antar tenant tidak pernah muncul sebagai error. Satu-satunya cara mengetahuinya adalah mencoba membocorkannya sendiri.
+
+Siapkan dua tenant dengan masing-masing satu pesanan, lalu:
+
+```bash
+# 1. Pemilik membaca pesanannya sendiri
+curl -s -o /dev/null -w '%{http_code}\n' localhost:3000/v1/pesanan/<pesanan-A> \
+  -H 'authorization: Bearer <token-tenant-A>'
+
+# 2. Tenant lain membaca pesanan yang sama
+curl -s -o /dev/null -w '%{http_code}\n' localhost:3000/v1/pesanan/<pesanan-A> \
+  -H 'authorization: Bearer <token-tenant-B>'
+
+# 3. Tanpa token sama sekali
+curl -s -o /dev/null -w '%{http_code}\n' localhost:3000/v1/pesanan/<pesanan-A>
+```
+
+```text
+200
+404
+401
+```
+
+**Nomor 2 harus 404, bukan 403.** Membalas 403 memberi tahu tenant B bahwa pesanan itu ada, dan dari sana seluruh rentang id bisa dipetakan. Kalau yang muncul 403, perbaikannya ada di bagian "Dua kesalahan yang paling sering".
+
+Lalu buktikan penjaga lapis keduanya, dan ini yang paling meyakinkan. Isolasi yang hanya dijaga kode aplikasi akan bocor pada hari seseorang menulis kueri yang lupa menyaring. RLS membuat kueri seperti itu tetap aman:
+
+```bash
+docker compose exec -it db psql -U postgres -d toko
+```
+
+```sql
+-- Masuk sebagai peran aplikasi, bukan superuser
+SET ROLE aplikasi;
+
+-- Setel konteks ke tenant A
+SELECT set_config('app.tenant_id', '<id-tenant-A>', false);
+
+-- Kueri yang SENGAJA lupa menyaring tenant_id
+SELECT count(*) FROM pesanan;
+```
+
+```text
+ count
+-------
+     1
+```
+
+Satu, bukan dua. **Kueri yang lupa menyaring tetap tidak bisa melihat data tenant lain**, karena basis data yang menegakkannya. Ganti `app.tenant_id` ke tenant B lalu ulangi, dan angkanya tetap satu dengan isi yang berbeda.
+
+Satu peringatan yang pantas dicoba sekarang juga: ulangi percobaan di atas **tanpa** `SET ROLE aplikasi`. Sebagai superuser, RLS dilewati sepenuhnya dan Anda akan melihat kedua baris. Itu sebabnya aplikasi Anda tidak boleh menyambung sebagai superuser, dan itu kesalahan konfigurasi yang membuat seluruh RLS jadi hiasan.
 
 ## Latihan
 
@@ -439,13 +499,14 @@ Lalu buktikan: tulis test yang mencoba setiap peran terhadap setiap endpoint, da
 > 1. **Beberapa sel matriks tidak punya jawaban yang jelas**, misalnya "bolehkah kasir membatalkan pesanan yang sudah dibayar". Itu temuan, bukan hambatan: pertanyaan seperti ini harus ditanyakan ke pemilik produk, bukan ditebak oleh engineer.
 > 2. **Jawaban 404 untuk pesanan milik orang lain akan terasa salah** saat Anda menulis test-nya, dan itu memang disengaja.
 > 3. **Pola cakupan "miliknya, cabangnya, semua" berulang di banyak endpoint**, dan pantas diangkat jadi satu fungsi yang menurunkan syarat kueri dari pelaku.
-> 4. **Test tabel seperti ini adalah test yang paling berharga di seluruh layanan.** Ia tidak akan pecah karena perubahan tampilan respons, dan akan langsung merah saat seseorang menambahkan izin ke peran yang salah.
+> 4. **Test tabel seperti ini adalah test yang paling berharga di seluruh layanan.** Test itu tidak akan pecah karena perubahan tampilan respons, dan akan langsung merah saat seseorang menambahkan izin ke peran yang salah.
 
 ### Latihan 2: Temukan enam kebocoran
 
 Lima endpoint ini dari layanan yang sudah punya autentikasi dan `pastikanBoleh`. Temukan enam kebocoran otorisasi.
 
 ```ts
+// Empat potongan untuk Anda telaah di latihan ini
 // A
 app.get('/v1/pesanan', async (req) => {
   return repoPesanan.daftar({ pembeliId: req.query.pembeliId, status: req.query.status });
@@ -479,6 +540,9 @@ app.get('/v1/laporan/ekspor.csv', async (req) => {
   return streamCsv(await repoPesanan.semuaUntukEkspor(req.query.dari, req.query.sampai));
 });
 ```
+
+> [!petunjuk]
+> Dua pola yang menjelaskan lima dari enam kebocoran. Pertama: cari tempat pemanggil yang menentukan sendiri data siapa yang dibaca, lewat parameter kueri atau id di path. Kedua: cari jalur yang mengambil data **sebelum** memeriksa hak, karena urutan itu menentukan apakah 404 atau 403 yang bocor. Dan satu khusus untuk D: pemeriksaannya ada dan tetap tidak cukup. Tanyakan dari mana nilai yang diperiksa itu berasal.
 
 > [!jawaban]
 >
@@ -558,7 +622,7 @@ Nyalakan RLS pada seluruh tabel milik tenant di Proyek 2, lalu buktikan isolasin
 > Lima hal yang pantas diperhatikan:
 >
 > 1. **`WITH CHECK` mencegah penulisan lintas tenant**, bukan hanya pembacaan. Tanpa itu, tenant B bisa menyisipkan baris atas nama tenant A, dan itu bentuk kebocoran yang lebih merusak.
-> 2. **Test kedua adalah yang paling berharga.** Ia menguji bahwa kesalahan pemrograman di masa depan tidak akan berakibat, dan itu nilai sesungguhnya dari RLS.
+> 2. **Test kedua adalah yang paling berharga.** Yang diuji adalah bahwa kesalahan pemrograman di masa depan tidak akan berakibat, dan itu nilai sesungguhnya dari RLS.
 > 3. **RLS punya biaya performa kecil**, karena kebijakannya jadi syarat tambahan di setiap kueri. Pastikan `tenant_id` ada di indeks komposit Anda, biasanya sebagai kolom pertama.
 > 4. **Migrasi dan pekerjaan latar butuh peran berbeda** yang bisa melewati RLS, misalnya untuk menghitung ringkasan lintas tenant. Buat peran terpisah dengan `BYPASSRLS`, dan pakai hanya di jalur yang memang perlu.
 > 5. **RLS bukan pengganti `pastikanBoleh`.** RLS menjaga batas tenant, dan tidak tahu apa pun tentang peran, cabang, maupun kepemilikan di dalam satu tenant. Keduanya dipakai bersamaan.
@@ -609,7 +673,7 @@ Setahun setelah rilis, datang enam permintaan baru. Untuk masing-masing, tentuka
 
 Otorisasi yang dikerjakan dengan baik tetap punya tiga batas.
 
-**Keputusan izin butuh data, dan data itu perlu cepat.** Memeriksa peran dan izin di setiap permintaan berarti satu pencarian tambahan. Pada layanan dengan lalu lintas tinggi, itu perlu di-cache, dan cache yang basi berarti pencabutan izin tidak langsung berlaku. Pertukaran itu dibahas di modul 13.
+**Keputusan izin butuh data, dan data itu perlu cepat.** Memeriksa peran dan izin di setiap permintaan berarti satu pencarian tambahan. Pada layanan dengan lalu lintas tinggi, itu perlu di-cache, dan cache yang basi berarti pencabutan izin tidak langsung berlaku. Pertukaran itu dibahas di modul 14.
 
 **Aturan yang sangat rumit melampaui RBAC sederhana.** Kalau Anda mulai menulis aturan seperti "boleh kalau atasannya menyetujui dan nilainya di bawah batas cabang", pertimbangkan mesin kebijakan terpisah. Untuk sebagian besar aplikasi, itu tidak diperlukan.
 

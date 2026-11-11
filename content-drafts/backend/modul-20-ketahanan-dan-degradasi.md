@@ -1,14 +1,14 @@
 ---
-title: 'Modul 19: Ketahanan dan Degradasi'
+title: 'Modul 20: Ketahanan dan Degradasi'
 description: Layanan Anda tumbang karena layanan orang lain lambat, bukan karena mati. Batas waktu, pemutus arus, pemisahan sumber daya, penolakan beban, dan degradasi yang disengaja.
-date: 2026-12-24
-slug: modul-19-ketahanan-dan-degradasi
+date: 2026-12-26
+slug: modul-20-ketahanan-dan-degradasi
 tags: tutorial backend
 series: Tutorial Backend
 status: draft
 ---
 
-Penyedia pembayaran Anda tidak mati. Ia hanya melambat, dari 200 ms jadi 30 detik. Inilah yang terjadi setelahnya:
+Penyedia pembayaran Anda tidak mati. Penyedia itu hanya melambat, dari 200 ms jadi 30 detik. Inilah yang terjadi setelahnya:
 
 ```text
 00:00  Latensi penyedia naik ke 30 detik
@@ -58,6 +58,7 @@ Batas analoginya: petugas manusia bisa menilai situasi dan memutuskan sendiri. K
 Aturan paling sederhana dan paling sering dilanggar: **setiap panggilan yang keluar dari proses Anda harus punya batas waktu.**
 
 ```ts
+// Jangan disalin: panggilan keluar tanpa batas waktu
 // Berbahaya: tanpa batas waktu. Bawaan fetch di Node adalah menunggu
 // sampai sistem operasi menyerah, dan itu bisa menit.
 const respons = await fetch(url);
@@ -81,6 +82,7 @@ Daftar tempat yang butuh batas waktu, dan bawaannya hampir selalu tidak memadai:
 Dan satu konsep yang menyatukan semuanya: **anggaran waktu.**
 
 ```ts
+// src/lib/anggaran-waktu.ts
 // Permintaan punya anggaran 3 detik. Setiap panggilan keluar
 // hanya boleh memakai sisa anggaran, bukan batas waktunya sendiri.
 export function buatAnggaran(totalMs: number) {
@@ -114,6 +116,7 @@ Tanpa anggaran, tiga panggilan yang masing-masing dibatasi 3 detik bisa menghabi
 Percobaan ulang menyelamatkan, dan percobaan ulang yang salah menjatuhkan layanan.
 
 ```ts
+// src/lib/percobaan-ulang.ts
 export async function denganPercobaanUlang<T>(
   kerjakan: (percobaanKe: number) => Promise<T>,
   opsi: {
@@ -164,6 +167,7 @@ Satu teknik yang menggantikan percobaan ulang untuk sebagian kasus: **hedging.**
 Kalau sebuah ketergantungan sedang rusak, memanggilnya terus hanya membuang sumber daya Anda dan memperlambat pemulihannya.
 
 ```ts
+// src/lib/pemutus-arus.ts
 type Keadaan = 'tertutup' | 'terbuka' | 'setengah';
 
 export function buatPemutusArus(opsi: {
@@ -231,6 +235,7 @@ export function buatPemutusArus(opsi: {
 ```
 
 ```ts
+// src/integrasi/harga.ts
 const pemutusHarga = buatPemutusArus({
   nama: 'layanan-harga',
   ambangKegagalan: 50,
@@ -256,9 +261,10 @@ Tiga catatan penting:
 
 ## Pemisahan sumber daya
 
-Dari insiden di modul 18: satu endpoint ekspor menghabiskan pool sambungan, lalu seluruh layanan gagal. Pencegahannya memisahkan sumber dayanya.
+Dari insiden di modul 19: satu endpoint ekspor menghabiskan pool sambungan, lalu seluruh layanan gagal. Pencegahannya memisahkan sumber dayanya.
 
 ```ts
+// src/db/pool.ts, lanjutan: pemisahan sumber daya
 // Pool terpisah untuk beban yang berbeda sifatnya
 export const poolUtama = new Pool({ connectionString: url, max: 8 });
 
@@ -280,9 +286,10 @@ Pola yang sama berlaku untuk hal lain:
 | Pool basis data | Transaksi, laporan, dan pekerjaan latar punya pool sendiri |
 | Worker queue | Queue terpisah per jenis, supaya pekerjaan lambat tidak menahan yang cepat |
 | Panggilan keluar | Batas konkurensi per ketergantungan, bukan satu batas untuk semua |
-| Proses | API dan worker berjalan sebagai proses terpisah, seperti di modul 14 |
+| Proses | API dan worker berjalan sebagai proses terpisah, seperti di modul 15 |
 
 ```ts
+// src/lib/batas-konkurensi.ts
 // Batas konkurensi per ketergantungan
 const batasPenyediaEmail = buatSemafor(10);
 const batasPenyediaPembayaran = buatSemafor(5);
@@ -297,6 +304,7 @@ Tanpa batas per ketergantungan, satu penyedia yang melambat akan menyerap seluru
 Saat sebuah layanan menerima lebih banyak daripada kemampuannya, menerima semuanya membuat **semua** permintaan lambat sampai tidak ada yang berguna. Menolak sebagian membuat sisanya tetap terlayani dengan baik.
 
 ```ts
+// src/app.ts, penolakan beban
 await app.register(import('@fastify/under-pressure'), {
   maxEventLoopDelay: 1_000,
   maxHeapUsedBytes: 1_200_000_000,
@@ -325,6 +333,7 @@ Tiga prinsip penolakan beban:
 Dari latihan modul 2: health check yang gagal karena layanan sedang sibuk menyebabkan platform mematikan instance tepat saat paling dibutuhkan. Jawabannya memisahkan dua pertanyaan yang berbeda.
 
 ```ts
+// src/http/health.ts
 // Liveness: apakah proses ini masih hidup dan perlu dibiarkan?
 // JANGAN periksa ketergantungan apa pun di sini.
 app.get('/sehat', { logLevel: 'silent' }, async () => ({ status: 'ok' }));
@@ -365,6 +374,7 @@ Baris pertama pantas ditekankan, karena kesalahan di sini menghasilkan kegagalan
 Setiap deploy mematikan proses. Tanpa penutupan yang rapi, permintaan yang sedang berjalan terputus dan pekerjaan yang sedang diproses diulang dari awal.
 
 ```ts
+// src/server.ts, penutupan yang rapi
 let sedangDimatikan = false;
 
 async function tutupDenganRapi(sinyal: string) {
@@ -383,7 +393,7 @@ async function tutupDenganRapi(sinyal: string) {
   // 3. Worker queue: berhenti mengambil pekerjaan baru, selesaikan yang dipegang
   await Promise.all(semuaWorker.map((w) => w.close()));
 
-  // 4. Tutup sambungan panjang dengan pesan sambung ulang (modul 16)
+  // 4. Tutup sambungan panjang dengan pesan sambung ulang (modul 17)
   tutupSemuaSambunganRealtime();
 
   // 5. Baru tutup sumber daya bersama
@@ -414,11 +424,11 @@ Latihan paling berguna dari seluruh modul ini: tuliskan apa yang terjadi saat se
 
 | Ketergantungan gagal | Yang **harus** tetap jalan | Yang boleh hilang | Cara |
 | --- | --- | --- | --- |
-| Redis | Semua, lebih lambat | Tidak ada | Cache gagal tanpa suara, modul 13 |
+| Redis | Semua, lebih lambat | Tidak ada | Cache gagal tanpa suara, modul 14 |
 | Penyedia pembayaran | Katalog, keranjang, riwayat | Pembuatan pembayaran baru | Pesan jujur, pembayaran bisa dicoba lagi |
 | Penyedia email | Semua | Email seketika | Queue menahan, terkirim saat pulih |
 | Penyimpanan objek | Semua kecuali unggah dan unduh berkas | Gambar produk | Gambar pengganti, dan CDN dengan `stale-if-error` |
-| Broker peristiwa | API penuh | Reaksi hilir, sementara | Outbox menahan, modul 15 |
+| Broker peristiwa | API penuh | Reaksi hilir, sementara | Outbox menahan, modul 16 |
 | Layanan rekomendasi | Semua | Bagian rekomendasi | Jalan mundur: produk terlaris |
 | **Postgres primary** | Pembacaan dari replika kalau ada | Semua penulisan | Halaman status, pesan jujur, jangan pura-pura jalan |
 
@@ -431,6 +441,62 @@ Tiga hal yang membuat degradasi benar-benar bekerja:
 **Dua, pengguna harus diberi tahu dengan jujur.** "Rekomendasi sedang tidak tersedia" lebih baik daripada bagian kosong tanpa penjelasan. Dan "pembayaran sedang terganggu, pesanan Anda tersimpan dan bisa dibayar nanti" jauh lebih baik daripada error umum.
 
 **Tiga, degradasi harus terlihat di metrik.** Layanan yang berjalan dengan tiga fitur dalam mode mundur selama dua hari tanpa ada yang tahu adalah kegagalan pemantauan, bukan keberhasilan ketahanan.
+
+## Buktikan jalan
+
+Ketahanan hanya bisa dibuktikan dengan merusak sesuatu dengan sengaja. Jalankan ketiganya.
+
+```bash
+# 1. Batas waktu benar-benar dipasang
+# Buat ketergantungan palsu yang sengaja lambat 30 detik
+docker run --rm -d -p 9999:80 --name lambat kennethreitz/httpbin
+curl -s -o /dev/null -w '%{http_code} dalam %{time_total}s\n' \
+  localhost:3000/v1/pesanan/<id>   # endpoint yang memanggil layanan harga
+```
+
+```text
+200 dalam 2.014s
+```
+
+Yang penting di situ bukan status 200, melainkan **2 detik, bukan 30**. Batas waktu Anda bekerja, dan responsnya tetap keluar tanpa bagian harga. Kalau yang muncul adalah 30 detik atau 504, berarti ada satu panggilan keluar yang masih tanpa batas waktu.
+
+```bash
+# 2. Pemutus arus membuka setelah kegagalan berturut-turut
+for i in $(seq 10); do
+  curl -s -o /dev/null -w '%{http_code} %{time_total}s\n' localhost:3000/v1/pesanan/<id>
+done
+```
+
+```text
+200 2.011s
+200 2.008s
+200 2.013s
+200 2.009s
+200 2.012s
+200 0.018s
+200 0.014s
+200 0.015s
+200 0.016s
+200 0.013s
+```
+
+Perhatikan baris keenam: **waktunya jatuh dari 2 detik ke 18 milidetik.** Pemutus arus terbuka, dan permintaan berikutnya tidak lagi menunggu ketergantungan yang sudah terbukti bermasalah. Itu seluruh gunanya pola ini: berhenti membayar biaya batas waktu berulang kali.
+
+```bash
+# 3. Health check tidak berbohong
+docker compose stop redis
+curl -s -o /dev/null -w 'sehat: %{http_code}\n' localhost:3000/sehat
+curl -s -o /dev/null -w 'siap:  %{http_code}\n' localhost:3000/siap
+```
+
+```text
+sehat: 200
+siap:  200
+```
+
+Keduanya **tetap 200**, dan itu memang jawaban yang benar. Redis mati berarti cache hilang, bukan layanan mati: menjatuhkan readiness di sini akan mengeluarkan semua instance dari rotasi dan memadamkan layanan yang sebenarnya masih sanggup bekerja. Sekarang ulangi dengan mematikan basis data utama, dan `/siap` harus menjawab 503 sementara `/sehat` tetap 200.
+
+Jangan lupa membersihkan: `docker rm -f lambat && docker compose start redis`.
 
 ## Latihan
 
@@ -488,7 +554,7 @@ Buat satu klien HTTP yang dipakai untuk semua panggilan keluar di Proyek 4, deng
 >                     ...init.headers,
 >                     // Kunci idempotensi yang sama di semua percobaan
 >                     ...(init.idempoten ? { 'idempotency-key': kunciTetap(init) } : {}),
->                     // Teruskan konteks jejak, modul 18
+>                     // Teruskan konteks jejak, modul 19
 >                     ...pembawaJejak(),
 >                   },
 >                 });
@@ -535,6 +601,9 @@ Pasang liveness dan readiness di Proyek 4, lalu uji empat skenario.
 | 3 | Event loop tertahan 3 detik | Liveness tetap menjawab, atau platform tidak boleh mematikan |
 | 4 | SIGTERM dikirim | Readiness 503 segera, permintaan berjalan selesai |
 
+> [!petunjuk]
+> Skenario 2 adalah yang menentukan, dan jawabannya sengaja berbeda dari skenario 1. Tanyakan: kalau readiness gagal di **semua** instance sekaligus, apa yang dilakukan load balancer, dan apakah hasilnya lebih baik daripada melayani tanpa cache? Dari situ Anda bisa menyusun aturan umumnya: ketergantungan mana yang pantas masuk readiness, dan mana yang tidak.
+
 > [!jawaban]
 >
 > Skenario 3 yang paling sering salah dan paling berbahaya.
@@ -547,7 +616,7 @@ Pasang liveness dan readiness di Proyek 4, lalu uji empat skenario.
 > 2. **Hapus penyebabnya.** Event loop yang tertahan tiga detik adalah masalah modul 2 yang harus diperbaiki, bukan ditutupi dengan konfigurasi health check.
 > 3. **Pisahkan beban berat ke proses lain.** Worker yang memproses pekerjaan berat tidak melayani HTTP, sehingga event loop API tetap bebas.
 >
-> Dan skenario 2 adalah uji keputusan desain: readiness yang gagal karena Redis mati akan mengeluarkan **semua** instance dari rotasi, dan layanan Anda mati total padahal ia sanggup bekerja tanpa cache. Daftar ketergantungan yang wajib harus dibuat dengan sengaja, dan daftar itu biasanya hanya berisi satu hal: basis data utama.
+> Dan skenario 2 adalah uji keputusan desain: readiness yang gagal karena Redis mati akan mengeluarkan **semua** instance dari rotasi, dan layanan Anda mati total padahal masih sanggup bekerja tanpa cache. Daftar ketergantungan yang wajib harus dibuat dengan sengaja, dan daftar itu biasanya hanya berisi satu hal: basis data utama.
 >
 > ```ts
 > const KETERGANTUNGAN_WAJIB = ['db'] as const;    // bukan redis, bukan broker
@@ -669,7 +738,7 @@ Ketahanan yang dikerjakan baik tetap punya tiga batas.
 
 ## Rangkuman
 
-- Layanan yang lambat lebih berbahaya daripada yang mati, karena ia menahan sumber daya Anda tanpa memberi error.
+- Layanan yang lambat lebih berbahaya daripada yang mati, karena layanan yang lambat menahan sumber daya Anda tanpa memberi error.
 - Setiap panggilan keluar punya batas waktu, dan satu permintaan punya anggaran waktu yang dibagi ke semua panggilan di dalamnya.
 - Percobaan ulang hanya untuk operasi idempoten dan kegagalan yang layak diulang, selalu dengan jitter, dan hanya di satu lapisan.
 - Pemutus arus untuk ketergantungan yang punya jalan mundur, dengan ambang berbasis persentase, dan keadaannya terlihat di metrik.

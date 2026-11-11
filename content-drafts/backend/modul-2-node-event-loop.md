@@ -1,7 +1,7 @@
 ---
 title: 'Modul 2: Node.js, Event Loop, dan I/O yang Tidak Memblokir'
 description: Satu permintaan berat bisa menghentikan pelayanan untuk semua orang sekaligus. Modul ini menjelaskan kenapa, cara mengukurnya, dan cara memperbaikinya.
-date: 2026-12-03
+date: 2026-12-04
 slug: modul-2-node-event-loop
 tags: tutorial backend
 series: Tutorial Backend
@@ -42,7 +42,7 @@ Sekarang bayangkan seorang tamu datang dan meminta resepsionis menjumlahkan dua 
 | Membuka cabang kantor baru | Beberapa proses, `cluster` atau beberapa instance |
 | Antrean tamu yang memanjang | Event loop lag |
 
-Batas analoginya: resepsionis manusia bisa melihat antreannya memanjang, sedangkan event loop tidak memberi tahu siapa pun saat ia tertahan. Antrean itu hanya terlihat kalau Anda sengaja mengukurnya, dan bagian "cara mengukur" di modul ini yang paling layak Anda praktikkan hari ini.
+Batas analoginya: resepsionis manusia bisa melihat antreannya memanjang, sedangkan event loop tidak memberi tahu siapa pun saat sedang tertahan. Antrean itu hanya terlihat kalau Anda sengaja mengukurnya, dan bagian "cara mengukur" di modul ini yang paling layak Anda praktikkan hari ini.
 
 ## Cara kerjanya
 
@@ -57,6 +57,7 @@ Node punya satu utas yang menjalankan JavaScript Anda, dan di sekelilingnya ada 
 Di antara setiap langkah, Node mengosongkan dua antrean prioritas: `process.nextTick` lebih dulu, lalu promise. Artinya `await` selalu dilayani sebelum `setTimeout`, berapa pun kecilnya waktunya.
 
 ```js
+// Jalankan sebagai urutan.mjs untuk melihat sendiri urutannya
 console.log('1');
 setTimeout(() => console.log('2'), 0);
 setImmediate(() => console.log('3'));
@@ -82,6 +83,7 @@ Baris kedua sumber kejutan yang nyata: thread pool bawaan hanya empat utas. Kala
 Lima bentuk pemblokiran yang paling sering ditemui di kode produksi:
 
 ```js
+// Lima pola yang memblokir. Jangan disalin: ini daftar yang harus dihindari.
 // 1. API sinkron pada berkas
 const config = JSON.parse(fs.readFileSync('./besar.json', 'utf8'));
 
@@ -98,7 +100,7 @@ const total = seratusRibuBaris.reduce(hitungPajakRumit, 0);
 const cocok = /^(\w+\s?)*$/.test(masukanDariPengguna);
 ```
 
-Nomor lima layak diperhatikan khusus. Regex seperti itu bisa berjalan beberapa mikrosekon untuk masukan biasa dan beberapa menit untuk masukan yang dirancang jahat. Namanya catastrophic backtracking, dan karena bisa dipicu dari luar, itu bukan hanya masalah performa, melainkan celah penolakan layanan. Modul 12 kembali ke titik ini.
+Nomor lima layak diperhatikan khusus. Regex seperti itu bisa berjalan beberapa mikrosekon untuk masukan biasa dan beberapa menit untuk masukan yang dirancang jahat. Namanya catastrophic backtracking, dan karena bisa dipicu dari luar, itu bukan hanya masalah performa, melainkan celah penolakan layanan. Modul 13 kembali ke titik ini.
 
 Yang membuat pemblokiran sulit ditemukan: di mesin pengembangan dengan satu pengguna, kode di atas terasa cepat. Gejalanya baru muncul di produksi, dalam bentuk yang menyesatkan, misalnya health check yang kadang gagal padahal layanan "terlihat jalan".
 
@@ -107,6 +109,7 @@ Yang membuat pemblokiran sulit ditemukan: di mesin pengembangan dengan satu peng
 Jangan menebak. Node menyediakan dua angka yang langsung menjawab pertanyaan "apakah event loop saya tertahan".
 
 ```ts
+// src/lib/ukur-event-loop.ts
 import { monitorEventLoopDelay, performance } from 'node:perf_hooks';
 
 const histogram = monitorEventLoopDelay({ resolution: 20 });
@@ -137,7 +140,7 @@ Cara membacanya:
 | utilization di atas 0,8 terus-menerus | Sudah mentok CPU | Tambah proses, atau pindahkan pekerjaan |
 | utilization rendah tapi latensi tinggi | Bukan masalah CPU | Cari di basis data atau layanan lain |
 
-Baris terakhir yang paling berharga: dua angka ini **memisahkan masalah CPU dari masalah penantian**, dan itu membuat Anda berhenti memperbaiki tempat yang salah. Pasang keduanya sebagai metrik sejak sekarang, dan modul 18 akan menghubungkannya ke sistem pemantauan.
+Baris terakhir yang paling berharga: dua angka ini **memisahkan masalah CPU dari masalah penantian**, dan itu membuat Anda berhenti memperbaiki tempat yang salah. Pasang keduanya sebagai metrik sejak sekarang, dan modul 19 akan menghubungkannya ke sistem pemantauan.
 
 Untuk menemukan baris mana yang memakan CPU, pakai profiler:
 
@@ -153,11 +156,12 @@ pnpm dlx 0x dist/server.js
 
 Empat jalan keluar, berurutan dari yang paling sering tepat:
 
-**1. Jangan kerjakan di dalam permintaan.** Pembuatan PDF, pengolahan gambar, pengiriman email, dan laporan besar tidak perlu ditunggu pengguna. Kirim ke queue, kembalikan `202 Accepted`. Itu modul 14, dan hampir selalu jawaban terbaik.
+**1. Jangan kerjakan di dalam permintaan.** Pembuatan PDF, pengolahan gambar, pengiriman email, dan laporan besar tidak perlu ditunggu pengguna. Kirim ke queue, kembalikan `202 Accepted`. Itu modul 15, dan hampir selalu jawaban terbaik.
 
 **2. Pakai bentuk asinkronnya.** Hampir semua API Node punya pasangan asinkron yang menyerahkan pekerjaan ke thread pool.
 
 ```ts
+// src/lib/sandi.ts
 import { scrypt } from 'node:crypto';
 import { promisify } from 'node:util';
 
@@ -168,6 +172,7 @@ const kunci = await scryptAsync(sandi, garam, 64); // tidak memblokir event loop
 **3. Pecah pekerjaan panjang.** Kalau perhitungannya harus di dalam proses ini, beri event loop kesempatan bernapas:
 
 ```ts
+// src/lib/proses-bertahap.ts
 async function prosesBanyak<T>(baris: T[], kerjakan: (x: T) => void) {
   for (let i = 0; i < baris.length; i++) {
     kerjakan(baris[i]!);
@@ -181,6 +186,7 @@ async function prosesBanyak<T>(baris: T[], kerjakan: (x: T) => void) {
 **4. Pindahkan ke utas lain.** Untuk pekerjaan CPU yang benar-benar perlu dilakukan di proses ini:
 
 ```ts
+// src/lib/hitung-di-worker.ts
 import { Worker } from 'node:worker_threads';
 
 function hitungDiWorker(data: unknown): Promise<unknown> {
@@ -205,6 +211,7 @@ Dan untuk memakai semua inti prosesor, jangan pakai `cluster` kalau Anda sudah b
 Backend sering memegang data yang lebih besar daripada memorinya. Membaca berkas 2 GB dengan `readFile` berarti meminta 2 GB memori sekaligus, dan proses Anda akan mati.
 
 ```ts
+// src/lib/ekspor.ts
 import { pipeline } from 'node:stream/promises';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { createGzip } from 'node:zlib';
@@ -219,7 +226,7 @@ await pipeline(
 
 Konsep yang perlu dipahami di balik itu adalah **backpressure**: kalau penerima lebih lambat daripada pengirim, pengirim harus ikut melambat. `pipeline` mengurusnya untuk Anda, sekaligus membersihkan semua stream saat salah satunya gagal. Menyusun stream dengan `.pipe()` secara manual tidak menangani kegagalan dengan benar, dan itu sumber kebocoran deskriptor berkas yang baru terasa setelah berjalan berminggu-minggu.
 
-Pola yang sama berlaku untuk HTTP: mengalirkan unggahan langsung ke penyimpanan objek, dan mengalirkan hasil kueri besar langsung ke respons, tanpa menampung semuanya di memori. Modul 17 mengerjakannya.
+Pola yang sama berlaku untuk HTTP: mengalirkan unggahan langsung ke penyimpanan objek, dan mengalirkan hasil kueri besar langsung ke respons, tanpa menampung semuanya di memori. Modul 18 mengerjakannya.
 
 ## Menyiapkan proyek TypeScript untuk Node
 
@@ -271,8 +278,6 @@ import { z } from 'zod';
 const skema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   PORT: z.coerce.number().int().default(3000),
-  DATABASE_URL: z.string().url(),
-  REDIS_URL: z.string().url().optional(),
   LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
 });
 
@@ -289,6 +294,59 @@ export const config = hasil.data;
 
 Pola ini mengubah kelas kesalahan yang paling membingungkan di produksi ("kenapa `undefined` muncul di tengah kueri") jadi kegagalan saat start dengan pesan yang menyebut variabel mana yang kurang.
 
+**Berkas ini akan tumbuh sepanjang seri, dan hanya berisi apa yang sudah benar-benar dipakai.** Mendaftarkan `DATABASE_URL` sekarang, padahal basis datanya baru ada di Modul 5, hanya membuat layanan Anda menolak menyala tanpa alasan. Setiap kali sebuah modul membutuhkan variabel baru, modul itu menyebutkan baris yang ditambahkan ke sini. Ini daftar lengkapnya, supaya Anda tahu arahnya:
+
+| Variabel | Ditambahkan di | Gunanya |
+| --- | --- | --- |
+| `BEHIND_PROXY`, `ALLOWED_ORIGINS` | Modul 3 | Kepercayaan pada header proxy, dan daftar asal CORS |
+| `DATABASE_URL` | Modul 5 | Alamat Postgres |
+| `DB_POOL_MAX` | Modul 8 | Ukuran pool sambungan |
+| `REDIS_URL` | Modul 14 | Alamat Redis untuk cache dan queue |
+| `WEBHOOK_SECRET` | Modul 13 | Verifikasi tanda tangan webhook masuk |
+| `NAMA_LAYANAN`, `VERSI_RILIS` | Modul 19 | Penanda pada log, metrik, dan trace |
+| `DATABASE_REPLICA_URL`, `JEDA_DRAIN_MS` | Modul 20 | Replika baca, dan jeda sebelum berhenti melayani |
+| `WAKTU_COMMIT` | Modul 22 | Mengukur jarak dari commit ke produksi |
+
+Dua kebiasaan yang menyertainya. **Variabel yang wajib tidak diberi nilai bawaan**, karena nilai bawaan untuk alamat basis data berarti layanan Anda diam-diam menyambung ke tempat yang salah alih-alih memberi tahu Anda. Dan **`.env.example` ikut diperbarui setiap kali ada baris baru**, karena berkas itulah yang dibaca orang berikutnya yang menyalakan proyek ini, termasuk Anda sendiri tiga bulan lagi.
+
+## Buktikan jalan
+
+Sebelum lanjut ke latihan, pastikan proyek TypeScript Anda benar-benar hidup.
+
+```bash
+pnpm dev
+```
+
+Yang Anda harapkan muncul, lalu terminal berhenti dan menunggu:
+
+```text
+server mendengarkan di http://localhost:3000
+```
+
+Dari terminal kedua:
+
+```bash
+curl -s localhost:3000/sehat | jq
+```
+
+```json
+{ "status": "ok" }
+```
+
+Lalu ubah satu kata di `src/server.ts` dan simpan. Terminal pertama akan memuat ulang sendiri dalam waktu di bawah satu detik, karena `tsx watch` memantau berkas Anda. Kalau tidak memuat ulang, periksa bahwa yang Anda jalankan memang `pnpm dev` dan bukan `pnpm start`.
+
+Terakhir, buktikan validasi konfigurasi bekerja. Hapus sementara `PORT` dari `.env`, isi dengan nilai yang jelas salah, lalu jalankan lagi:
+
+```bash
+PORT=bukan-angka pnpm dev
+```
+
+```text
+Konfigurasi tidak valid: { PORT: [ 'Expected number, received nan' ] }
+```
+
+Prosesnya mati saat start, bukan saat permintaan pertama masuk. Itu yang kita inginkan, dan itu seluruh gunanya `src/config.ts`.
+
 ## Latihan
 
 ### Latihan 1: Blokir event loop Anda sendiri
@@ -296,6 +354,7 @@ Pola ini mengubah kelas kesalahan yang paling membingungkan di produksi ("kenapa
 Buat server kecil dengan tiga endpoint, pasang pengukur lag dari bagian sebelumnya, lalu amati apa yang terjadi.
 
 ```ts
+// latihan/server-lag.ts, dijalankan dengan: pnpm tsx latihan/server-lag.ts
 import { createServer } from 'node:http';
 
 const server = createServer(async (req, res) => {
@@ -357,13 +416,14 @@ curl -s -o /dev/null -w "%{time_total}s\n" localhost:3000/sehat
 >
 > 1. **Node unggul mutlak untuk pekerjaan yang isinya menunggu.** Dua puluh permintaan yang masing-masing menunggu basis data 500 ms selesai dalam 500 ms. Model satu utas per permintaan akan menghabiskan dua puluh utas untuk hal yang sama.
 > 2. **Pekerjaan CPU tidak sekadar lambat, tapi menular.** Percobaan C adalah laporan nomor 4 dari modul 1, sekarang Anda melihatnya sendiri. Endpoint yang sama sekali tidak terkait ikut melambat.
-> 3. **Health check Anda ikut korban.** Ini efek samping yang berbahaya: platform seperti Kubernetes menyimpulkan layanan Anda tidak sehat lalu mematikannya, padahal sebenarnya hanya sibuk. Hasilnya layanan dimatikan tepat saat sedang paling sibuk. Modul 19 membahas cara membuat health check yang tidak menipu.
+> 3. **Health check Anda ikut korban.** Ini efek samping yang berbahaya: platform seperti Kubernetes menyimpulkan layanan Anda tidak sehat lalu mematikannya, padahal sebenarnya hanya sibuk. Hasilnya layanan dimatikan tepat saat sedang paling sibuk. Modul 20 membahas cara membuat health check yang tidak menipu.
 
 ### Latihan 2: Temukan yang memblokir
 
 Berkas ini dari layanan nyata. Temukan enam baris atau pola yang memblokir event loop, dan urutkan dari yang paling berbahaya.
 
 ```ts
+// Berkas dari layanan nyata. Temukan yang memblokir sebelum membaca jawabannya.
 import fs from 'node:fs';
 import crypto from 'node:crypto';
 
@@ -391,16 +451,19 @@ export async function buatInvoice(req: Request): Promise<Response> {
 }
 ```
 
+> [!petunjuk]
+> Telusuri baris per baris dengan satu pertanyaan: siapa yang menentukan berapa lama baris ini berjalan? Kalau jawabannya "ukuran masukan dari pemanggil", baris itu masuk daftar, berapa pun cepatnya pada data kecil. Dan satu petunjuk untuk urutannya: yang paling berbahaya bukan yang paling lambat, melainkan yang paling lambat **dan** bisa dipicu siapa saja dari luar. Satu baris di berkas itu justru tidak bermasalah meski memakai API sinkron.
+
 > [!jawaban]
 >
 > | Urutan | Baris | Mengapa berbahaya | Perbaikan |
 > | --- | --- | --- | --- |
 > | 1 | `buatPdfSinkron(html)` | Pembuatan PDF bisa ratusan ms sampai detik, dan dipicu setiap permintaan | Pindahkan ke queue, kembalikan 202 |
 > | 2 | Regex pada `emailPenagihan` | Bersarang dan bisa meledak. Dipicu masukan dari luar, jadi ini celah penolakan layanan | Validasi dengan Zod, atau regex sederhana tanpa pengulangan bersarang |
-> | 3 | `crypto.pbkdf2Sync` dengan 310 ribu iterasi | Memang dirancang lambat, dan versi sinkronnya menahan semua orang | Pakai `pbkdf2` asinkron, atau `argon2` (modul 10) |
+> | 3 | `crypto.pbkdf2Sync` dengan 310 ribu iterasi | Memang dirancang lambat, dan versi sinkronnya menahan semua orang | Pakai `pbkdf2` asinkron, atau `argon2` (modul 11) |
 > | 4 | `reduce` atas seluruh transaksi pengguna | Tanpa batas. Pengguna dengan 200 ribu transaksi menghentikan layanan | Hitung di basis data dengan agregasi (modul 6) |
 > | 5 | `JSON.parse` tanpa batas ukuran | Payload 50 MB memblokir, dan bisa dikirim siapa saja | Batasi ukuran body di lapisan HTTP (modul 3) |
-> | 6 | `fs.writeFileSync` | Menulis ke disk lokal, sinkron, dan di container berkasnya akan hilang | Alirkan ke penyimpanan objek (modul 17) |
+> | 6 | `fs.writeFileSync` | Menulis ke disk lokal, sinkron, dan di container berkasnya akan hilang | Alirkan ke penyimpanan objek (modul 18) |
 >
 > Satu baris yang **tidak** masalah: `fs.readFileSync` untuk templat di tingkat modul. Itu berjalan sekali saat proses mulai, sebelum ada permintaan masuk, dan memuat berkas konfigurasi secara sinkron saat start adalah pola yang sah. Yang salah adalah memakai API sinkron di dalam jalur permintaan.
 >
@@ -436,7 +499,7 @@ Sebuah endpoint menghitung ulang skor 50.000 anggota dari data yang sudah ada di
 > | Worker thread | di bawah 5 ms | 3,0 detik | Perhitungan yang hasilnya ditunggu pemanggil |
 > | Queue | di bawah 5 ms | pengguna tidak menunggu | **Pilihan untuk produksi** |
 >
-> Jawaban untuk produksi adalah queue, dan alasannya bukan angka lag. Alasannya: pekerjaan 3 detik yang dilakukan di dalam permintaan akan bermasalah di tempat lain. Load balancer punya batas waktu, pengguna akan menutup tab lalu mencoba lagi sehingga pekerjaannya dilakukan dua kali, dan tidak ada cara mengetahui progresnya. Memindahkannya ke queue menyelesaikan empat hal sekaligus, dan itu modul 14.
+> Jawaban untuk produksi adalah queue, dan alasannya bukan angka lag. Alasannya: pekerjaan 3 detik yang dilakukan di dalam permintaan akan bermasalah di tempat lain. Load balancer punya batas waktu, pengguna akan menutup tab lalu mencoba lagi sehingga pekerjaannya dilakukan dua kali, dan tidak ada cara mengetahui progresnya. Memindahkannya ke queue menyelesaikan empat hal sekaligus, dan itu modul 15.
 >
 > Worker thread tetap berguna, untuk hal yang hasilnya memang perlu ada dalam respons dan tidak bisa ditunda, misalnya pengolahan gambar kecil atau verifikasi tanda tangan kriptografi yang berat.
 >
@@ -447,6 +510,7 @@ Sebuah endpoint menghitung ulang skor 50.000 anggota dari data yang sudah ada di
 Anda perlu mengambil data dari 100 URL layanan mitra. Tulis dan ukur tiga pendekatan, lalu jelaskan kenapa yang paling cepat belum tentu yang Anda pakai.
 
 ```ts
+// Tiga pendekatan untuk dibandingkan, bukan untuk disalin apa adanya
 // A: berurutan
 for (const url of urls) hasil.push(await ambil(url));
 
@@ -494,9 +558,9 @@ const hasil = await denganBatas(10, urls, ambil);
 > 1. **Anda menyerang mitra Anda sendiri.** Seratus permintaan serentak bisa menembus batas laju mereka, dan jawabannya 429 untuk semuanya. Lebih buruk lagi, mereka bisa memblokir alamat IP Anda.
 > 2. **Memori melonjak.** Seratus respons ditampung bersamaan. Kalau masing-masing 5 MB, itu 500 MB sekaligus.
 > 3. **`Promise.all` gagal seluruhnya kalau satu gagal.** Untuk pekerjaan seperti ini, `Promise.allSettled` hampir selalu lebih tepat, supaya 99 yang berhasil tidak terbuang.
-> 4. **Pola ini menular ke dalam.** Kalau setiap permintaan juga menyentuh basis data, 100 permintaan serentak bisa menghabiskan seluruh pool sambungan, dan endpoint lain yang tidak terkait ikut gagal. Itu modul 7.
+> 4. **Pola ini menular ke dalam.** Kalau setiap permintaan juga menyentuh basis data, 100 permintaan serentak bisa menghabiskan seluruh pool sambungan, dan endpoint lain yang tidak terkait ikut gagal. Itu modul 8.
 >
-> Tambahan yang membuat versi C siap produksi: batas waktu per permintaan, percobaan ulang dengan jeda bertambah hanya untuk kegagalan yang layak diulang, dan pencatatan berapa yang gagal. Modul 19 membangun semuanya sebagai satu pola yang bisa dipakai ulang.
+> Tambahan yang membuat versi C siap produksi: batas waktu per permintaan, percobaan ulang dengan jeda bertambah hanya untuk kegagalan yang layak diulang, dan pencatatan berapa yang gagal. Modul 20 membangun semuanya sebagai satu pola yang bisa dipakai ulang.
 
 ## Batasnya
 

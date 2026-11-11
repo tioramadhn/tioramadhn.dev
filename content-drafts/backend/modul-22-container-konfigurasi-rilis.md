@@ -1,8 +1,8 @@
 ---
-title: 'Modul 21: Container, Konfigurasi, dan Rilis'
+title: 'Modul 22: Container, Konfigurasi, dan Rilis'
 description: Membuat deploy jadi pekerjaan yang membosankan, dan itu pujian. Container yang benar, migrasi tanpa menurunkan layanan, rilis bertahap, dan mundur dalam dua menit.
-date: 2026-12-27
-slug: modul-21-container-konfigurasi-rilis
+date: 2026-12-29
+slug: modul-22-container-konfigurasi-rilis
 tags: tutorial backend
 series: Tutorial Backend
 status: draft
@@ -163,7 +163,7 @@ Enam keputusan di Dockerfile itu, dan masing-masing mencegah masalah nyata:
 
 **Dua, `USER node`.** Proses yang berjalan sebagai root di container berarti satu celah eksekusi kode berjalan dengan hak penuh. Ini satu baris yang hampir selalu terlupakan.
 
-**Tiga, PID 1 yang benar.** Node sebagai PID 1 tidak menangani sinyal seperti proses biasa, dan `SIGTERM` bisa diabaikan sehingga penutupan rapi dari modul 19 tidak pernah berjalan. `dumb-init` atau `--init` pada runtime menyelesaikannya.
+**Tiga, PID 1 yang benar.** Node sebagai PID 1 tidak menangani sinyal seperti proses biasa, dan `SIGTERM` bisa diabaikan sehingga penutupan rapi dari modul 20 tidak pernah berjalan. `dumb-init` atau `--init` pada runtime menyelesaikannya.
 
 **Empat, `.dockerignore` yang benar.** Tanpa itu, `node_modules` lokal dan berkas `.env` Anda ikut masuk ke konteks build, dan yang kedua berarti rahasia Anda masuk ke image.
 
@@ -180,7 +180,7 @@ resources:
     memory: 512Mi
 
 env:
-  # Beri tahu V8 supaya ia mulai membersihkan sebelum container dimatikan sistem
+  # Beri tahu V8 supaya mulai membersihkan sebelum container dimatikan sistem
   - name: NODE_OPTIONS
     value: '--max-old-space-size=384'
 ```
@@ -256,7 +256,7 @@ Aturan praktisnya: **migrasi yang mengubah data yang ada harus aditif, dan pemba
 | **Canary** | 5% lalu lintas ke versi baru, amati, lalu perluas | Perubahan berisiko, dan ada metrik yang cukup untuk menilai |
 | **Feature flag** | Kode tayang dalam keadaan mati, dinyalakan terpisah | Memisahkan rilis dari peluncuran. Pelengkap, bukan pengganti |
 
-Rilis bergulir butuh dua hal yang sudah Anda bangun di modul 19: readiness yang jujur, dan penutupan yang rapi. Tanpa keduanya, rilis bergulir berarti permintaan yang gagal di setiap pergantian instance.
+Rilis bergulir butuh dua hal yang sudah Anda bangun di modul 20: readiness yang jujur, dan penutupan yang rapi. Tanpa keduanya, rilis bergulir berarti permintaan yang gagal di setiap pergantian instance.
 
 ```yaml
 # Kubernetes, bagian yang menentukan
@@ -284,7 +284,7 @@ spec:
           livenessProbe:                   # tidak memeriksa ketergantungan
             httpGet: { path: /sehat, port: 3000 }
             periodSeconds: 10
-            failureThreshold: 5            # longgar, pelajaran modul 19
+            failureThreshold: 5            # longgar, pelajaran modul 20
 
           readinessProbe:                  # memeriksa yang wajib saja
             httpGet: { path: /siap, port: 3000 }
@@ -311,6 +311,7 @@ Dan satu hal yang berlaku apa pun orkestratornya: **bangun sekali, deploy banyak
 Feature flag memisahkan keduanya, dan itu mengubah cara tim bekerja.
 
 ```ts
+// src/fitur/pesanan/rute.ts, memisahkan rilis dari peluncuran
 // Kode tayang, fitur masih mati
 export async function hitungDiskon(pesanan: Pesanan, pelaku: Pelaku) {
   if (await flag.aktif('diskon-berjenjang', { tenantId: pelaku.tenantId })) {
@@ -394,7 +395,7 @@ Empat hal yang membedakan pipeline ini dari yang asal jalan:
 
 **Dua, image yang sama dipakai untuk migrasi.** Dengan begitu, kode migrasi yang dijalankan persis yang ada di image yang akan tayang, bukan versi dari checkout yang mungkin berbeda.
 
-**Tiga, tag versi dari commit.** `latest` tidak pernah dipakai, karena ia membuat pertanyaan "versi apa yang tayang" tidak bisa dijawab, dan membuat mundur jadi tebakan.
+**Tiga, tag versi dari commit.** `latest` tidak pernah dipakai, karena tag itu membuat pertanyaan "versi apa yang tayang" tidak bisa dijawab, dan membuat mundur jadi tebakan.
 
 **Empat, tahap pemantauan setelah rilis.** Sepuluh menit mengamati metrik, dan mundur otomatis kalau tingkat kesalahan melewati ambang. Ini yang mengubah rilis dari momen menegangkan jadi proses yang berjalan sendiri.
 
@@ -419,7 +420,7 @@ Empat hal yang menentukan apakah mundur benar-benar bisa dilakukan:
 
 Baris terakhir adalah yang paling sering diabaikan. **Latih mundur di staging secara berkala, dan ukur waktunya.** Prosedur yang hanya ada di dokumen akan dibaca pertama kali saat produksi rusak, dan itu waktu terburuk untuk belajar.
 
-Dua angka yang pantas Anda ketahui tentang layanan Anda, dan dipakai di modul 18 seri frontend juga: **berapa lama dari commit sampai tayang, dan berapa lama dari tahu rusak sampai pulih.** Keduanya menggambarkan kesehatan jalur rilis Anda lebih baik daripada metrik lain mana pun.
+Dua angka yang pantas Anda ketahui tentang layanan Anda, dan dipakai di modul 19 seri frontend juga: **berapa lama dari commit sampai tayang, dan berapa lama dari tahu rusak sampai pulih.** Keduanya menggambarkan kesehatan jalur rilis Anda lebih baik daripada metrik lain mana pun.
 
 ## Kalau Kubernetes terasa berlebihan
 
@@ -433,6 +434,66 @@ Dan untuk banyak tim, memang berlebihan. Kubernetes memberi kendali penuh dengan
 | **VPS dengan Docker Compose** | Produk kecil, anggaran ketat | Tidak ada penyembuhan otomatis, rilis manual |
 
 Patokan yang jujur: **mulai dari PaaS atau container terkelola.** Pindah ke Kubernetes saat Anda punya alasan yang bisa disebutkan, misalnya biaya yang sudah melebihi gaji satu orang operasional, atau kebutuhan konfigurasi yang tidak dilayani PaaS. Memulai dari Kubernetes untuk satu layanan adalah menambah pekerjaan tanpa manfaat.
+
+## Buktikan jalan
+
+Container punya satu kelas kegagalan yang tidak pernah muncul di `pnpm dev`. Lima pemeriksaan sebelum menyentuh produksi.
+
+```bash
+# 1. Image terbangun, dan ukurannya wajar
+docker build -t layanan:coba .
+docker images layanan:coba
+```
+
+```text
+REPOSITORY   TAG    SIZE
+layanan      coba   184MB
+```
+
+Ratusan megabyte wajar untuk Node. **Lebih dari satu gigabyte** berarti `node_modules` pengembangan atau cache build ikut terbawa, dan `.dockerignore` Anda perlu diperiksa.
+
+```bash
+# 2. Jalan di dalam container, dan bisa dihubungi dari luar
+docker run --rm -p 3000:3000 --env-file .env layanan:coba
+curl -s localhost:3000/sehat | jq
+```
+
+```json
+{ "status": "ok" }
+```
+
+Kalau `curl` menjawab `Connection refused` padahal log container menunjukkan server menyala, penyebabnya hampir pasti satu: server mendengarkan di `127.0.0.1`, bukan `0.0.0.0`. Di dalam container, `127.0.0.1` berarti "hanya dari dalam container ini".
+
+```bash
+# 3. Tidak berjalan sebagai root
+docker run --rm layanan:coba whoami
+```
+
+```text
+node
+```
+
+```bash
+# 4. SIGTERM ditangani, bukan dibunuh paksa
+docker run --rm --name coba -p 3000:3000 --env-file .env layanan:coba &
+sleep 3
+time docker stop coba
+```
+
+```text
+{"level":"info","msg":"mematikan server","sinyal":"SIGTERM"}
+{"level":"info","msg":"permintaan berjalan selesai, keluar"}
+real    0m1.284s
+```
+
+Angka yang penting adalah `real`. **Di bawah beberapa detik berarti proses Anda keluar sendiri.** Tepat sepuluh detik berarti Docker menunggu habis batas sabarnya lalu membunuh paksa dengan `SIGKILL`, dan itu berarti permintaan yang sedang berjalan terputus di tengah pada setiap deploy.
+
+```bash
+# 5. Migrasi berjalan terpisah dari server
+docker run --rm --env-file .env layanan:coba node dist/migrasi.js
+```
+
+Migrasi yang dijalankan dari dalam `CMD` server berarti tiga instance menjalankan migrasi yang sama bersamaan saat deploy.
 
 ## Latihan
 
@@ -486,6 +547,9 @@ Buat Dockerfile untuk layanan Anda, lalu periksa tujuh hal.
 
 Kolom `pesanan.total_rp` perlu diganti nama jadi `pesanan.total_minor`. Rancang seluruh langkahnya, lalu jalankan sambil uji beban tetap berjalan, dan buktikan tidak ada satu pun permintaan yang gagal.
 
+> [!petunjuk]
+> Aturan yang menentukan seluruh rancangan: pada setiap saat, **versi kode lama dan versi kode baru harus sama-sama bisa berjalan** terhadap bentuk basis data saat itu. Dari aturan itu, pikirkan berapa deploy terpisah yang Anda butuhkan, dan di deploy mana kolom lamanya boleh dihapus. Jawabannya lebih dari dua. Dan satu pertanyaan yang sering terlewat: apa yang mengisi kolom baru untuk baris yang ditulis kode lama selama masa peralihan?
+
 > [!pembahasan]
 >
 > | Rilis | Migrasi | Kode aplikasi |
@@ -524,7 +588,7 @@ Kolom `pesanan.total_rp` perlu diganti nama jadi `pesanan.total_minor`. Rancang 
 >
 > 1. **Lima rilis untuk satu penggantian nama**, dan itu memang harganya. Satu rilis yang melakukan `RENAME COLUMN` akan menyebabkan error 500 selama beberapa menit, karena aplikasi versi lama masih mencari kolom lama.
 > 2. **Penulisan ganda harus di satu tempat.** Kalau ada tiga jalur yang menyisipkan pesanan, ketiganya harus menulis ke dua kolom. Satu yang terlupakan menghasilkan baris dengan `total_minor` kosong, dan `CHECK` di rilis N+2 akan menemukannya.
-> 3. **Batasan `CHECK` sementara adalah teknik yang pantas ditiru.** Ia mengubah penyimpangan dari sesuatu yang ditemukan pengguna jadi error saat penulisan.
+> 3. **Batasan `CHECK` sementara adalah teknik yang pantas ditiru.** Batasan itu mengubah penyimpangan dari sesuatu yang ditemukan pengguna jadi error saat penulisan.
 > 4. **Pengisian bertahap tidak boleh satu `UPDATE` besar.** Pada dua juta baris, satu `UPDATE` menahan kunci, membengkakkan tabel, dan bisa memicu batas waktu. Per batch 5.000 dengan jeda kecil di antaranya.
 > 5. **Buktikan dengan uji beban yang berjalan selama migrasi.** Itu satu-satunya cara memastikan tidak ada permintaan yang gagal, dan biasanya menemukan satu jalur yang terlupakan.
 >
@@ -621,7 +685,7 @@ Periksa layanan Anda terhadap dua puluh pertanyaan berikut, dan jawab dengan buk
 >
 > Lima temuan yang paling sering muncul pada audit pertama, dan semuanya bisa diperbaiki dalam sehari:
 >
-> **Nomor 13 belum terpenuhi.** Worker berjalan di proses yang sama dengan API, karena itu yang paling mudah saat membangun. Akibatnya dari modul 2 dan 14: pekerjaan berat membuat API melambat, dan menambah kapasitas worker berarti menambah instance API juga. Perbaikannya satu `Dockerfile` yang sama dengan `CMD` berbeda.
+> **Nomor 13 belum terpenuhi.** Worker berjalan di proses yang sama dengan API, karena itu yang paling mudah saat membangun. Akibatnya dari modul 2 dan 15: pekerjaan berat membuat API melambat, dan menambah kapasitas worker berarti menambah instance API juga. Perbaikannya satu `Dockerfile` yang sama dengan `CMD` berbeda.
 >
 > ```yaml
 > # Dua deployment, satu image

@@ -1,7 +1,7 @@
 ---
 title: 'Modul 4: Desain API yang Dipakai Orang'
 description: Pagination yang tidak melewatkan data, idempotency yang mencegah transaksi dobel, dan cara mengubah API tanpa merusak aplikasi yang sudah terpasang di ribuan ponsel.
-date: 2026-12-05
+date: 2026-12-06
 slug: modul-4-desain-api
 tags: tutorial backend
 series: Tutorial Backend
@@ -131,6 +131,7 @@ Content-Type: application/json
 ```
 
 ```ts
+// src/http/idempotency.ts
 // Jalur yang dijalankan server
 async function buatPesanan(penggunaId: string, kunci: string, masukan: MasukanPesanan) {
   const sidikJari = hashStabil({ penggunaId, masukan });
@@ -204,7 +205,7 @@ Dua bentuk berbeda untuk dua hal berbeda: `dibuatPada` adalah **momen** sehingga
 | **UUIDv7 atau ULID** | Acak sekaligus berurutan menurut waktu. Pilihan bawaan yang baik |
 | Nomor urut internal + id publik | Dipakai saat performa indeks sangat kritis |
 
-Modul 9 menjelaskan kenapa keberurutan penting untuk indeks. Untuk sekarang cukup: pakai UUIDv7 atau ULID.
+Modul 10 menjelaskan kenapa keberurutan penting untuk indeks. Untuk sekarang cukup: pakai UUIDv7 atau ULID.
 
 ## Memperbarui sebagian, dan jebakan `null`
 
@@ -218,6 +219,7 @@ Apa artinya? Ada dua tafsiran yang sama-sama masuk akal: "hapus nomor telepon sa
 Aturan yang jelas dan paling banyak dipakai, yaitu JSON Merge Patch: **field yang tidak disertakan berarti tidak berubah, dan `null` berarti dihapus.** Tulis itu di dokumentasi, dan terapkan di skema:
 
 ```ts
+// src/fitur/profil/skema.ts
 const patchProfil = z.object({
   nama: z.string().trim().min(3).max(80).optional(),
   // undefined = tidak diubah, null = dikosongkan
@@ -229,6 +231,7 @@ const patchProfil = z.object({
 Dan di lapisan service, bedakan keduanya dengan sengaja:
 
 ```ts
+// src/fitur/profil/layanan.ts, membedakan "tidak dikirim" dari "dikosongkan"
 const perubahan: Record<string, unknown> = {};
 
 if ('nama' in masukan) perubahan.nama = masukan.nama;
@@ -270,7 +273,7 @@ POST /v1/produk/impor
 
 Dua hal yang wajib ada pada bentuk seperti ini: **penunjuk posisi** supaya klien tahu baris mana yang gagal, dan **kode yang stabil** per kegagalan. Mengembalikan `400` dengan pesan "14 item gagal" tanpa menyebut yang mana memaksa pemakai mengirim ulang semuanya dan menebak.
 
-Kalau operasinya harus seluruhnya atau tidak sama sekali, katakan begitu, dan pakai transaksi dari modul 8.
+Kalau operasinya harus seluruhnya atau tidak sama sekali, katakan begitu, dan pakai transaksi dari modul 9.
 
 ## Mengubah API tanpa merusak klien
 
@@ -322,6 +325,7 @@ Lalu, dan ini bagian yang sering dilewati: **ukur siapa yang masih memakainya.**
 Dokumentasi yang ditulis tangan akan salah dalam dua minggu. Satu-satunya yang bertahan adalah dokumentasi yang dihasilkan dari kode yang benar-benar berjalan, dan skema dari modul 3 sudah menyediakan bahannya.
 
 ```ts
+// src/app.ts, di dalam buatApp()
 await app.register(import('@fastify/swagger'), {
   openapi: {
     info: { title: 'API Perpustakaan', version: '1.0.0' },
@@ -348,7 +352,7 @@ Satu kebiasaan yang pantas ditiru dari tim yang API-nya enak dipakai: **telaah d
 | --- | --- | --- |
 | **REST + JSON** | API publik, klien beragam, kebanyakan kasus | Klien kadang mengambil lebih banyak data daripada yang dibutuhkan |
 | **GraphQL** | Banyak klien dengan kebutuhan data berbeda, satu endpoint | Kerumitan di server: kedalaman kueri, N+1, caching, batas biaya kueri |
-| **gRPC** | Komunikasi antar layanan internal, latensi rendah | Tidak ramah peramban, butuh perkakas tambahan. Modul 22 |
+| **gRPC** | Komunikasi antar layanan internal, latensi rendah | Tidak ramah peramban, butuh perkakas tambahan. Modul 23 |
 | **tRPC** | Monorepo TypeScript, klien dan server satu tim | Terikat TypeScript, tidak cocok untuk API publik |
 
 Patokan praktis: REST untuk apa pun yang dipakai pihak luar, gRPC untuk antar layanan Anda sendiri, GraphQL kalau Anda punya banyak klien dengan kebutuhan yang benar-benar berbeda dan siap mengurus biaya kerumitannya.
@@ -406,6 +410,9 @@ POST /borrowBook          body: { "bookId": 5, "memberId": 12 }
 ### Latihan 2: Pasang idempotency
 
 Terapkan idempotency pada `POST /v1/peminjaman` dengan lima syarat: kunci wajib dan ditolak kalau tidak ada, percobaan ulang mengembalikan respons dan status yang sama persis, kunci sama dengan isi berbeda ditolak 409, permintaan yang masih diproses ditolak 409, dan kunci kedaluwarsa setelah 24 jam.
+
+> [!petunjuk]
+> Yang paling mudah terlewat adalah syarat kedua. Menyimpan hanya "kunci ini sudah dipakai" tidak cukup, karena percobaan ulang harus mengembalikan **isi respons yang sama persis**, termasuk status code-nya. Jadi pikirkan apa saja yang perlu Anda simpan selain kuncinya sendiri. Untuk syarat ketiga, Anda butuh cara membandingkan dua permintaan: isi body yang sama harus menghasilkan nilai perbandingan yang sama, dan urutan field di JSON tidak boleh mengubahnya.
 
 > [!pembahasan]
 >
@@ -466,7 +473,7 @@ Terapkan idempotency pada `POST /v1/peminjaman` dengan lima syarat: kunci wajib 
 >
 > Enam keputusan yang membuatnya benar, dan masing-masing pernah jadi insiden nyata di suatu tempat:
 >
-> 1. **`kunciKalauBelumAda` adalah satu operasi atomik**, bukan "periksa lalu tulis". Dua permintaan yang datang pada milidetik yang sama akan sama-sama lolos pemeriksaan kalau dipisah. Modul 8 membahas kenapa, dan di Postgres ini jadi `INSERT ... ON CONFLICT DO NOTHING`.
+> 1. **`kunciKalauBelumAda` adalah satu operasi atomik**, bukan "periksa lalu tulis". Dua permintaan yang datang pada milidetik yang sama akan sama-sama lolos pemeriksaan kalau dipisah. Modul 9 membahas kenapa, dan di Postgres ini jadi `INSERT ... ON CONFLICT DO NOTHING`.
 > 2. **Kunci dibatasi per pengguna.** Tanpa itu, pengguna A bisa menebak kunci pengguna B dan membaca responsnya, yang bisa berisi data pribadi.
 > 3. **Sidik jari dari isi permintaan.** Ini yang membedakan "percobaan ulang" dari "klien keliru memakai ulang kunci".
 > 4. **Respons disimpan utuh, termasuk status code.** Percobaan ulang mengembalikan `201` yang sama, bukan `200`.
@@ -525,7 +532,7 @@ Rancang kursor untuk `GET /v1/peminjaman` yang mendukung tiga pengurutan: terbar
 > 3. **Pengurutan berdasarkan nama butuh perhatian lebih.** Nama tidak unik, bisa berubah, dan urutannya bergantung pada aturan kolasi basis data. Kalau sebuah nama diubah saat pengguna sedang membuka halaman, baris itu bisa terlewat. Sebutkan batas ini di dokumentasi.
 > 4. **Kursor yang tidak valid dijawab 400, bukan 500.** Kursor datang dari luar, jadi harus divalidasi seperti masukan lain, dan `JSON.parse` di dalamnya wajib dibungkus.
 >
-> Satu catatan performa yang akan dibuktikan di modul 9: kueri ini hanya cepat kalau ada indeks komposit pada kolom yang sama persis dengan `ORDER BY`. Tiga pengurutan berarti tiga indeks, dan itu keputusan yang punya biaya penyimpanan serta biaya penulisan.
+> Satu catatan performa yang akan dibuktikan di modul 10: kueri ini hanya cepat kalau ada indeks komposit pada kolom yang sama persis dengan `ORDER BY`. Tiga pengurutan berarti tiga indeks, dan itu keputusan yang punya biaya penyimpanan serta biaya penulisan.
 
 ### Latihan 4: Merusak atau tidak
 
@@ -555,7 +562,7 @@ Untuk sepuluh perubahan berikut, tentukan apakah merusak klien lama, dan kalau y
 > | 5 | **Ya, dan paling berbahaya** | Jangan. Buat field baru `totalSen` dan hentikan yang lama secara bertahap |
 > | 6 | **Ya** | Terima tanpa kunci dulu sambil mencatat peringatan, hubungi pemakainya, baru wajibkan |
 > | 7 | Tidak | Bawaannya harus mempertahankan perilaku lama |
-> | 8 | **Ya**, dan juga memburuk | Jangan. 404 memang pilihan yang benar, lihat modul 11 |
+> | 8 | **Ya**, dan juga memburuk | Jangan. 404 memang pilihan yang benar, lihat modul 12 |
 > | 9 | **Ya** | Terapkan hanya untuk data baru, atau tolak di versi baru. Data lama yang sudah 200 huruf tetap harus bisa dibaca dan disimpan ulang |
 > | 10 | **Ya**, secara halus | Urutan yang tidak ditentukan sering diandalkan diam-diam. Umumkan, dan uji dengan klien utama |
 >
@@ -569,7 +576,7 @@ Desain API yang baik tidak menyelesaikan tiga hal.
 
 **Datanya masih belum ke mana-mana.** Semua endpoint di modul ini masih bisa kehilangan seluruh isinya saat proses dimatikan.
 
-**Bentuk API tidak menjamin kebenaran isi.** Idempotency key mencegah permintaan diproses dua kali. Dua permintaan berbeda yang sama-sama mengambil buku terakhir adalah masalah lain, dan itu modul 8.
+**Bentuk API tidak menjamin kebenaran isi.** Idempotency key mencegah permintaan diproses dua kali. Dua permintaan berbeda yang sama-sama mengambil buku terakhir adalah masalah lain, dan itu modul 9.
 
 **Dokumentasi tidak menggantikan percakapan.** API yang enak dipakai lahir dari mendengarkan pemakainya, bukan dari mengikuti aturan REST dengan patuh. Kalau klien Anda selalu memanggil tiga endpoint berurutan untuk satu layar, mungkin yang mereka butuhkan satu endpoint yang memang dirancang untuk layar itu.
 

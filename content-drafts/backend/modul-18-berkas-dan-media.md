@@ -1,8 +1,8 @@
 ---
-title: 'Modul 17: Berkas dan Media'
+title: 'Modul 18: Berkas dan Media'
 description: Unggahan 240 MB yang melewati proses Node adalah masalah yang tidak perlu ada. Unggahan langsung ke penyimpanan objek, validasi berkas yang sungguhan, penyajian berkas privat, dan pembersihan yang terlupakan.
-date: 2026-12-22
-slug: modul-17-berkas-dan-media
+date: 2026-12-24
+slug: modul-18-berkas-dan-media
 tags: tutorial backend
 series: Tutorial Backend
 status: draft
@@ -54,6 +54,7 @@ Batas analoginya yang penting: petugas bisa melihat koper dan tahu itu koper, se
 ## Alur unggahan langsung
 
 ```ts
+// src/fitur/berkas/rute.ts, langkah 1: menerbitkan URL unggah
 // 1. Klien meminta izin unggah
 app.post('/v1/unggahan/izin', { onRequest: [app.autentikasi] }, async (req) => {
   const { tujuan, namaAsli, tipe, ukuran } = skemaIzinUnggah.parse(req.body);
@@ -73,7 +74,7 @@ app.post('/v1/unggahan/izin', { onRequest: [app.autentikasi] }, async (req) => {
   }
 
   // Kunci objek ditentukan server, tidak pernah dari nama asli berkas.
-  // Pelajaran modul 12: nama dari pengguna hanya metadata untuk ditampilkan.
+  // Pelajaran modul 13: nama dari pengguna hanya metadata untuk ditampilkan.
   const berkasId = idBaru();
   const ekstensi = EKSTENSI_AMAN[tipe] ?? 'bin';
   const kunci = `${req.pelaku.tenantId}/${tujuan}/${tahunBulan()}/${berkasId}.${ekstensi}`;
@@ -104,6 +105,7 @@ app.post('/v1/unggahan/izin', { onRequest: [app.autentikasi] }, async (req) => {
 ```
 
 ```ts
+// src/fitur/berkas/rute.ts, langkah 2 dan 3: konfirmasi setelah unggah
 // 2. Klien mengunggah langsung ke penyimpanan dengan URL itu
 // 3. Klien memberi tahu bahwa unggahannya selesai
 app.post('/v1/unggahan/:id/selesai', { onRequest: [app.autentikasi] }, async (req) => {
@@ -156,7 +158,7 @@ Lima keputusan di alur itu:
 
 **Satu, metadata dibuat sebelum unggahan.** Dengan begitu Anda punya catatan tentang rak yang dipesan, dan berkas yang tidak pernah diisi bisa ditemukan dan dibersihkan.
 
-**Dua, kunci objek ditentukan server.** Memakai nama asli berkas sebagai kunci membuka dua celah: path traversal dari modul 12, dan penimpaan berkas orang lain dengan nama yang sama.
+**Dua, kunci objek ditentukan server.** Memakai nama asli berkas sebagai kunci membuka dua celah: path traversal dari modul 13, dan penimpaan berkas orang lain dengan nama yang sama.
 
 **Tiga, tenant ada di awal kunci.** Itu membuat penghapusan per tenant, perhitungan kuota, dan aturan masa simpan jadi mudah, dan membuat kebocoran lintas tenant lebih sulit terjadi.
 
@@ -169,6 +171,7 @@ Lima keputusan di alur itu:
 Ini bagian yang paling sering dikerjakan setengah.
 
 ```ts
+// src/fitur/berkas/validasi.ts
 import { fileTypeFromBuffer } from 'file-type';
 
 const TIPE_AMAN = new Set([
@@ -231,6 +234,7 @@ Dua pertahanan tambahan yang berlaku umum:
 Bukti transfer dan dokumen internal tidak boleh bisa diunduh dengan menebak URL.
 
 ```ts
+// src/fitur/berkas/rute.ts, menyajikan berkas privat
 app.get('/v1/berkas/:id/unduh', { onRequest: [app.autentikasi] }, async (req, res) => {
   const berkas = await repoBerkas.ambil(req.params.id);
   if (!berkas || berkas.status !== 'siap') throw new ErrorTidakDitemukan();
@@ -276,6 +280,7 @@ Empat catatan:
 Membuat gambar kecil dikerjakan worker, dengan kunci yang deterministik supaya aman diulang.
 
 ```ts
+// src/worker/turunan-gambar.ts
 export async function buatTurunanGambar(muatan: { berkasId: string }) {
   const berkas = await repoBerkas.ambil(muatan.berkasId);
   if (!berkas || berkas.status !== 'siap') return { dilewati: true };
@@ -308,7 +313,7 @@ export async function buatTurunanGambar(muatan: { berkasId: string }) {
 
 Empat hal yang penting:
 
-**Satu, kunci turunan diturunkan dari kunci aslinya.** Dijalankan dua kali menghasilkan berkas yang sama, dan tidak perlu tabel idempotensi. Ini bentuk terbaik dari pelajaran modul 14.
+**Satu, kunci turunan diturunkan dari kunci aslinya.** Dijalankan dua kali menghasilkan berkas yang sama, dan tidak perlu tabel idempotensi. Ini bentuk terbaik dari pelajaran modul 15.
 
 **Dua, pemrosesan gambar berada di worker, bukan di API.** `sharp` memakai thread pool libuv, dan pada beberapa pemrosesan bersamaan itu langsung terasa, sesuai pelajaran modul 2.
 
@@ -323,6 +328,7 @@ Satu keputusan desain yang memengaruhi biaya: **buat turunan saat diunggah, atau
 Dua pekerjaan operasional yang hampir selalu terlupakan sampai tagihan datang.
 
 ```ts
+// src/worker/pembersihan-berkas.ts
 // Pembersihan harian: izin unggah yang tidak pernah dipakai
 export async function bersihkanBerkasYatim() {
   // 1. Metadata menunggu lebih dari 24 jam: izinnya sudah kedaluwarsa
@@ -380,6 +386,48 @@ Perhatikan bahwa penghitung ini adalah data turunan yang disimpan, dan dari modu
 
 Dan satu hal tentang biaya yang sering mengejutkan: **egress jauh lebih mahal daripada penyimpanan** di sebagian besar penyedia. Menyimpan 1 TB mungkin beberapa dolar per bulan, sedangkan mengirimkan 1 TB ke pengguna bisa puluhan kali lipat. Dua akibat praktisnya: pasang CDN di depan berkas publik supaya satu berkas populer tidak diambil ribuan kali dari penyimpanan, dan pilih penyedia yang egress-nya murah atau nol kalau produk Anda banyak melayani unduhan.
 
+## Buktikan jalan
+
+Alur unggahan langsung punya tiga langkah, dan ketiganya bisa Anda jalankan dari terminal.
+
+```bash
+# 1. Minta izin unggah
+curl -s -X POST localhost:3000/v1/berkas/izin-unggah \
+  -H 'content-type: application/json' \
+  -H 'authorization: Bearer <token>' \
+  -d '{"namaBerkas":"foto.jpg","tipe":"image/jpeg","ukuran":184320}' | jq
+```
+
+```json
+{
+  "berkasId": "0193f2b4-...",
+  "url": "https://...r2.cloudflarestorage.com/...?X-Amz-Signature=...",
+  "kedaluwarsaDalam": 300
+}
+```
+
+```bash
+# 2. Unggah langsung ke penyimpanan, tanpa melewati server Anda sama sekali
+curl -s -o /dev/null -w '%{http_code}\n' -X PUT "<url-dari-langkah-1>" \
+  -H 'content-type: image/jpeg' --data-binary @foto.jpg
+```
+
+```text
+200
+```
+
+```bash
+# 3. Konfirmasi ke server Anda
+curl -s -X POST localhost:3000/v1/berkas/<berkasId>/konfirmasi \
+  -H 'authorization: Bearer <token>' | jq '.status'
+```
+
+```json
+"siap"
+```
+
+Sekarang buktikan dua penjaganya benar-benar bekerja. **Pertama, kirim berkas yang berpura-pura jadi gambar**: ganti nama sebuah `.pdf` jadi `.jpg`, unggah, lalu konfirmasi. Langkah ketiga harus menolak dengan `TIPE_TIDAK_VALID`, karena validasinya membaca isi berkas, bukan namanya. **Kedua, tunggu izin unggah kedaluwarsa** lalu coba pakai URL-nya: penyimpanan objek yang menolak, bukan server Anda, dan itu memang yang diinginkan.
+
 ## Latihan
 
 ### Latihan 1: Bangun alur unggahan lengkap
@@ -412,6 +460,9 @@ Siapkan tujuh berkas uji, lalu pastikan semuanya ditolak atau ditangani dengan a
 | 5 | JPEG sah berukuran 60 MB saat batasnya 5 MB |
 | 6 | Berkas kosong 0 byte |
 | 7 | JPEG sah dengan nama `"; rm -rf /; ".jpg` |
+
+> [!petunjuk]
+> Kelompokkan ketujuhnya berdasarkan lapisan mana yang seharusnya menangkapnya. Nomor 1 dan 3 ditangkap oleh pemeriksaan yang sama, dan pemeriksaan itu bukan ekstensi berkasnya. Nomor 4 tidak akan tertangkap oleh batas ukuran berapa pun, karena ukurannya memang kecil: yang meledak adalah memori saat gambarnya dibuka. Dan nomor 2 dan 7 tidak berbahaya saat diunggah, melainkan saat disajikan kembali.
 
 > [!jawaban]
 >

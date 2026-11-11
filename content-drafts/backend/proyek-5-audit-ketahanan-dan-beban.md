@@ -1,7 +1,7 @@
 ---
 title: 'Proyek 5: Audit Ketahanan dan Beban'
 description: Ambil layanan yang sudah Anda bangun, ukur keadaannya dengan angka, dorong sampai patah, perbaiki titik sempitnya, lalu tulis dokumen yang hampir tidak ada tim punya jawabannya.
-date: 2026-12-26
+date: 2026-12-27
 slug: proyek-5-audit-ketahanan-dan-beban
 tags: tutorial backend
 series: Tutorial Backend
@@ -23,11 +23,11 @@ Pertanyaan-pertanyaan itu akan ditanyakan saat perusahaan Anda tumbuh, biasanya 
 
 | Dari modul | Yang dipakai |
 | --- | --- |
-| 7, 9 | Ukuran pool, `EXPLAIN`, `pg_stat_statements`, indeks |
-| 13, 14 | Cache, queue, dan pemindahan pekerjaan keluar dari permintaan |
-| 18 | Logging terstruktur, metrik, tracing, SLO, peringatan |
-| 19 | Batas waktu, pemutus arus, pemisahan sumber daya, matriks degradasi |
-| 20 | Uji beban bertangga, uji soak, uji kekacauan sebagai test |
+| 8, 10 | Ukuran pool, `EXPLAIN`, `pg_stat_statements`, indeks |
+| 14, 15 | Cache, queue, dan pemindahan pekerjaan keluar dari permintaan |
+| 19 | Logging terstruktur, metrik, tracing, SLO, peringatan |
+| 20 | Batas waktu, pemutus arus, pemisahan sumber daya, matriks degradasi |
+| 21 | Uji beban bertangga, uji soak, uji kekacauan sebagai test |
 
 ## Yang diaudit
 
@@ -39,7 +39,7 @@ Kalau Anda mengerjakan seri ini sampai sini, kemungkinan besar layanan Anda puny
 
 ### A. Pengukuran awal
 
-1. Pasang metrik empat sinyal dari modul 18: lalu lintas, kesalahan, latensi, kejenuhan.
+1. Pasang metrik empat sinyal dari modul 19: lalu lintas, kesalahan, latensi, kejenuhan.
 2. Pasang trace yang melintasi HTTP, basis data, queue, dan konsumen peristiwa.
 3. Siapkan data uji realistis: minimal 500 ribu pesanan, 2 juta item, 100 ribu pengguna.
 4. Jalankan smoke test, lalu catat garis dasar: p50, p95, p99 per endpoint utama pada beban rendah.
@@ -67,16 +67,34 @@ Kalau Anda mengerjakan seri ini sampai sini, kemungkinan besar layanan Anda puny
 17. Pasang pemutus arus untuk setiap ketergantungan yang punya jalan mundur.
 18. Pisahkan pool basis data: transaksi, laporan, dan pekerjaan latar.
 19. Pasang penolakan beban, dan buktikan bahwa saat kewalahan sebagian permintaan tetap cepat.
-20. Pisahkan liveness dan readiness, dan buktikan dengan empat skenario dari modul 19.
+20. Pisahkan liveness dan readiness, dan buktikan dengan empat skenario dari modul 20.
 21. Tulis `docs/degradasi.md`: matriks setiap ketergantungan, apa yang tetap jalan, apa yang hilang.
 
 ### E. Pemantauan dan operasional
 
 22. Tetapkan SLO untuk tiga jalur utama, beserta anggaran kesalahannya.
-23. Pasang peringatan dari daftar modul 18, dan buktikan setiap peringatan menyala pada percobaan yang sesuai.
+23. Pasang peringatan dari daftar modul 19, dan buktikan setiap peringatan menyala pada percobaan yang sesuai.
 24. Tulis runbook satu halaman untuk setiap peringatan.
-25. Ubah uji kekacauan dari modul 19 jadi berkas test yang berjalan di CI setiap minggu.
+25. Ubah uji kekacauan dari modul 20 jadi berkas test yang berjalan di CI setiap minggu.
 26. Ukur satu angka yang paling sering tidak diukur: **berapa lama dari komponen dimatikan sampai peringatan menyala.**
+
+## Langkah pengerjaan bertahap
+
+Proyek ini berbeda dari empat sebelumnya: Anda tidak membangun fitur, Anda **mengukur, merusak, lalu memperbaiki dengan angka sebagai bukti.** Urutannya tidak boleh ditukar, karena perbaikan tanpa garis dasar tidak bisa dibuktikan berhasil.
+
+**Hari 1: pasang alat ukur.** Logging terstruktur dengan id permintaan, metrik, tracing, dan `pg_stat_statements`. Tanpa ini, seluruh sisa proyek jadi tebakan.
+
+**Hari 2: garis dasar.** Jalankan beban yang wajar, catat angkanya di `docs/dasar.md` dengan bentuk seperti contoh di bawah. **Jangan memperbaiki apa pun hari ini**, sekalipun Anda sudah melihat sesuatu yang jelas salah. Angka sebelum adalah satu-satunya hal yang membuat angka sesudah punya arti.
+
+**Hari 3: dorong sampai patah.** Uji bertangga sampai layanan gagal, lalu catat tiga hal: pada beban berapa layanan mulai melambat, pada beban berapa mulai menolak, dan **bagian mana yang patah lebih dulu**. Yang ketiga hampir selalu mengejutkan.
+
+**Hari 4 dan 5: perbaiki titik sempit.** Satu perbaikan, satu pengukuran ulang, satu catatan. Jangan memperbaiki tiga hal sekaligus, karena Anda tidak akan tahu mana yang bekerja. Catat juga perbaikan yang **tidak** berhasil beserta alasannya.
+
+**Hari 6: perilaku saat kewalahan.** Layanan yang baik tidak menolak patah, melainkan patah dengan rapi: menolak beban berlebih dengan 503, menjaga jalur utama tetap hidup, dan tidak menyeret ketergantungannya ikut jatuh.
+
+**Hari 7: SLO, peringatan, dan runbook.** Lalu ukur satu angka yang hampir tidak pernah diukur siapa pun: berapa lama dari komponen dimatikan sampai peringatan menyala.
+
+Satu catatan soal sikap yang menentukan nilai proyek ini: **temuan yang memalukan adalah temuan terbaik.** Kueri tanpa indeks yang Anda tulis sendiri di Proyek 2, pool yang kekecilan, atau peringatan yang ternyata tidak pernah menyala adalah persis yang dicari audit. Menemukannya sekarang jauh lebih murah daripada menemukannya saat pengguna yang melapor.
 
 ## Garis dasar: contoh bentuk laporannya
 
@@ -199,7 +217,7 @@ Yang dicatat selama uji berjalan, dan semuanya harus dilihat bersamaan di satu d
 
 Pada 700 per detik, penolakan beban bekerja: 46% permintaan ditolak 503
 dalam 4 ms, dan 54% yang diterima tetap dilayani dengan p95 180 ms.
-Itu perilaku yang diinginkan, dan hasil dari under-pressure di modul 19.
+Itu perilaku yang diinginkan, dan hasil dari under-pressure di modul 20.
 ```
 
 Baris terakhir pada bagian kesimpulan adalah jenis temuan yang mengubah prioritas: masalahnya bukan kueri yang lambat, melainkan **jumlah** kueri. Perbaikan yang tepat jadi menggabungkan kueri, bukan mengoptimalkan masing-masing.
@@ -217,7 +235,7 @@ Berdasarkan pola yang muncul di hampir semua audit layanan yang dibangun dengan 
 | 5 | Kueri daftar tanpa indeks komposit | Indeks sesuai `ORDER BY` kursor | 180 ms jadi 4 ms |
 | 6 | Pool dinaikkan dari 8 ke 24 | **Dibatalkan** | Kapasitas turun 12% |
 
-Baris keenam wajib ada di dokumen Anda, dan bukan sebagai kegagalan. Mencatat perbaikan yang tidak berhasil beserta alasannya adalah bagian terpenting dari laporan teknis, karena ia mencegah orang berikutnya mencoba hal yang sama.
+Baris keenam wajib ada di dokumen Anda, dan bukan sebagai kegagalan. Mencatat perbaikan yang tidak berhasil beserta alasannya adalah bagian terpenting dari laporan teknis, karena catatan itu mencegah orang berikutnya mencoba hal yang sama.
 
 ```markdown
 ## Perbaikan yang dibatalkan: menaikkan ukuran pool
@@ -234,7 +252,7 @@ dan throughput total turun.
 
 Pelajaran: pool yang penuh adalah gejala, bukan penyebab. Yang perlu
 dikurangi adalah jumlah kueri per permintaan, atau durasi kueri.
-Ini sesuai perhitungan di modul 7.
+Ini sesuai perhitungan di modul 8.
 ```
 
 ## Mengukur waktu deteksi
@@ -258,7 +276,7 @@ docker compose stop redis
 | Satu konsumen peristiwa | Keterlambatan konsumen | 5 menit | Dapat diterima |
 | Penyedia pembayaran | Tingkat kegagalan pembayaran | 3 menit | Dapat diterima |
 
-Dua baris "tidak terdeteksi" itu adalah temuan paling berharga dari seluruh proyek ini, dan keduanya sudah diperingatkan di modul 18: **kegagalan yang paling berbahaya adalah yang tenang.** Redis mati dan pengirim outbox mati sama-sama tidak menghasilkan satu pun error di API, dan keduanya bisa berlangsung berjam-jam sebelum ada yang menyadarinya dari keluhan pengguna.
+Dua baris "tidak terdeteksi" itu adalah temuan paling berharga dari seluruh proyek ini, dan keduanya sudah diperingatkan di modul 19: **kegagalan yang paling berbahaya adalah yang tenang.** Redis mati dan pengirim outbox mati sama-sama tidak menghasilkan satu pun error di API, dan keduanya bisa berlangsung berjam-jam sebelum ada yang menyadarinya dari keluhan pengguna.
 
 ## Dokumen SLO
 
@@ -316,7 +334,7 @@ Perhatikan bahwa setiap SLO punya **alasan tertulis**, dan satu di antaranya men
 | 15 | Uji kekacauan berjalan di CI, dan pernah merah setidaknya sekali |
 | 16 | Matriks degradasi lengkap, dan setiap jalan mundur sudah diuji |
 
-Nomor 15 pantas ditekankan: uji kekacauan yang **selalu** hijau sejak pertama dibuat biasanya berarti ia tidak benar-benar menguji apa pun. Pastikan ia pernah merah, lalu perbaikannya membuatnya hijau.
+Nomor 15 pantas ditekankan: uji kekacauan yang **selalu** hijau sejak pertama dibuat biasanya berarti ujinya tidak benar-benar menguji apa pun. Pastikan uji itu pernah merah, lalu perbaikannya membuatnya hijau.
 
 ## Tantangan bonus
 
@@ -329,7 +347,7 @@ Nomor 15 pantas ditekankan: uji kekacauan yang **selalu** hijau sejak pertama di
 
 - Kapasitas yang tidak diukur adalah kapasitas yang ditebak, dan tebakan selalu salah pada arah yang merugikan.
 - Jumlah kueri per permintaan lebih berguna daripada latensi untuk memperkirakan kapasitas.
-- Urutan patah lebih berguna daripada titik patah, karena ia memberi tahu apa yang harus diperbaiki lebih dulu.
+- Urutan patah lebih berguna daripada titik patah, karena urutan patah memberi tahu apa yang harus diperbaiki lebih dulu.
 - Uji beban harus memakai campuran lalu lintas yang mendekati kenyataan, bukan satu endpoint.
 - Perbaikan yang tidak berhasil wajib dicatat beserta analisisnya. Itu bagian paling berguna dari laporan teknis.
 - Pool yang penuh adalah gejala. Menaikkannya saat basis data sudah jenuh justru menurunkan kapasitas.
@@ -339,7 +357,7 @@ Nomor 15 pantas ditekankan: uji kekacauan yang **selalu** hijau sejak pertama di
 
 ## Masalah terbuka
 
-Layanan Anda sekarang terukur, tahan banting, dan terpantau. Dan ada satu masalah yang tidak muncul di satu pun uji beban: **cara ia sampai ke produksi.**
+Layanan Anda sekarang terukur, tahan banting, dan terpantau. Dan ada satu masalah yang tidak muncul di satu pun uji beban: **cara layanan itu sampai ke produksi.**
 
 Sejauh ini layanan Anda berjalan dengan `pnpm dev` di laptop, atau paling jauh dengan `docker compose up`. Pertanyaan yang belum pernah dijawab:
 

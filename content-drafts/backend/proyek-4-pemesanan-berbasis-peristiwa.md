@@ -1,7 +1,7 @@
 ---
 title: 'Proyek 4: Sistem Pemesanan Berbasis Peristiwa'
 description: Dari pesanan dibuat sampai barang dikirim, dengan outbox yang menjamin tidak ada peristiwa hilang, konsumen yang aman menerima pesan dua kali, dan uji kekacauan yang mematikan komponen di tengah jalan.
-date: 2026-12-20
+date: 2026-12-22
 slug: proyek-4-pemesanan-berbasis-peristiwa
 tags: tutorial backend
 series: Tutorial Backend
@@ -12,9 +12,9 @@ Tiga modul terakhir membahas cache, queue, dan peristiwa. Proyek ini memakai ket
 
 | Dari modul | Yang dipakai |
 | --- | --- |
-| 13 | Cache katalog dan izin, invalidasi lewat peristiwa, pencegahan stampede |
-| 14 | Worker terpisah, percobaan ulang bertingkat, dead letter queue, penjadwalan |
-| 15 | Outbox, peristiwa domain dengan versi, konsumen idempoten, proyeksi |
+| 14 | Cache katalog dan izin, invalidasi lewat peristiwa, pencegahan stampede |
+| 15 | Worker terpisah, percobaan ulang bertingkat, dead letter queue, penjadwalan |
+| 16 | Outbox, peristiwa domain dengan versi, konsumen idempoten, proyeksi |
 
 Yang membedakannya dari tiga proyek sebelumnya: **penilaiannya berupa uji kekacauan.** Anda akan mematikan broker, mematikan worker di tengah pekerjaan, mengirim peristiwa dua kali, dan mengacak urutannya. Sistem harus pulih sendiri tanpa data yang salah.
 
@@ -49,7 +49,7 @@ siapkan      tambah poin    catat jurnal   batalkan rekap
 pengiriman.dibuat -> pengiriman.dikirim -> pengiriman.diterima
 ```
 
-Semuanya berjalan dalam satu basis kode sebagai modul terpisah, bukan sebagai layanan terpisah. Itu keputusan yang disengaja: **batas modul yang jelas memberi hampir semua manfaat pemisahan tanpa biaya jaringannya**, dan modul 22 membahas kapan memecahnya jadi layanan sungguhan.
+Semuanya berjalan dalam satu basis kode sebagai modul terpisah, bukan sebagai layanan terpisah. Itu keputusan yang disengaja: **batas modul yang jelas memberi hampir semua manfaat pemisahan tanpa biaya jaringannya**, dan modul 23 membahas kapan memecahnya jadi layanan sungguhan.
 
 ## Spesifikasi wajib
 
@@ -91,6 +91,24 @@ Semuanya berjalan dalam satu basis kode sebagai modul terpisah, bukan sebagai la
 22. Keterlambatan setiap konsumen dipantau, dengan peringatan di atas 5 menit.
 23. Setiap peristiwa dan pekerjaan membawa id penelusuran dari permintaan HTTP asalnya.
 24. Worker menutup dengan rapi pada SIGTERM, menyelesaikan pekerjaan yang sedang jalan.
+
+## Langkah pengerjaan bertahap
+
+Urutan di sini punya satu aturan: **outbox dipasang sebelum ada satu pun konsumen.** Menerbitkan peristiwa langsung dari kode lalu menambahkan outbox belakangan berarti setiap tempat penerbitan harus ditemukan dan ditulis ulang.
+
+**Hari 1: outbox.** Tabel outbox, penulisan peristiwa di dalam transaksi yang sama dengan perubahan datanya, dan pengirim yang membaca tabel itu lalu menerbitkannya. Selesai kalau Anda bisa mematikan broker, membuat pesanan, menyalakan broker lagi, dan peristiwanya tetap terkirim.
+
+**Hari 2: kontrak peristiwa.** Nama, versi, dan isi setiap peristiwa ditulis sebagai skema sebelum ada yang memakainya. Sepuluh menit di sini menghemat pekerjaan berhari-hari saat konsumen keempat ditambahkan.
+
+**Hari 3: konsumen pertama, dan jaminan idempotensinya.** Satu konsumen saja, dengan penjaga yang membuatnya aman menerima pesan yang sama dua kali. Uji dengan sengaja mengirim ulang peristiwa yang sama sepuluh kali.
+
+**Hari 4: sisa konsumen.** Gudang, pengiriman, notifikasi, dan rekap. Polanya sudah ada dari hari ketiga, jadi hari ini sebagian besar pengulangan.
+
+**Hari 5: kegagalan.** Percobaan ulang bertingkat, dead letter queue, dan jalur pembayaran dengan selisih yang jawabannya tidak pernah "ulangi saja".
+
+**Hari 6: enam uji kekacauan.** Matikan komponen di tengah jalan, dan buktikan tidak ada peristiwa yang hilang maupun diproses dua kali.
+
+**Hari 7: pemantauan.** Kedalaman queue, umur pekerjaan tertua, keterlambatan konsumen, dan peringatan untuk ketiganya. Tanpa ini, sistem berbasis peristiwa gagal dengan diam.
 
 ## Skema peristiwa
 
@@ -226,7 +244,7 @@ export async function konsumenPembayaran(pesan: PesanMasuk) {
     if (!tagihan) return;   // sudah ada, tidak perlu apa-apa
 
     // Panggilan ke penyedia dilakukan lewat queue, bukan di dalam transaksi.
-    // Pelajaran modul 8: jangan pernah memanggil layanan luar di dalam transaksi.
+    // Pelajaran modul 9: jangan pernah memanggil layanan luar di dalam transaksi.
     await repoPekerjaan(tx).tambah({
       jenis: 'buat-tagihan-penyedia',
       muatan: { tagihanId: tagihan.id, referensi, idempotensi: referensi },
@@ -238,7 +256,7 @@ export async function konsumenPembayaran(pesan: PesanMasuk) {
 ```ts
 // Webhook dari penyedia: titik masuk yang tidak bisa dipercaya
 app.post('/v1/webhook/pembayaran', { config: { rawBody: true } }, async (req) => {
-  verifikasiTandaTangan(req);   // modul 12: tanda tangan, umur, perbandingan aman
+  verifikasiTandaTangan(req);   // modul 13: tanda tangan, umur, perbandingan aman
 
   const peristiwa = skemaWebhookPembayaran.parse(JSON.parse(req.rawBody));
 
@@ -306,6 +324,7 @@ Tabel `selisih` di situ adalah fitur yang membedakan sistem yang serius dari yan
 ## Konsumen gudang dan pengiriman
 
 ```ts
+// src/konsumen/gudang.ts
 export async function konsumenGudang(pesan: PesanMasuk) {
   const muatan = KONTRAK['pesanan.dibayar'].parse(pesan.muatan);
 
@@ -324,7 +343,7 @@ export async function konsumenGudang(pesan: PesanMasuk) {
     if (!baru) return;
 
     // Item diambil dari pemiliknya, bukan dari muatan peristiwa.
-    // Pelajaran modul 15: peristiwa berukuran sedang, data rinci dipanggil balik.
+    // Pelajaran modul 16: peristiwa berukuran sedang, data rinci dipanggil balik.
     const item = await repoPesanan(tx).itemMilik(muatan.pesananId);
     await repoPengambilan(tx).buatDaftar(pengirimanId, item);
 
@@ -336,7 +355,7 @@ export async function konsumenGudang(pesan: PesanMasuk) {
 }
 ```
 
-Fungsi `idDeterministik` layak dijelaskan: ia menghasilkan UUID versi 5 dari gabungan nama ruang dan kunci, sehingga pemanggilan dengan masukan sama selalu menghasilkan id yang sama. Dengan begitu, `ON CONFLICT (id) DO NOTHING` jadi penjaga idempotensi tanpa tabel tambahan.
+Fungsi `idDeterministik` layak dijelaskan: fungsi itu menghasilkan UUID versi 5 dari gabungan nama ruang dan kunci, sehingga pemanggilan dengan masukan sama selalu menghasilkan id yang sama. Dengan begitu, `ON CONFLICT (id) DO NOTHING` jadi penjaga idempotensi tanpa tabel tambahan.
 
 ## Yang harus Anda kerjakan sendiri
 
@@ -383,8 +402,8 @@ Lalu bandingkan isi tabel poin, jurnal, dan pengiriman sebelum dan sesudah. Kedu
 
 - **Pemutaran ulang sebagian** dengan penyaringan jenis dan rentang waktu, supaya satu konsumen bisa dibangun ulang tanpa mengganggu yang lain.
 - **Uji beban dengan k6** pada jalur pesanan sampai patah, lalu catat di mana patahnya: pool sambungan, worker, atau broker.
-- **Pindahkan satu konsumen jadi proses terpisah** yang berkomunikasi lewat broker sungguhan, sebagai persiapan modul 22.
-- **Penyimpanan peristiwa sebagai sumber kebenaran** untuk pesanan, dan status pesanan dihitung sepenuhnya dari peristiwa. Ini pengantar event sourcing di modul 23.
+- **Pindahkan satu konsumen jadi proses terpisah** yang berkomunikasi lewat broker sungguhan, sebagai persiapan modul 23.
+- **Penyimpanan peristiwa sebagai sumber kebenaran** untuk pesanan, dan status pesanan dihitung sepenuhnya dari peristiwa. Ini pengantar event sourcing di modul 24.
 
 ## Rangkuman
 

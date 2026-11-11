@@ -1,14 +1,16 @@
 ---
 title: 'Modul 1: Cara Kerja Backend dan Anatomi Satu Permintaan'
 description: Antara permintaan masuk dan respons keluar ada belasan tahap, dan setiap tahap punya biaya waktu. Mengenalinya adalah bedanya menebak dan tahu saat produksi melambat.
-date: 2026-12-02
+date: 2026-12-03
 slug: modul-1-cara-kerja-backend
 tags: tutorial backend
 series: Tutorial Backend
 status: draft
 ---
 
-Kalau Anda pernah membangun antarmuka, Anda sudah menulis `fetch('/api/pesanan')` berkali-kali. Modul ini tentang apa yang ada di ujung sana.
+Server sepuluh baris di akhir Modul 0 menjawab permintaan Anda. Modul ini tentang apa yang sebenarnya terjadi di antara Anda menekan Enter dan jawaban itu muncul, dan kenapa di produksi jarak itu bisa 40 ms atau 2 detik.
+
+Kalau Anda pernah membangun antarmuka, Anda sudah menulis `fetch('/api/pesanan')` berkali-kali tanpa pernah melihat ujung satunya. Inilah ujung satunya.
 
 Backend bukan hanya "tempat menyimpan data". Ada lima pekerjaan yang hanya bisa dikerjakan di sisi server, dan kelimanya alasan backend ada:
 
@@ -32,7 +34,20 @@ Bayangkan API Anda sudah berjalan. Suatu pagi datang lima laporan:
 4. **"Satu halaman lambat, lalu semua endpoint lambat."** Termasuk endpoint yang sama sekali tidak terkait.
 5. **"Data di basis data benar, tapi API mengembalikan yang lama."**
 
-Kelimanya punya penyebab yang sama sekali berbeda, dan tidak satu pun bisa diselesaikan dengan menebak. Yang pertama soal persentil, bukan rata-rata: ada satu jalur lambat yang tersembunyi di balik angka rata-rata yang tampak sehat. Yang kedua soal idempotency. Yang ketiga soal konkurensi dan transaksi. Yang keempat soal model eksekusi Node, atau pool sambungan yang habis. Yang kelima soal cache.
+Kelimanya punya penyebab yang sama sekali berbeda, dan tidak satu pun bisa diselesaikan dengan menebak. Yang pertama soal persentil, bukan rata-rata. Yang kedua soal idempotency. Yang ketiga soal konkurensi dan transaksi. Yang keempat soal model eksekusi Node, atau pool sambungan yang habis. Yang kelima soal cache.
+
+Istilah pertama itu akan muncul di hampir setiap modul setelah ini, jadi pantas dijelaskan sekarang. **Persentil ke-95, yang ditulis p95, adalah waktu respons yang hanya dilampaui oleh 5% permintaan terlambat.** Cara menghitungnya persis seperti bunyinya: urutkan seluruh waktu respons dari tercepat ke terlambat, lalu ambil yang berada di posisi 95 persen. Kalau p95 Anda 300 ms, artinya 95 dari setiap 100 permintaan selesai dalam 300 ms atau kurang.
+
+Kenapa itu lebih berguna daripada rata-rata, dengan seratus permintaan pada dua layanan:
+
+| | 90 permintaan | 10 permintaan | Rata-rata | p50 | p95 |
+| --- | --- | --- | --- | --- | --- |
+| Layanan A | 100 ms | 100 ms | 100 ms | 100 ms | 100 ms |
+| Layanan B | 50 ms | 4.000 ms | 445 ms | 50 ms | **4.000 ms** |
+
+Layanan B lebih cepat daripada A untuk sebagian besar orang, dan satu dari sepuluh penggunanya menunggu empat detik. Rata-rata 445 ms tidak menggambarkan pengalaman siapa pun: tidak ada satu permintaan pun yang memakan waktu sebesar itu. Angka besar yang jarang muncul tertelan oleh angka kecil yang sering muncul, dan hasilnya satu angka yang terdengar sedang-sedang saja untuk layanan yang sebenarnya terbelah dua.
+
+Persentil tidak bisa menyembunyikannya, karena setiap persentil menyebut pengalaman orang yang benar-benar ada. Itu sebabnya yang dipantau biasanya tiga sekaligus: p50 untuk pengalaman khas, p95 untuk pengalaman buruk yang rutin terjadi, dan p99 untuk ekor terjauh. Panjang ekor itu menentukan persentil mana yang menangkapnya: masalah yang mengenai 10% permintaan terlihat di p95, sedangkan yang mengenai 1% hanya terlihat di p99 dan sama sekali tidak terlihat di p95.
 
 Lima modul berikutnya menjawab satu per satu. Modul ini membangun peta tempat kelima masalah itu duduk, karena tanpa peta, Anda akan memperbaiki tempat yang bukan penyebabnya. Pola itu berulang di hampir semua insiden produksi: tim menghabiskan dua hari mengoptimalkan kode aplikasi, dan ternyata penyebabnya satu kueri tanpa indeks.
 
@@ -80,7 +95,7 @@ Beberapa urusan tidak selesai di loket. Permohonan yang butuh verifikasi lapanga
 | Batas pengunjung per jam | Rate limit dan kapasitas |
 | Papan pengumuman "sistem sedang gangguan" | Health check dan halaman status |
 
-Batas analoginya penting, dan di situ letak sebagian besar kesulitan backend: di kantor, pengunjung dilayani satu per satu dan antreannya terlihat. Di server, ribuan permintaan ditangani bersamaan dan antreannya tidak terlihat siapa pun kecuali Anda sengaja mengukurnya. Dua pengunjung yang mengambil arsip yang sama pada detik yang sama adalah kejadian yang mustahil di kantor dan terjadi setiap hari di server. Itu modul 8.
+Batas analoginya penting, dan di situ letak sebagian besar kesulitan backend: di kantor, pengunjung dilayani satu per satu dan antreannya terlihat. Di server, ribuan permintaan ditangani bersamaan dan antreannya tidak terlihat siapa pun kecuali Anda sengaja mengukurnya. Dua pengunjung yang mengambil arsip yang sama pada detik yang sama adalah kejadian yang mustahil di kantor dan terjadi setiap hari di server. Itu modul 9.
 
 ## Anatomi satu permintaan
 
@@ -102,25 +117,28 @@ Klien (browser, aplikasi ponsel, layanan lain)
  API gateway (opsional: rate limit, auth awal, routing)
    |
    v
-+--------------------------------------------------+
-| Proses aplikasi Anda |
-|  |
-| middleware: log -> auth -> validasi -> handler |
-|  |  |
-| v |
-| service / use case |
-|  |  |
-| v |
-| repository |
-+-----------------------------------|--------------+
++----------------------------------------------------------+
+|  Proses aplikasi Anda                                    |
+|                                                          |
+|  middleware:  log -> rate limit -> auth -> validasi      |
+|                                   |                      |
+|                                   v                      |
+|                              handler (HTTP)              |
+|                                   |                      |
+|                                   v                      |
+|                            service / use case            |
+|                                   |                      |
+|                                   v                      |
+|                               repository                 |
++-----------------------------------|----------------------+
                                     |
-         +--------------+-----------+-----------+--------------+
-         v              v                       v              v
-    Basis data       Cache                 Layanan lain     Queue
-    (Postgres)       (Redis)               (HTTP, gRPC)     (pekerjaan latar)
-                                                                |
-                                                                v
-                                                            Worker
+         +--------------+-----------+-----------+-------------------+
+         v              v                       v                   v
+    Basis data        Cache               Layanan lain            Queue
+    (Postgres)        (Redis)             (HTTP, gRPC)       (pekerjaan latar)
+                                                                    |
+                                                                    v
+                                                                 Worker
 ```
 
 Tiga hal yang perlu diperhatikan dari gambar itu:
@@ -129,7 +147,7 @@ Tiga hal yang perlu diperhatikan dari gambar itu:
 
 **Kedua, urutan middleware adalah keputusan desain.** Log sebelum auth supaya permintaan yang ditolak tetap tercatat. Rate limit sebelum validasi supaya penyerang tidak bisa membuat server bekerja keras hanya dengan mengirim data sampah. Auth sebelum handler supaya tidak ada satu pun handler yang perlu mengingat pemeriksaannya.
 
-**Ketiga, pekerjaan tidak harus selesai di dalam permintaan.** Apa pun yang pengguna tidak perlu menunggunya sebaiknya pindah ke queue. Itu modul 14.
+**Ketiga, pekerjaan tidak harus selesai di dalam permintaan.** Apa pun yang pengguna tidak perlu menunggunya sebaiknya pindah ke queue. Itu modul 15.
 
 Soal anggaran waktu, inilah cara memikirkannya. Misal target Anda 200 ms pada persentil ke-95:
 
@@ -160,7 +178,7 @@ Backend adalah pekerjaan yang hidup di atas HTTP, jadi menguasainya bukan piliha
 | PATCH | Tidak | Tidak dijamin | Mengubah sebagian |
 | DELETE | Tidak | Ya | Menghapus |
 
-Kolom "idempoten" berarti mengirim permintaan yang sama dua kali menghasilkan keadaan akhir yang sama. Di situlah laporan nomor 2 di awal modul bermuara: POST tidak idempoten, jadi tombol bayar yang ditekan dua kali benar-benar membuat dua pesanan, kecuali Anda sendiri yang menanganinya. Caranya dibahas di modul 4 dan 8.
+Kolom "idempoten" berarti mengirim permintaan yang sama dua kali menghasilkan keadaan akhir yang sama. Di situlah laporan nomor 2 di awal modul bermuara: POST tidak idempoten, jadi tombol bayar yang ditekan dua kali benar-benar membuat dua pesanan, kecuali Anda sendiri yang menanganinya. Caranya dibahas di modul 4 dan 9.
 
 **Status code yang benar-benar sering dipakai:**
 
@@ -205,7 +223,7 @@ Jadi keadaan punya tempatnya masing-masing:
 
 Baris terakhir sering jadi sumber bug yang membingungkan: cache dalam memori terlihat bekerja sempurna saat pengembangan dengan satu proses, lalu di produksi tiga instance punya tiga isi cache berbeda, dan pengguna melihat jawaban yang berubah-ubah saat memuat ulang.
 
-Sifat stateless inilah yang membuat penskalaan horizontal mungkin: menambah kapasitas berarti menambah instance, bukan membeli server yang lebih besar. Modul 21 membahas cara menjalankannya, dan modul 19 membahas apa yang tetap perlu dijaga saat instance dimatikan di tengah permintaan.
+Sifat stateless inilah yang membuat penskalaan horizontal mungkin: menambah kapasitas berarti menambah instance, bukan membeli server yang lebih besar. Modul 22 membahas cara menjalankannya, dan modul 20 membahas apa yang tetap perlu dijaga saat instance dimatikan di tengah permintaan.
 
 ## Lapisan di dalam aplikasi
 
@@ -221,7 +239,7 @@ repository            -> kueri ke basis data, tanpa aturan bisnis
 
 Aturannya: **ketergantungan hanya mengarah ke bawah.** Handler tahu tentang HTTP, service tidak. Service tahu tentang aturan bisnis, repository tidak. Dan repository tahu tentang SQL, service tidak perlu.
 
-Manfaatnya terasa di tiga tempat. Aturan bisnis bisa diuji tanpa menjalankan server HTTP, modul 20 akan memakai sifat ini. Aturan yang sama bisa dipanggil dari tempat lain, misalnya dari worker queue atau dari perintah terminal, tanpa duplikasi. Dan saat suatu hari protokolnya berubah, misalnya dari REST ke gRPC di modul 22, hanya lapisan handler yang perlu ditulis ulang.
+Manfaatnya terasa di tiga tempat. Aturan bisnis bisa diuji tanpa menjalankan server HTTP, modul 21 akan memakai sifat ini. Aturan yang sama bisa dipanggil dari tempat lain, misalnya dari worker queue atau dari perintah terminal, tanpa duplikasi. Dan saat suatu hari protokolnya berubah, misalnya dari REST ke gRPC di modul 23, hanya lapisan handler yang perlu ditulis ulang.
 
 Yang perlu dihindari: memeras aturan bisnis ke dalam handler, karena itu terasa lebih cepat di awal. Satu endpoint berisi 200 baris yang mencampur parsing, validasi, kueri, dan perhitungan adalah bentuk yang paling sering ditemui di proyek yang sulit diubah.
 
@@ -235,25 +253,21 @@ Yang perlu dihindari: memeras aturan bisnis ke dalam handler, karena itu terasa 
 | Pembatasan laju | Gateway atau backend | Lebih murah ditolak sedini mungkin |
 | Terminasi TLS | Load balancer atau CDN | Bukan pekerjaan aplikasi Anda |
 | Percobaan ulang saat gagal | Keduanya, dengan aturan | Harus idempoten sebelum boleh diulang |
-| Cache respons publik | CDN dan backend | Lihat modul 13 |
+| Cache respons publik | CDN dan backend | Lihat modul 14 |
 | Pemrosesan gambar | Backend atau layanan khusus | Jangan di tengah permintaan |
-| Pemantauan dan peringatan | Backend dan platform | Lihat modul 18 |
+| Pemantauan dan peringatan | Backend dan platform | Lihat modul 19 |
 
-## Alat kerja minimum
+## Alat yang dipakai modul ini
 
-Anda tidak perlu memasang semuanya hari ini:
+Latihan di modul ini hanya butuh dua hal yang sudah Anda pasang di Modul 0: `curl` untuk mengirim permintaan, dan `jq` untuk membaca jawabannya. Buktikan keduanya siap sebelum lanjut:
 
-| Alat | Fungsinya | Kapan dibutuhkan |
-| --- | --- | --- |
-| Node.js LTS dan pnpm | Menjalankan dan mengelola proyek | Modul 2 |
-| `curl` dan `httpie` | Memeriksa permintaan dari terminal | Modul ini |
-| `jq` | Membaca JSON di terminal | Modul ini |
-| Bruno, Insomnia, atau Postman | Menyimpan dan membagikan kumpulan permintaan | Modul 3 |
-| Docker | Menjalankan Postgres dan Redis tanpa memasangnya | Modul 5 |
-| `psql` | Berbicara langsung dengan Postgres | Modul 5 |
-| k6 | Menguji beban | Modul 20 |
+```bash
+curl --version && jq --version
+```
 
-Satu saran yang menghemat banyak waktu: belajar memakai `curl` dengan nyaman. Alat berantarmuka grafis memudahkan, dan saat Anda sedang memeriksa sesuatu di server produksi lewat SSH pada jam dua pagi, yang ada di sana hanya `curl`.
+Satu alat lagi yang akan muncul mulai Modul 21: **k6** untuk uji beban. Tidak perlu dipasang sekarang.
+
+Dan satu saran yang menghemat banyak waktu: belajar memakai `curl` dengan nyaman. Alat berantarmuka grafis memudahkan, dan saat Anda sedang memeriksa sesuatu di server produksi lewat SSH pada jam dua pagi, yang ada di sana hanya `curl`.
 
 ## Latihan
 
@@ -275,8 +289,11 @@ versi:    %{http_version}
 ukuran:   %{size_download} bytes\n" \
   -o /dev/null -s https://api.github.com/repos/nodejs/node
 
-# 3. Jalankan dua kali dalam satu sambungan, lihat bedanya
-curl -s -o /dev/null -w "%{time_total}s\n" \
+# 3. Jalankan dua kali dalam satu sambungan, lihat bedanya.
+# Perhatikan ada DUA kali -o /dev/null, satu untuk tiap URL:
+# tanpa itu, respons kedua akan tumpah ke layar Anda.
+curl -s -o /dev/null -o /dev/null \
+  -w "total %{time_total}s  (dns %{time_namelookup}s, tls %{time_appconnect}s)\n" \
   https://api.github.com/repos/nodejs/node \
   https://api.github.com/repos/nodejs/node
 
@@ -284,16 +301,37 @@ curl -s -o /dev/null -w "%{time_total}s\n" \
 curl -sI https://api.github.com/repos/nodejs/node
 ```
 
+Bentuk hasil yang Anda harapkan dari perintah kedua, dengan angka yang tentu berbeda sesuai jaringan Anda:
+
+```text
+dns:      0.556566s
+tcp:      0.557396s
+tls:      0.756513s
+byte-1:   1.169078s
+total:    1.169578s
+versi:    2
+ukuran:   6618 bytes
+```
+
+Dan dari perintah ketiga, dua baris:
+
+```text
+total 1.297468s  (dns 0.001680s, tls 0.116788s)
+total 1.294304s  (dns 0.000018s, tls 0.000000s)
+```
+
 Catat enam hal: versi HTTP yang dipakai, berapa lama DNS, berapa lama TLS, berapa lama sampai byte pertama, apa isi header `cache-control`, dan apakah ada header pembatasan laju.
 
-**Pertanyaannya:** pada perintah ketiga, kenapa permintaan kedua jauh lebih cepat, padahal datanya sama besarnya?
+**Pertanyaannya:** pada perintah ketiga, kenapa `dns` dan `tls` di baris kedua hampir nol, padahal permintaannya sama persis?
 
 > [!petunjuk]
 > Perhatikan angka `tcp` dan `tls` pada perintah kedua, lalu pikirkan tahap mana yang tidak perlu diulang kalau sambungannya masih terbuka.
 
 > [!jawaban]
 >
-> Permintaan kedua tidak perlu melakukan pencarian DNS, pembuatan sambungan TCP, dan negosiasi TLS lagi, karena sambungannya dipakai ulang. Pada koneksi dari Indonesia ke server di luar negeri, tiga tahap itu saja bisa 150 sampai 400 ms, sering kali lebih lama daripada pekerjaan server itu sendiri.
+> Permintaan kedua tidak perlu melakukan pencarian DNS, pembuatan sambungan TCP, dan negosiasi TLS lagi, karena sambungannya dipakai ulang. Itu sebabnya angka `dns` dan `tls` di baris kedua jatuh ke nol, sementara `total` bisa saja tetap mirip: sisa waktunya dihabiskan server GitHub untuk menyusun jawabannya, dan bagian itu memang tidak berubah.
+>
+> Pada koneksi dari Indonesia ke server di luar negeri, tiga tahap yang dihemat itu saja bisa 150 sampai 400 ms, sering kali lebih lama daripada pekerjaan server itu sendiri. Jalankan perintah ketiga beberapa kali dan perhatikan bahwa yang konsisten nol adalah `dns` dan `tls` baris kedua, bukan `total`: itulah angka yang benar-benar membuktikan sambungannya dipakai ulang.
 >
 > Tiga akibat praktis yang akan terus relevan:
 >
@@ -327,8 +365,8 @@ Untuk delapan operasi berikut, tentukan method, status code saat berhasil, dan a
 > | 2 | POST | 201 + header `Location` | **Tidak** | Perlu `Idempotency-Key` supaya klik ganda tidak membuat dua pesanan |
 > | 3 | POST ke `/pesanan/{id}/pembatalan`, atau PATCH status | 200 | Ya, kalau ditulis dengan benar | Membatalkan pesanan yang sudah dibatalkan tetap 200, bukan error |
 > | 4 | PATCH | 200 | Tidak dijamin | 409 kalau pesanan sudah dikirim |
-> | 5 | POST | 201 | Tidak | Lihat modul 17 soal unggahan langsung ke penyimpanan objek |
-> | 6 | POST, lalu GET status | **202 Accepted** | Tidak | Kembalikan id pekerjaan, kerjakan di latar, lihat modul 14 |
+> | 5 | POST | 201 | Tidak | Lihat modul 18 soal unggahan langsung ke penyimpanan objek |
+> | 6 | POST, lalu GET status | **202 Accepted** | Tidak | Kembalikan id pekerjaan, kerjakan di latar, lihat modul 15 |
 > | 7 | POST | 200 | Tidak | Pesan sama untuk email salah dan password salah |
 > | 8 | GET | 200 | Ya | Jangan beri tahu alasan tidak berlaku secara rinci kalau bisa dipakai menebak kode lain |
 >
@@ -368,12 +406,12 @@ Tentukan tempat pengerjaan sepuluh tugas berikut. Beberapa jawabannya lebih dari
 > | 2 | Frontend, dengan data dari backend | Kenyamanan. Kebenarannya diputuskan saat pesanan dibuat |
 > | 3 | Gateway atau backend | Lebih murah di tepi, tapi batas per pengguna biasanya perlu konteks dari aplikasi |
 > | 4 | Backend, di penyimpanan objek | Bukan di disk lokal instance, karena instance bisa diganti kapan saja |
-> | 5 | Backend, di pekerjaan latar | Jangan di tengah permintaan, lihat modul 14 dan 17 |
+> | 5 | Backend, di pekerjaan latar | Jangan di tengah permintaan, lihat modul 15 dan 18 |
 > | 6 | Keduanya | Hanya untuk operasi idempoten, dengan jeda yang bertambah |
 > | 7 | Backend, dengan jaminan dari basis data | Penomoran unik adalah pekerjaan basis data, bukan kode aplikasi yang membaca lalu menambah |
 > | 8 | Frontend untuk tampilan, backend untuk keputusan | Dua-duanya dikerjakan, dengan tujuan berbeda |
 > | 9 | Infrastruktur | Terminasi TLS di load balancer atau CDN |
-> | 10 | Backend | `Idempotency-Key` yang disimpan, lihat modul 4 dan 8 |
+> | 10 | Backend | `Idempotency-Key` yang disimpan, lihat modul 4 dan 9 |
 >
 > Nomor 7 pantas diperhatikan sekarang karena polanya berulang di seluruh seri. Kode seperti ini terlihat benar dan salah:
 >
@@ -383,7 +421,7 @@ Tentukan tempat pengerjaan sepuluh tugas berikut. Beberapa jawabannya lebih dari
 > await db.simpanInvoice({ nomor: berikutnya });
 > ```
 >
-> Ada jeda antara membaca dan menulis, dan pada jeda itu permintaan lain bisa membaca nilai yang sama. Jawabannya bukan menambah pemeriksaan di aplikasi, melainkan menyerahkan jaminan keunikan kepada basis data lewat sequence dan batasan unik. Pola "baca, hitung, tulis" adalah sumber bug konkurensi paling umum di backend, dan modul 8 membahasnya dengan tuntas.
+> Ada jeda antara membaca dan menulis, dan pada jeda itu permintaan lain bisa membaca nilai yang sama. Jawabannya bukan menambah pemeriksaan di aplikasi, melainkan menyerahkan jaminan keunikan kepada basis data lewat sequence dan batasan unik. Pola "baca, hitung, tulis" adalah sumber bug konkurensi paling umum di backend, dan modul 9 membahasnya dengan tuntas.
 
 ### Latihan 4: Susun anggaran latensi
 
@@ -405,13 +443,13 @@ Tulis rencana perbaikan Anda, beserta perkiraan hasil dan risikonya masing-masin
 > | Urutan | Perbaikan | Perkiraan hasil | Risiko dan catatan |
 > | --- | --- | --- | --- |
 > | 1 | Jangan panggil layanan pengiriman di jalur ini | 1.400 ms jadi sekitar 460 ms | Status pengiriman jadi sedikit basi. Hampir selalu dapat diterima |
-> | 2 | Gabungkan 14 kueri item jadi satu kueri | 460 ms jadi sekitar 300 ms | Ini masalah N+1, lihat modul 7 |
-> | 3 | Verifikasi token secara lokal, bukan memanggil layanan auth | 300 ms jadi sekitar 130 ms | Pencabutan token jadi tidak langsung berlaku, lihat modul 10 |
+> | 2 | Gabungkan 14 kueri item jadi satu kueri | 460 ms jadi sekitar 300 ms | Ini masalah N+1, lihat modul 8 |
+> | 3 | Verifikasi token secara lokal, bukan memanggil layanan auth | 300 ms jadi sekitar 130 ms | Pencabutan token jadi tidak langsung berlaku, lihat modul 11 |
 > | 4 | Gabungkan kueri pesanan dan pengguna dengan join | 130 ms jadi sekitar 120 ms | Dampak kecil, kerjakan terakhir |
 >
 > Tiga hal yang jadi inti latihan ini:
 >
-> **Panggilan ke layanan lain adalah tersangka pertama, selalu.** Satu panggilan 940 ms adalah 67% dari seluruh waktu. Tiga pilihan untuk menanganinya, berurutan dari yang terbaik: keluarkan dari jalur permintaan dan segarkan di latar belakang (modul 14), simpan hasilnya di cache dengan masa berlaku pendek (modul 13), atau pasang batas waktu ketat dan kembalikan respons tanpa bagian itu saat lewat batas (modul 19).
+> **Panggilan ke layanan lain adalah tersangka pertama, selalu.** Satu panggilan 940 ms adalah 67% dari seluruh waktu. Tiga pilihan untuk menanganinya, berurutan dari yang terbaik: keluarkan dari jalur permintaan dan segarkan di latar belakang (modul 15), simpan hasilnya di cache dengan masa berlaku pendek (modul 14), atau pasang batas waktu ketat dan kembalikan respons tanpa bagian itu saat lewat batas (modul 20).
 >
 > **Pola N+1 jarang terlihat di kode dan selalu terlihat di jejak.** Kode `for (const item of items) await ambilDetail(item.id)` terlihat wajar dan menghasilkan 14 perjalanan ke basis data. Satu kueri dengan `WHERE id = ANY($1)` menggantikan semuanya.
 >

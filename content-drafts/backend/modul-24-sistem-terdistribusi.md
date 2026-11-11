@@ -1,8 +1,8 @@
 ---
-title: 'Modul 23: Sistem Terdistribusi'
+title: 'Modul 24: Sistem Terdistribusi'
 description: Tiga penulisan di tiga basis data, lalu yang ketiga gagal, dan tidak ada ROLLBACK. Saga, konsistensi tertunda, keterlambatan replikasi, sharding, dan tangga keputusan sebelum mendistribusikan apa pun.
-date: 2026-12-29
-slug: modul-23-sistem-terdistribusi
+date: 2026-12-31
+slug: modul-24-sistem-terdistribusi
 tags: tutorial backend
 series: Tutorial Backend
 status: draft
@@ -94,6 +94,7 @@ CREATE INDEX ON saga_pesanan (tahap, batas_waktu)
 ```
 
 ```ts
+// src/saga/pesanan.ts
 // Definisi langkah, masing-masing dengan pengimbangnya
 const LANGKAH = [
   {
@@ -206,6 +207,7 @@ Enam keputusan yang membuat saga ini layak produksi:
 Dan satu pekerjaan yang wajib ada:
 
 ```ts
+// src/worker/pemulih-saga.ts
 // Dijalankan tiap menit: menemukan saga yang mandek
 export async function pulihkanSagaMandek() {
   const mandek = await db.execute(sql`
@@ -290,6 +292,7 @@ Empat pola penyelesaiannya, dari yang paling sederhana:
 | **Jangan pakai replika untuk jalur itu** | Jalur yang sensitif selalu dari primary | Paling sederhana, dan sering benar |
 
 ```ts
+// src/db/baca-setelah-tulis.ts
 // Pola pertama, dan paling praktis: tandai penulisan di sesi
 export async function bacaDenganKonsistensi<T>(
   pelaku: Pelaku,
@@ -330,6 +333,7 @@ Tiga hal yang perlu diketahui tentang replika baca:
 **Dua, replika yang terlambat jauh lebih buruk daripada replika yang mati.** Replika mati akan ditolak dan lalu lintas pindah ke primary. Replika yang terlambat 60 detik tetap menjawab, dengan data yang salah. Jalan keluarnya: periksa keterlambatan dan keluarkan replika dari rotasi kalau melewati ambang.
 
 ```ts
+// src/db/keterlambatan-replika.ts
 // Periksa berkala, dan jangan pakai replika yang terlalu tertinggal
 setInterval(async () => {
   const [baris] = await dbReplika.execute(sql`
@@ -342,11 +346,11 @@ setInterval(async () => {
 }, 5_000).unref();
 ```
 
-**Tiga, failover bukan ajaib.** Saat primary mati dan replika dipromosikan, ada jendela beberapa detik sampai beberapa menit tanpa penulisan, dan ada kemungkinan kehilangan transaksi terakhir kalau replikasinya asinkron. Yang bisa dilakukan aplikasi: mode baca saja dari modul 19, dan pesan yang jujur.
+**Tiga, failover bukan ajaib.** Saat primary mati dan replika dipromosikan, ada jendela beberapa detik sampai beberapa menit tanpa penulisan, dan ada kemungkinan kehilangan transaksi terakhir kalau replikasinya asinkron. Yang bisa dilakukan aplikasi: mode baca saja dari modul 20, dan pesan yang jujur.
 
 ## Sharding, dan tiga hal yang harus dicoba lebih dulu
 
-Sharding adalah membagi satu tabel ke beberapa basis data berdasarkan sebuah kunci. Ia menyelesaikan masalah nyata, dan harganya paling besar di antara semua pola di seri ini.
+Sharding adalah membagi satu tabel ke beberapa basis data berdasarkan sebuah kunci. Sharding menyelesaikan masalah nyata, dan harganya paling besar di antara semua pola di seri ini.
 
 **Tiga hal yang harus dicoba lebih dulu, dan hampir selalu cukup:**
 
@@ -370,7 +374,7 @@ Kalau memang perlu, pilihan kunci shard menentukan segalanya:
 | Hash dari id | Paling merata | Kueri rentang tidak mungkin |
 | Waktu | Mudah diarsipkan | Shard terbaru menerima semua penulisan |
 
-Untuk SaaS multi-tenant, `tenant_id` hampir selalu pilihan yang benar, karena ia sejalan dengan batas yang sudah ada di seluruh aplikasi Anda sejak modul 11.
+Untuk SaaS multi-tenant, `tenant_id` hampir selalu pilihan yang benar, karena kunci itu sejalan dengan batas yang sudah ada di seluruh aplikasi Anda sejak modul 12.
 
 Empat kenyataan sharding yang pantas diketahui sebelum memutuskan:
 
@@ -411,6 +415,7 @@ Patokan yang jujur: **pakai event sourcing untuk bagian yang riwayatnya memang b
 Kebutuhan "hanya satu proses yang boleh mengerjakan ini" muncul berulang, dan jawabannya sering salah.
 
 ```ts
+// Jangan disalin: kunci terdistribusi yang tidak aman
 // Pola yang beredar luas, dan punya lubang
 const dapat = await redis.set('kunci:laporan', idProses, 'EX', 30, 'NX');
 if (!dapat) return;
@@ -425,11 +430,12 @@ Dua lubangnya nyata: pekerjaan yang lebih lama daripada masa berlaku kunci, dan 
 
 Tiga jalan yang lebih baik, berurutan:
 
-**Satu, jangan butuh kunci.** Rancang pekerjaannya agar aman dijalankan beberapa kali, atau pakai `FOR UPDATE SKIP LOCKED` dari modul 8 sehingga basis data yang membagi pekerjaan.
+**Satu, jangan butuh kunci.** Rancang pekerjaannya agar aman dijalankan beberapa kali, atau pakai `FOR UPDATE SKIP LOCKED` dari modul 9 sehingga basis data yang membagi pekerjaan.
 
-**Dua, pakai kunci basis data.** `pg_advisory_lock` terikat pada sesi, jadi ia otomatis dilepas kalau prosesnya mati, dan tidak punya masalah masa berlaku.
+**Dua, pakai kunci basis data.** `pg_advisory_lock` terikat pada sesi, jadi kuncinya otomatis dilepas kalau prosesnya mati, dan tidak punya masalah masa berlaku.
 
 ```ts
+// src/worker/tugas-tunggal.ts
 // Hanya satu proses yang menjalankan ini, dan kuncinya lepas sendiri
 // kalau prosesnya mati. Jauh lebih aman daripada kunci berbasis masa berlaku.
 await db.transaction(async (tx) => {
@@ -446,7 +452,7 @@ await db.transaction(async (tx) => {
 
 Dua mesin tidak punya jam yang sama, dan selisihnya bisa puluhan milidetik sampai beberapa detik. Tiga akibat praktisnya:
 
-**Satu, jangan menentukan urutan dari waktu.** "Peristiwa mana yang terjadi lebih dulu" tidak bisa dijawab dengan membandingkan `timestamp` dari dua mesin. Pakai nomor urut dari satu sumber, seperti id outbox di modul 15.
+**Satu, jangan menentukan urutan dari waktu.** "Peristiwa mana yang terjadi lebih dulu" tidak bisa dijawab dengan membandingkan `timestamp` dari dua mesin. Pakai nomor urut dari satu sumber, seperti id outbox di modul 16.
 
 **Dua, jangan memakai waktu sebagai kunci unik.** Dua peristiwa dalam milidetik yang sama akan bentrok, dan jam yang diputar balik oleh NTP bisa menghasilkan waktu yang sama dua kali.
 
@@ -460,7 +466,7 @@ Alasannya sederhana. Pengirim mengirim pesan, lalu jaringan terputus sebelum pen
 
 Yang bisa dicapai, dan yang dipakai semua sistem serius: **pengiriman minimal sekali, ditambah penerima yang idempoten.** Hasil akhirnya setara dengan tepat satu kali, dan dicapai dengan cara yang berbeda.
 
-Itu sebabnya idempotensi muncul di hampir setiap modul di separuh kedua seri ini: modul 4 untuk API, modul 8 untuk transaksi, modul 14 untuk pekerjaan, modul 15 untuk peristiwa, dan sekarang di setiap batas saga. Bukan karena kebetulan, melainkan karena **idempotensi adalah harga masuk untuk sistem yang bagian-bagiannya bisa gagal sendiri-sendiri.**
+Itu sebabnya idempotensi muncul di hampir setiap modul di separuh kedua seri ini: modul 4 untuk API, modul 9 untuk transaksi, modul 15 untuk pekerjaan, modul 16 untuk peristiwa, dan sekarang di setiap batas saga. Bukan karena kebetulan, melainkan karena **idempotensi adalah harga masuk untuk sistem yang bagian-bagiannya bisa gagal sendiri-sendiri.**
 
 ## Tangga keputusan
 
@@ -506,7 +512,7 @@ Terapkan saga tiga langkah untuk pembuatan pesanan: reservasi stok, pembuatan ta
 >
 > Lima hal yang akan Anda temukan:
 >
-> 1. **Uji nomor 3 akan gagal pada implementasi pertama.** Kunci idempotensi harus dikirim oleh saga dan sama di setiap pengulangan, dan nilainya diturunkan dari id pesanan, bukan dibuat baru. Ini kesalahan yang sama seperti di modul 19.
+> 1. **Uji nomor 3 akan gagal pada implementasi pertama.** Kunci idempotensi harus dikirim oleh saga dan sama di setiap pengulangan, dan nilainya diturunkan dari id pesanan, bukan dibuat baru. Ini kesalahan yang sama seperti di modul 20.
 >
 > ```ts
 > // Kunci idempotensi dari data, bukan acak
@@ -514,13 +520,16 @@ Terapkan saga tiga langkah untuk pembuatan pesanan: reservasi stok, pembuatan ta
 > ```
 >
 > 2. **Uji nomor 2 membuktikan nilai menyimpan keadaan.** Tanpa tabel saga, proses yang mati di tengah berarti alurnya hilang tanpa jejak. Dengan tabel saga dan pekerjaan pemulihan, alurnya lanjut dalam waktu di bawah dua menit.
-> 3. **Uji nomor 4 membuktikan nilai reservasi berbatas waktu.** Ini jaring pengaman yang bekerja meski seluruh mekanisme saga gagal, dan itu sebabnya ia pantas ada.
+> 3. **Uji nomor 4 membuktikan nilai reservasi berbatas waktu.** Ini jaring pengaman yang bekerja meski seluruh mekanisme saga gagal, dan itu sebabnya jaring itu pantas ada.
 > 4. **Uji nomor 5 memunculkan pertanyaan produk.** Saat pelepasan reservasi gagal berulang, apa yang harus dilihat petugas, dan tindakan apa yang tersedia untuknya? Antarmuka untuk itu adalah bagian dari fitur, bukan tambahan.
 > 5. **Anda akan menambahkan satu langkah yang tidak terpikir**: pemeriksaan selisih harian yang membandingkan jumlah reservasi aktif dengan pesanan yang berjalan. Pada sistem terdistribusi, rekonsiliasi berkala adalah lapisan terakhir yang menangkap apa pun yang lolos dari semua lapisan sebelumnya.
 
 ### Latihan 2: Perbaiki bug keterlambatan replikasi
 
 Pasang replika baca pada layanan Anda, arahkan semua pembacaan ke sana, lalu temukan dan perbaiki empat gejala yang muncul.
+
+> [!petunjuk]
+> Keempat gejalanya punya satu akar yang sama: ada jeda antara penulisan di primer dan kemunculannya di replika. Yang membedakan keempatnya adalah **siapa yang membaca** setelah penulisan itu. Pengguna yang baru saja menyimpan sesuatu punya kebutuhan berbeda dari pengunjung yang hanya melihat-lihat, dan worker yang memproses peristiwa berbeda lagi. Dari situ muncul aturan yang bisa Anda pasang per jalur, bukan satu aturan untuk semuanya.
 
 > [!jawaban]
 >
@@ -531,7 +540,7 @@ Pasang replika baca pada layanan Anda, arahkan semua pembacaan ke sana, lalu tem
 > | Pembayaran diproses dua kali | Pemeriksaan "sudah dibayar" dari replika yang tertinggal | **Keputusan tulis selalu dari primary**, tanpa pengecualian |
 > | Laporan kadang kosong | Replika sedang dipromosikan atau tertinggal jauh | Periksa keterlambatan, dan jatuhkan ke primary di atas ambang |
 >
-> Gejala ketiga adalah yang paling berbahaya, dan aturannya sama dengan pelajaran cache di modul 13: **jangan pernah mendasarkan keputusan penulisan pada data dari sumber yang bisa tertinggal.** Replika untuk menampilkan, primary untuk memutuskan.
+> Gejala ketiga adalah yang paling berbahaya, dan aturannya sama dengan pelajaran cache di modul 14: **jangan pernah mendasarkan keputusan penulisan pada data dari sumber yang bisa tertinggal.** Replika untuk menampilkan, primary untuk memutuskan.
 >
 > Dan gejala kedua memunculkan aturan yang pantas ditiru:
 >
@@ -632,7 +641,7 @@ Periksa seluruh layanan Anda terhadap delapan pertanyaan berikut.
 >
 > Angka itu harus nol. Angka yang tidak nol berarti ada alur yang tidak selesai dengan benar, dan menemukannya dalam satu jam jauh lebih baik daripada menemukannya dari laporan keuangan bulanan.
 >
-> **Nomor 8 menemukan satu pekerjaan yang berbahaya**: penyegaran rekap yang menambahkan penjualan sepuluh menit terakhir ke angka yang ada. Terlewat sekali berarti data hilang permanen, dan berjalan dua kali berarti angka ganda. Perbaikannya menghitung ulang dari keadaan, seperti di modul 14.
+> **Nomor 8 menemukan satu pekerjaan yang berbahaya**: penyegaran rekap yang menambahkan penjualan sepuluh menit terakhir ke angka yang ada. Terlewat sekali berarti data hilang permanen, dan berjalan dua kali berarti angka ganda. Perbaikannya menghitung ulang dari keadaan, seperti di modul 15.
 >
 > **Nomor 3 menemukan satu tempat**: penggabungan dua aliran log dari dua layanan yang diurutkan berdasarkan `timestamp`. Selisih jam beberapa ratus milidetik membuat urutannya kadang salah, dan itu cukup untuk membuat analisis insiden menyesatkan. Perbaikannya memakai id penelusuran dan urutan dari satu sumber.
 
@@ -650,7 +659,7 @@ Pola di modul ini menyelesaikan koordinasi antar sistem, dan tiga hal tetap berl
 
 - Tidak ada transaksi lintas layanan. Yang menggantikannya adalah saga dengan tindakan pengimbang, keadaan yang disimpan, batas waktu, dan pekerjaan pemulihan.
 - Pengimbang bukan penghapusan, melainkan pencatatan pembatalan. Dan pengimbang yang gagal butuh manusia, bukan percobaan ulang tanpa akhir.
-- Reservasi berbatas waktu lebih baik daripada pengurangan langsung, karena ia melepas dirinya sendiri saat alurnya mandek.
+- Reservasi berbatas waktu lebih baik daripada pengurangan langsung, karena reservasi melepas dirinya sendiri saat alurnya mandek.
 - Keputusan penulisan selalu dari primary. Replika untuk menampilkan, bukan untuk memutuskan.
 - Replika yang terlambat lebih buruk daripada replika yang mati. Pantau keterlambatannya, dan keluarkan dari rotasi di atas ambang.
 - Satu permintaan memakai satu sumber data, dipilih di awal, supaya pembacaan tidak pernah mundur.

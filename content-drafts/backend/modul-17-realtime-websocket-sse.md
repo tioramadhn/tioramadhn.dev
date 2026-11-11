@@ -1,8 +1,8 @@
 ---
-title: 'Modul 16: Realtime dengan WebSocket dan SSE'
+title: 'Modul 17: Realtime dengan WebSocket dan SSE'
 description: Data berubah di server, dan pengguna baru tahu setelah menekan muat ulang. Memilih antara polling, SSE, dan WebSocket, lalu membuatnya bekerja pada beberapa instance.
-date: 2026-12-21
-slug: modul-16-realtime-websocket-sse
+date: 2026-12-23
+slug: modul-17-realtime-websocket-sse
 tags: tutorial backend
 series: Tutorial Backend
 status: draft
@@ -20,7 +20,7 @@ Jalan keluar yang paling mudah ditulis adalah memeriksa ke server setiap tiga de
 
 Dan sebagian besar jawabannya "belum ada perubahan". Modul ini tentang cara server memberi tahu klien saat ada yang berubah, bukan klien yang terus bertanya.
 
-Satu hal yang perlu diluruskan di awal: **polling bukan selalu salah.** Untuk data yang berubah sekali sejam dan dibuka sepuluh orang, polling dengan ETag dari modul 13 adalah jawaban yang benar, dan jauh lebih sederhana daripada apa pun di modul ini.
+Satu hal yang perlu diluruskan di awal: **polling bukan selalu salah.** Untuk data yang berubah sekali sejam dan dibuka sepuluh orang, polling dengan ETag dari modul 14 adalah jawaban yang benar, dan jauh lebih sederhana daripada apa pun di modul ini.
 
 ## Analogi: menunggu kabar dari kantor pos
 
@@ -54,7 +54,7 @@ Batas analoginya menunjuk langsung ke bagian tersulit: sambungan hidup di **satu
 | **WebSocket** | Dua arah | Menengah | Obrolan, kolaborasi, permainan, apa pun yang klien kirim sering |
 | **WebTransport** | Dua arah di atas HTTP/3 | Tinggi | Kebutuhan khusus latensi sangat rendah |
 
-Rekomendasi yang jujur: **mulai dari SSE.** Ia hanya HTTP biasa, melewati proxy tanpa masalah konfigurasi, menyambung ulang sendiri saat terputus, dan 90% kebutuhan realtime di aplikasi bisnis adalah satu arah dari server ke klien.
+Rekomendasi yang jujur: **mulai dari SSE.** SSE hanya HTTP biasa, melewati proxy tanpa masalah konfigurasi, menyambung ulang sendiri saat terputus, dan 90% kebutuhan realtime di aplikasi bisnis adalah satu arah dari server ke klien.
 
 Pakai WebSocket kalau klien benar-benar perlu mengirim pesan sering, misalnya obrolan atau penanda "sedang mengetik". Untuk tombol yang diklik sekali, `POST` biasa lebih tepat daripada mengirimnya lewat soket.
 
@@ -109,6 +109,7 @@ function tulisPeristiwa(res: FastifyReply, p: PeristiwaSiapKirim) {
 ```
 
 ```ts
+// src/fitur/realtime/sse.ts
 // Endpoint lacak pesanan
 app.get('/v1/pesanan/:id/aliran', { onRequest: [app.autentikasi] }, async (req, res) => {
   const pesanan = await repoPesanan.ambil(req.params.id);
@@ -205,9 +206,10 @@ export const pubsub = {
 };
 ```
 
-Lalu konsumen peristiwa dari modul 15 menerbitkannya ke papan ini:
+Lalu konsumen peristiwa dari modul 16 menerbitkannya ke papan ini:
 
 ```ts
+// src/konsumen/realtime.ts, menyebarkan ke semua instance lewat pub/sub
 export async function konsumenRealtime(pesan: PesanMasuk) {
   // Konsumen ini tidak menulis apa pun ke basis data, hanya meneruskan.
   // Karena itu tidak perlu idempotensi: pengiriman dua kali ke klien
@@ -233,6 +235,7 @@ Empat hal yang penting di pola ini:
 ## WebSocket, kalau memang perlu dua arah
 
 ```ts
+// src/fitur/realtime/websocket.ts
 import websocket from '@fastify/websocket';
 
 await app.register(websocket, {
@@ -304,9 +307,9 @@ Empat hal yang khas WebSocket dan sering salah:
 
 **Satu, autentikasi tidak bisa memakai header kustom di peramban.** `WebSocket` API di peramban tidak mengizinkan header `Authorization`. Tiga jalan keluar: cookie sesi (paling sederhana kalau domainnya sama), token sekali pakai yang diminta lewat HTTP lalu dikirim sebagai parameter kueri, atau pesan autentikasi pertama setelah sambungan terbuka. Jangan mengirim token berumur panjang di parameter kueri, karena URL tercatat di log proxy.
 
-**Dua, otorisasi diperiksa per pesan.** Sambungan yang dibuka pukul 09.00 dan masih hidup pukul 17.00 mungkin dimiliki orang yang izinnya sudah dicabut pukul 11.00. Periksa ulang, dan pakai cache dari modul 13 supaya murah.
+**Dua, otorisasi diperiksa per pesan.** Sambungan yang dibuka pukul 09.00 dan masih hidup pukul 17.00 mungkin dimiliki orang yang izinnya sudah dicabut pukul 11.00. Periksa ulang, dan pakai cache dari modul 14 supaya murah.
 
-**Tiga, token kedaluwarsa saat sambungan masih hidup.** Access token 15 menit dari modul 10 akan kedaluwarsa jauh sebelum sambungan ditutup. Putuskan dengan sengaja: tutup sambungan dan minta klien menyambung ulang dengan token baru, atau terima pesan pembaruan token lewat soket.
+**Tiga, token kedaluwarsa saat sambungan masih hidup.** Access token 15 menit dari modul 11 akan kedaluwarsa jauh sebelum sambungan ditutup. Putuskan dengan sengaja: tutup sambungan dan minta klien menyambung ulang dengan token baru, atau terima pesan pembaruan token lewat soket.
 
 **Empat, batas ukuran pesan dan jumlah sambungan.** Tanpa `maxPayload`, satu klien bisa mengirim pesan 100 MB. Tanpa batas sambungan per pengguna, satu skrip bisa membuka sepuluh ribu soket dan menghabiskan memori instance Anda.
 
@@ -327,6 +330,7 @@ Baris ketiga adalah penyebab kegagalan yang membingungkan: pada 1.024 sambungan,
 Dan satu hal operasional yang penting: **sambungan panjang mempersulit penutupan yang rapi.** Saat instance dimatikan untuk deploy, seribu sambungan harus ditutup. Lakukan dengan sopan:
 
 ```ts
+// src/server.ts, menutup sambungan realtime dengan rapi
 process.on('SIGTERM', async () => {
   // Beri tahu klien supaya menyambung ulang ke instance lain,
   // dengan jeda acak supaya tidak semuanya menyambung bersamaan
@@ -342,7 +346,7 @@ process.on('SIGTERM', async () => {
 });
 ```
 
-Tanpa jeda acak, seribu klien akan menyambung ulang pada detik yang sama ke instance yang tersisa, dan Anda membuat lonjakan sendiri. Pola yang sama dengan jitter di modul 13 dan 14.
+Tanpa jeda acak, seribu klien akan menyambung ulang pada detik yang sama ke instance yang tersisa, dan Anda membuat lonjakan sendiri. Pola yang sama dengan jitter di modul 14 dan 15.
 
 ## Kapan tidak memakai realtime
 
@@ -354,6 +358,53 @@ Tiga keadaan di mana polling lebih baik, dan menyadarinya menghemat banyak peker
 
 **Tiga, data yang harus akurat saat dibaca.** Realtime mempercepat kabar, dan tidak menggantikan pembacaan. Saldo yang ditampilkan dari pesan realtime tanpa pembacaan ulang bisa salah kalau ada pesan yang hilang. Tampilkan dari pembacaan, perbarui dengan realtime, dan baca ulang saat pengguna melakukan aksi penting.
 
+## Buktikan jalan
+
+Realtime punya satu kegagalan khas yang tidak muncul di laptop: jalan sempurna dengan satu proses, dan separuh pengguna tidak menerima apa-apa begitu ada dua instance. Buktikan keduanya.
+
+```bash
+# 1. Satu instance. Biarkan terminal ini terbuka.
+curl -N -H 'authorization: Bearer <token>' localhost:3000/v1/pesanan/<id>/lacak
+```
+
+Yang Anda harapkan, dan perhatikan bahwa perintahnya **tidak kembali**:
+
+```text
+: terhubung
+
+event: status
+data: {"status":"diproses","pada":"2026-12-23T04:11:02.118Z"}
+```
+
+Dari terminal lain, ubah status pesanan itu. Dalam waktu di bawah satu detik, baris `event: status` baru muncul di terminal pertama.
+
+```bash
+# 2. Dua instance, yang mana masalah sesungguhnya
+PORT=3000 pnpm dev &
+PORT=3001 pnpm dev &
+
+# Dengarkan di instance A
+curl -N -H 'authorization: Bearer <token>' localhost:3000/v1/pesanan/<id>/lacak
+
+# Dari terminal lain, ubah status lewat instance B
+curl -s -X PATCH localhost:3001/v1/pesanan/<id> \
+  -H 'content-type: application/json' -d '{"status":"dikirim"}'
+```
+
+**Kalau pub/sub Anda belum terpasang, terminal pertama tidak akan menerima apa pun**, dan tidak ada satu pun pesan error di mana pun. Perubahan terjadi di instance B, dan pendengarnya ada di instance A. Itu persis kegagalan yang dibahas di bagian "Masalah utama: beberapa instance", dan dua terminal di atas adalah cara termurah membuktikan perbaikannya bekerja.
+
+Terakhir, periksa kebocoran sambungan. Buka sepuluh `curl -N`, lalu tutup semuanya dengan Ctrl + C, dan periksa metrik Anda:
+
+```bash
+curl -s localhost:3000/metrics | grep sambungan_sse_aktif
+```
+
+```text
+sambungan_sse_aktif 0
+```
+
+Angka yang tidak kembali ke nol berarti pembersihan pada `close` tidak berjalan, dan itu bocor pelan: tidak terlihat dalam satu jam, menjatuhkan proses dalam satu minggu.
+
 ## Latihan
 
 ### Latihan 1: Lacak pesanan dengan SSE
@@ -361,7 +412,7 @@ Tiga keadaan di mana polling lebih baik, dan menyadarinya menghemat banyak peker
 Tambahkan aliran SSE ke Proyek 4 untuk halaman lacak pesanan. Syaratnya: keadaan sekarang dikirim lebih dulu, perubahan menyusul, bekerja pada tiga instance, dan pengguna yang terputus 30 detik tidak melewatkan perubahan apa pun.
 
 > [!petunjuk]
-> Syarat terakhir butuh dua hal: `Last-Event-ID` dari klien, dan riwayat peristiwa yang bisa dibaca kembali. Riwayatnya sudah ada di tabel outbox dari modul 15, dan itu bisa dipakai langsung.
+> Syarat terakhir butuh dua hal: `Last-Event-ID` dari klien, dan riwayat peristiwa yang bisa dibaca kembali. Riwayatnya sudah ada di tabel outbox dari modul 16, dan itu bisa dipakai langsung.
 
 > [!jawaban]
 >
@@ -398,7 +449,7 @@ Tambahkan aliran SSE ke Proyek 4 untuk halaman lacak pesanan. Syaratnya: keadaan
 >
 > Lima hal yang akan Anda temukan saat mengerjakannya:
 >
-> 1. **Tabel outbox sudah jadi riwayat peristiwa yang Anda butuhkan.** Ini manfaat tambahan dari pola di modul 15 yang tidak terlihat saat membangunnya. Satu-satunya syarat: jangan hapus baris outbox terlalu cepat, dan tujuh hari sudah lebih dari cukup.
+> 1. **Tabel outbox sudah jadi riwayat peristiwa yang Anda butuhkan.** Ini manfaat tambahan dari pola di modul 16 yang tidak terlihat saat membangunnya. Satu-satunya syarat: jangan hapus baris outbox terlalu cepat, dan tujuh hari sudah lebih dari cukup.
 > 2. **Id peristiwa harus bisa dibandingkan.** Dengan id berupa `outbox-{nomor}`, pertanyaan "apa yang terlewat sejak id ini" jadi satu kueri. Dengan UUID acak, pertanyaan itu tidak bisa dijawab.
 > 3. **Ada jendela kecil antara snapshot dan langganan.** Peristiwa yang terjadi tepat di antaranya bisa terlewat. Jalan keluarnya: berlangganan **dulu**, kumpulkan di buffer, lalu kirim snapshot, lalu kuras buffer sambil membuang yang versinya lebih lama daripada snapshot.
 > 4. **Uji dengan tiga instance, bukan satu.** Tanpa pub/sub, kodenya tetap bekerja sempurna di laptop dengan satu proses, dan gagal total di produksi. Jalankan tiga proses di port berbeda lalu kirim permintaan ke salah satunya.
@@ -414,6 +465,9 @@ Rancang realtime untuk tiga kebutuhan berikut, dan untuk masing-masing tentukan:
 | **B** | Panel gudang yang menampilkan pesanan baru, 30 petugas, perlu menandai "saya ambil ini" |
 | **C** | Dasbor admin dengan angka penjualan yang bergerak, 10 pengelola |
 
+> [!petunjuk]
+> Pisahkan dua pertanyaan untuk tiap kebutuhan: apakah datanya hanya mengalir dari server ke klien, atau klien juga perlu mengirim sesuatu lewat sambungan yang sama? Hanya satu dari tiga kebutuhan yang benar-benar butuh dua arah. Untuk autentikasi, ingat bahwa `EventSource` di browser tidak bisa mengirim header `Authorization`, dan itu menentukan jawaban Anda untuk A.
+
 > [!pembahasan]
 >
 > | | A: lacak pesanan | B: panel gudang | C: dasbor admin |
@@ -428,9 +482,9 @@ Rancang realtime untuk tiga kebutuhan berikut, dan untuk masing-masing tentukan:
 >
 > **A memakai SSE karena satu arah.** Pembeli tidak mengirim apa pun lewat aliran itu. Dan 5.000 sambungan bukan masalah: dibagi tiga instance berarti sekitar 1.700 per instance, jauh di bawah batas nyaman.
 >
-> **B memakai WebSocket karena ada "saya ambil ini".** Tapi perhatikan: klaim pesanan **tidak boleh** diselesaikan lewat pesan soket saja. Yang benar: klaim dikirim sebagai `POST` biasa yang memakai `UPDATE ... WHERE diambil_oleh IS NULL` dari modul 8, lalu hasilnya disiarkan lewat soket supaya petugas lain melihat pesanan itu hilang dari daftar. Soket untuk kabar, HTTP untuk keputusan.
+> **B memakai WebSocket karena ada "saya ambil ini".** Tapi perhatikan: klaim pesanan **tidak boleh** diselesaikan lewat pesan soket saja. Yang benar: klaim dikirim sebagai `POST` biasa yang memakai `UPDATE ... WHERE diambil_oleh IS NULL` dari modul 9, lalu hasilnya disiarkan lewat soket supaya petugas lain melihat pesanan itu hilang dari daftar. Soket untuk kabar, HTTP untuk keputusan.
 >
-> **C memakai polling, dan ini jawaban yang paling sering salah.** Sepuluh pengelola yang memuat ulang setiap sepuluh detik menghasilkan satu permintaan per detik. Dengan cache 10 detik dari modul 13, beban ke basis data mendekati nol. Membangun realtime untuk ini berarti menambahkan pub/sub, sambungan panjang, penanganan sambung ulang, dan metrik baru, untuk menghemat satu permintaan per detik.
+> **C memakai polling, dan ini jawaban yang paling sering salah.** Sepuluh pengelola yang memuat ulang setiap sepuluh detik menghasilkan satu permintaan per detik. Dengan cache 10 detik dari modul 14, beban ke basis data mendekati nol. Membangun realtime untuk ini berarti menambahkan pub/sub, sambungan panjang, penanganan sambung ulang, dan metrik baru, untuk menghemat satu permintaan per detik.
 >
 > Patokan yang bisa dipakai: **hitung dulu beban polling-nya.** Kalau angkanya di bawah beberapa puluh permintaan per detik dan datanya bisa di-cache, polling adalah keputusan teknik yang lebih baik, bukan jalan pintas.
 

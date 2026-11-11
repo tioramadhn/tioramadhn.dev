@@ -1,8 +1,8 @@
 ---
-title: 'Modul 13: Caching dari HTTP sampai Redis'
+title: 'Modul 14: Caching dari HTTP sampai Redis'
 description: Pekerjaan yang jawabannya sudah diketahui tidak perlu dikerjakan ulang. Lapisan cache, perancangan kunci, dan bagian tersulitnya: memutuskan kapan data yang disimpan harus dianggap tidak berlaku lagi.
-date: 2026-12-17
-slug: modul-13-caching-redis
+date: 2026-12-19
+slug: modul-14-caching-redis
 tags: tutorial backend
 series: Tutorial Backend
 status: draft
@@ -63,7 +63,7 @@ Cache dalam proses          <- paling cepat, tidak dibagi antar instance
 Redis                       <- dibagi semua instance, satu perjalanan jaringan
    |
    v
-Materialized view           <- di basis data, untuk agregasi (modul 9)
+Materialized view           <- di basis data, untuk agregasi (modul 10)
    |
    v
 Basis data
@@ -87,6 +87,7 @@ Baris terakhir pantas ditegaskan. Pertanyaan pertama sebelum menyimpan apa pun b
 Sebelum menyentuh Redis, perhatikan bahwa HTTP sudah punya mekanisme cache yang bisa dipakai gratis.
 
 ```ts
+// src/fitur/katalog/rute.ts, cache di lapisan HTTP
 // Katalog publik: boleh disimpan CDN, disegarkan di latar belakang
 app.get('/v1/produk', async (req, res) => {
   const hasil = await layananProduk.daftar(req.query);
@@ -103,7 +104,7 @@ app.get('/v1/produk', async (req, res) => {
 app.get('/v1/pesanan/:id', async (req, res) => {
   const pesanan = await ambilPesanan(req.pelaku, req.params.id);
 
-  // Versi dari modul 8 jadi ETag yang murah dan tepat
+  // Versi dari modul 9 jadi ETag yang murah dan tepat
   const etag = `W/"${pesanan.id}-${pesanan.versi}"`;
 
   res.header('cache-control', 'private, no-cache');
@@ -186,7 +187,7 @@ Empat keputusan di potongan itu yang membedakan cache yang aman dari yang merepo
 
 **Tiga, ada jitter pada TTL.** Kalau seribu kunci dibuat pada waktu yang hampir sama dengan TTL yang sama, semuanya kedaluwarsa bersamaan, dan basis data Anda menerima seribu kueri dalam satu detik.
 
-**Empat, `JSON.stringify` adalah pilihan yang sadar.** Ia sederhana dan terbaca saat Anda memeriksa Redis dengan tangan. Untuk data besar, pertimbangkan kompresi atau format biner, dan ukur dulu sebelum menukar keterbacaan dengan kecepatan.
+**Empat, `JSON.stringify` adalah pilihan yang sadar.** Formatnya sederhana dan terbaca saat Anda memeriksa Redis dengan tangan. Untuk data besar, pertimbangkan kompresi atau format biner, dan ukur dulu sebelum menukar keterbacaan dengan kecepatan.
 
 ## Merancang kunci
 
@@ -213,7 +214,7 @@ export const kunciCache = {
 
 Empat aturan kunci:
 
-**Satu, tenant dan pengguna selalu ada di kunci** untuk data yang berbeda per tenant atau per pengguna. Satu kunci yang lupa memuat `tenantId` berarti tenant A melihat data tenant B, dan itu insiden yang mengakhiri kontrak seperti di modul 11.
+**Satu, tenant dan pengguna selalu ada di kunci** untuk data yang berbeda per tenant atau per pengguna. Satu kunci yang lupa memuat `tenantId` berarti tenant A melihat data tenant B, dan itu insiden yang mengakhiri kontrak seperti di modul 12.
 
 **Dua, semua yang membedakan hasil ada di kunci.** Ini aturan yang sama dengan `queryKey` pada seri frontend: filter, urutan, dan halaman harus ikut.
 
@@ -228,6 +229,7 @@ Tiga strategi, dan hampir semua aplikasi memakai ketiganya untuk data yang berbe
 **Satu, biarkan kedaluwarsa sendiri.** Paling sederhana, dan benar untuk data yang tidak masalah basi beberapa saat.
 
 ```ts
+// Contoh pemakaian denganCache dari potongan sebelumnya
 const konfig = await denganCache(
   kunciCache.konfigurasiTenant(tenantId),
   300,  // basi maksimal 5 menit, dan itu dapat diterima
@@ -239,6 +241,7 @@ const konfig = await denganCache(
 **Dua, hapus saat data berubah.** Dipakai saat kebasian tidak dapat diterima.
 
 ```ts
+// src/fitur/anggota/layanan.ts, invalidasi setelah transaksi commit
 export async function ubahPeranAnggota(pelaku: Pelaku, penggunaId: string, peranBaru: string) {
   await dalamTransaksi(db, async (tx) => {
     await repoKeanggotaan(tx).ubahPeran(pelaku.tenantId, penggunaId, peranBaru);
@@ -257,6 +260,7 @@ Urutan itu penting: **invalidasi dilakukan setelah commit.** Melakukannya di dal
 **Tiga, invalidasi berkelompok.** Saat satu perubahan memengaruhi banyak kunci, misalnya satu produk diperbarui lalu semua halaman katalog yang memuatnya jadi basi.
 
 ```ts
+// src/lib/cache/tag.ts, invalidasi sekelompok kunci sekaligus
 // Jangan pakai SCAN atau KEYS untuk mencari kunci yang cocok:
 // keduanya mahal, dan KEYS memblokir Redis.
 // Pakai penanda versi per kelompok.
@@ -277,6 +281,7 @@ Dengan penanda versi, satu `INCR` membuat seluruh kelompok kunci jadi tidak terj
 Satu kunci populer kedaluwarsa, lalu lima ratus permintaan yang datang pada saat yang sama semuanya menemukan cache kosong, dan semuanya menjalankan kueri mahal yang sama.
 
 ```ts
+// src/lib/cache/kunci-tunggal.ts
 // Pencegahan: hanya satu permintaan yang menghitung, sisanya menunggu hasilnya
 export async function denganCacheAman<T>(
   kunci: string,
@@ -316,6 +321,7 @@ export async function denganCacheAman<T>(
 Pencegahan yang lebih baik lagi untuk data yang sangat populer: **jangan biarkan kedaluwarsa.** Simpan dengan TTL panjang, dan segarkan di latar belakang sebelum basi:
 
 ```ts
+// src/lib/cache/segarkan-awal.ts
 const BATAS_SEGARKAN = 0.8;  // segarkan setelah 80% umur terlewati
 
 const { nilai, umurDetik } = await bacaCacheDenganUmur(kunci, skema);
@@ -336,6 +342,7 @@ Pola ini menghapus lonjakan sepenuhnya, dengan harga satu hal yang perlu disadar
 Paling cepat, dan punya satu sifat yang harus Anda sadari sepenuhnya: **tidak dibagi antar instance.**
 
 ```ts
+// src/lib/cache/memori.ts
 import { LRUCache } from 'lru-cache';
 
 // Hanya untuk data yang boleh berbeda antar instance selama beberapa detik
@@ -373,6 +380,7 @@ Lima pola yang pantas dihindari, dan semuanya pernah terjadi di produksi nyata:
 **Lima, tidak mengukur.** Cache yang tingkat kenanya 20% hampir tidak memberi manfaat, hanya menambah kerumitan. Ukur:
 
 ```ts
+// src/app.ts, mengukur tingkat kena cache
 app.addHook('onResponse', async (req) => {
   if (req.statCache) {
     metrik.cache.inc({ hasil: req.statCache.kena ? 'kena' : 'lewat', kunci: req.statCache.kelompok });
@@ -381,6 +389,50 @@ app.addHook('onResponse', async (req) => {
 ```
 
 Tingkat kena di bawah 70% pada data yang seharusnya sering dibaca biasanya berarti satu dari dua hal: TTL terlalu pendek, atau kuncinya terlalu rinci sehingga setiap permintaan menghasilkan kunci baru.
+
+## Buktikan jalan
+
+Cache yang terpasang salah terlihat persis seperti cache yang bekerja, sampai seseorang melihat data basi. Buktikan tiga hal.
+
+```bash
+# 1. Panggilan kedua jauh lebih cepat daripada yang pertama
+for i in 1 2 3; do
+  curl -s -o /dev/null -w "panggilan $i: %{time_total}s\n" localhost:3000/v1/katalog
+done
+```
+
+```text
+panggilan 1: 0.184s
+panggilan 2: 0.009s
+panggilan 3: 0.008s
+```
+
+```bash
+# 2. Kuncinya benar-benar ada di Redis, dan punya masa berlaku
+docker compose exec -it redis redis-cli --scan --pattern 'katalog:*'
+docker compose exec -it redis redis-cli TTL 'katalog:v1:halaman-1'
+```
+
+```text
+katalog:v1:halaman-1
+(integer) 287
+```
+
+Angka TTL harus **positif dan menurun**. Kalau jawabannya `-1`, kunci itu tidak punya masa berlaku dan akan hidup selamanya: itu kebocoran memori yang baru terasa berbulan-bulan kemudian.
+
+```bash
+# 3. Invalidasi benar-benar bekerja
+# Ubah satu produk, lalu panggil lagi
+curl -s -X PATCH localhost:3000/v1/produk/<id> -H 'content-type: application/json' \
+  -d '{"nama":"Nama Baru"}' > /dev/null
+curl -s localhost:3000/v1/katalog | jq '.data[0].nama'
+```
+
+```json
+"Nama Baru"
+```
+
+Pemeriksaan ketiga adalah yang paling penting dan paling sering dilewati. Cache yang cepat dan salah lebih buruk daripada tidak ada cache sama sekali, karena pengguna melihat harga lama lalu menuntut harga itu dihormati.
 
 ## Latihan
 
@@ -444,6 +496,9 @@ Dari Proyek 3, pembacaan izin dipanggil di setiap permintaan. Pasang cache denga
 
 Pasang cache HTTP pada katalog publik Proyek 2, lalu ukur. Syaratnya: pengunjung yang sama tidak mengunduh ulang data yang tidak berubah, CDN bisa menyajikan salinan basi saat server gangguan, dan harga yang baru diubah admin terlihat dalam waktu di bawah 2 menit.
 
+> [!petunjuk]
+> Ketiga syarat itu dipenuhi oleh tiga arahan `Cache-Control` yang berbeda, bukan satu. Syarat pertama butuh cara klien bertanya "apakah berubah?" tanpa mengunduh ulang, dan itu melibatkan satu header respons plus satu header permintaan. Syarat kedua punya arahan khusus yang namanya menyebutkan apa yang boleh dilakukan saat ada error. Syarat ketiga menentukan angka `max-age` Anda.
+
 > [!pembahasan]
 >
 > ```ts
@@ -481,7 +536,7 @@ Pasang cache HTTP pada katalog publik Proyek 2, lalu ukur. Syaratnya: pengunjung
 > Lima hal yang penting:
 >
 > 1. **`max-age=60` sudah cukup untuk syarat ketiga** tanpa purge sama sekali. Purge dipasang supaya perubahan terlihat dalam hitungan detik, bukan menit, dan itu nilai tambah.
-> 2. **`stale-if-error=86400` adalah fitur ketahanan, bukan performa.** Dengan satu baris ini, katalog Anda tetap bisa dibuka pengunjung saat basis data Anda tumbang. Modul 19 membahas pola seperti ini lebih luas.
+> 2. **`stale-if-error=86400` adalah fitur ketahanan, bukan performa.** Dengan satu baris ini, katalog Anda tetap bisa dibuka pengunjung saat basis data Anda tumbang. Modul 20 membahas pola seperti ini lebih luas.
 > 3. **Jangan pasang `public` pada endpoint yang melewati otorisasi.** Kalau katalog punya harga khusus per tenant, respons ini tidak boleh `public`. Pisahkan endpoint publik dari endpoint yang personal.
 > 4. **`Vary` harus hati-hati.** `Vary: Authorization` pada endpoint publik membuat CDN menyimpan salinan per token, dan tingkat kenanya hancur. Kalau endpoint benar-benar publik, jangan baca header `Authorization` sama sekali.
 > 5. **Ukur dampaknya di CDN, bukan di aplikasi.** Yang menarik bukan latensi server Anda, melainkan berapa persen permintaan yang tidak pernah sampai ke server Anda. Pada katalog yang dipasang benar, angkanya biasanya di atas 90%.
@@ -498,7 +553,7 @@ Buat endpoint dengan kueri 800 ms yang di-cache 30 detik. Kirim 300 permintaan b
 > | Dengan gembok | 1 | 900 ms | Benar, 299 permintaan menunggu sebentar |
 > | Penyegaran dini | **0** | 40 ms | Terbaik, dengan data yang sedikit basi |
 >
-> Baris pertama menunjukkan akibat yang paling merugikan: **bukan hanya endpoint itu yang melambat.** Tiga ratus kueri bersamaan menghabiskan pool sambungan dari modul 7, dan seluruh layanan ikut terganggu. Cache stampede adalah salah satu penyebab insiden produksi yang paling sering, dan biasanya terjadi tepat saat lalu lintas sedang tinggi.
+> Baris pertama menunjukkan akibat yang paling merugikan: **bukan hanya endpoint itu yang melambat.** Tiga ratus kueri bersamaan menghabiskan pool sambungan dari modul 8, dan seluruh layanan ikut terganggu. Cache stampede adalah salah satu penyebab insiden produksi yang paling sering, dan biasanya terjadi tepat saat lalu lintas sedang tinggi.
 >
 > Implementasi penyegaran dini:
 >
@@ -549,6 +604,7 @@ Buat endpoint dengan kueri 800 ms yang di-cache 30 detik. Kirim 300 permintaan b
 Lima potongan ini punya bug cache. Temukan dan jelaskan akibatnya.
 
 ```ts
+// Tiga potongan untuk Anda telaah di latihan ini
 // A
 const kunci = `pesanan:${req.params.id}`;
 const pesanan = await denganCache(kunci, 300, () => ambilPesanan(req.pelaku, req.params.id));
@@ -583,7 +639,7 @@ if (stok >= jumlah) await buatPesanan(...);
 >
 > **D: invalidasi di dalam transaksi.** Dua masalah sekaligus: kalau transaksinya gagal dan di-rollback, cache sudah terhapus padahal datanya tidak berubah, dan yang lebih buruk, ada jendela antara penghapusan cache dan commit di mana pembaca lain mengisi cache dengan **nilai lama** yang baru saja dihapus. Perbaikan: hapus cache setelah commit.
 >
-> **E: men-cache stok lalu memakainya untuk keputusan.** Ini pola baca-putuskan-tulis dari modul 8, diperburuk cache 60 detik. Stok yang sudah habis masih terlihat tersedia selama satu menit, dan pesanan diterima untuk barang yang tidak ada. Perbaikan: jangan pernah mendasarkan keputusan tulis pada data cache. Tampilkan stok dari cache kalau perlu, dan tetap kurangi dengan `UPDATE ... WHERE stok >= jumlah` sebagai penentu.
+> **E: men-cache stok lalu memakainya untuk keputusan.** Ini pola baca-putuskan-tulis dari modul 9, diperburuk cache 60 detik. Stok yang sudah habis masih terlihat tersedia selama satu menit, dan pesanan diterima untuk barang yang tidak ada. Perbaikan: jangan pernah mendasarkan keputusan tulis pada data cache. Tampilkan stok dari cache kalau perlu, dan tetap kurangi dengan `UPDATE ... WHERE stok >= jumlah` sebagai penentu.
 >
 > Pola yang menghubungkan kelimanya: **cache aman untuk pembacaan yang ditampilkan, berbahaya untuk keputusan.** Dan kunci yang tidak memuat semua yang membedakan hasil adalah kebocoran yang menunggu waktu.
 
@@ -591,7 +647,7 @@ if (stok >= jumlah) await buatPesanan(...);
 
 Cache menyelesaikan pembacaan berulang, dan tiga hal tetap di luarnya.
 
-**Cache tidak menolong penulisan.** Seribu pesanan per detik tetap seribu penulisan ke basis data. Yang menolong di situ: queue untuk menunda yang tidak perlu langsung, dan pada skala ekstrem, partisi dan sharding di modul 23.
+**Cache tidak menolong penulisan.** Seribu pesanan per detik tetap seribu penulisan ke basis data. Yang menolong di situ: queue untuk menunda yang tidak perlu langsung, dan pada skala ekstrem, partisi dan sharding di modul 24.
 
 **Cache tidak boleh jadi dasar keputusan.** Stok, saldo, dan kuota diputuskan dari sumbernya, dalam transaksi.
 

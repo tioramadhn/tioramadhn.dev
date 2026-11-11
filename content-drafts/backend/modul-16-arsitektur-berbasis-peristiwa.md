@@ -1,8 +1,8 @@
 ---
-title: 'Modul 15: Arsitektur Berbasis Peristiwa'
+title: 'Modul 16: Arsitektur Berbasis Peristiwa'
 description: Lima bagian sistem perlu bereaksi terhadap satu kejadian, tanpa kode kejadian itu mengenal kelimanya. Peristiwa, pola outbox yang lengkap, dan konsumen yang aman menerima pesan dua kali.
-date: 2026-12-19
-slug: modul-15-arsitektur-berbasis-peristiwa
+date: 2026-12-21
+slug: modul-16-arsitektur-berbasis-peristiwa
 tags: tutorial backend
 series: Tutorial Backend
 status: draft
@@ -11,6 +11,7 @@ status: draft
 Modul sebelumnya menutup dengan dua masalah. Yang pertama soal penggandengan:
 
 ```ts
+// Jangan disalin: satu fungsi yang mengenal lima bagian lain
 // Fungsi pembayaran yang tahu tentang lima bagian lain
 async function tandaiDibayar(pesananId: string) {
   await repoPesanan.tandaiDibayar(pesananId);
@@ -30,6 +31,7 @@ Yang kedua soal jaminan: pesanan tersimpan di Postgres, pekerjaan masuk ke Redis
 Modul ini menyelesaikan keduanya dengan satu pergeseran cara berpikir: **berhenti memberi tahu siapa harus mengerjakan apa, dan mulai menyatakan apa yang telah terjadi.**
 
 ```ts
+// src/fitur/pembayaran/layanan.ts, bentuk yang sama dengan peristiwa
 // Yang tahu hanya satu hal: pesanan sudah dibayar
 async function tandaiDibayar(pesananId: string) {
   await dalamTransaksi(db, async (tx) => {
@@ -57,7 +59,7 @@ Pembedaan ini menentukan seluruh desain, dan mudah dicampur.
 | Penerima | Satu, dan pengirim tahu siapa | Banyak, dan penerbit tidak tahu siapa |
 | Bisa ditolak | Ya | Tidak. Sudah terjadi |
 | Siapa yang menentukan isinya | Pengirim | Penerbit, dari kejadian nyata |
-| Alat | Queue pekerjaan (modul 14) | Topik peristiwa, broker |
+| Alat | Queue pekerjaan (modul 15) | Topik peristiwa, broker |
 
 Keduanya dipakai bersama, dan pembagiannya biasanya begini: **peristiwa diterbitkan oleh yang mengetahui kejadiannya, lalu konsumen peristiwa mendaftarkan perintah untuk pekerjaannya sendiri.**
 
@@ -74,7 +76,7 @@ Kesalahan yang paling sering: **peristiwa yang sebenarnya perintah.** Nama seper
 
 ## Analogi: papan pengumuman, bukan surat tugas
 
-Modul 14 memakai tiket pesanan yang ditancapkan untuk koki. Peristiwa bekerja berbeda.
+Modul 15 memakai tiket pesanan yang ditancapkan untuk koki. Peristiwa bekerja berbeda.
 
 Bayangkan kantor yang punya **papan pengumuman**. Saat sebuah pembayaran diterima, bagian kasir menempel pengumuman: "pembayaran untuk nomor 1042 sudah diterima, jumlahnya segini, pukul segini". Kasir tidak tahu siapa yang akan membacanya, dan tidak peduli.
 
@@ -117,6 +119,7 @@ CREATE INDEX outbox_menunggu ON outbox (id) WHERE terkirim_pada IS NULL;
 ```
 
 ```ts
+// src/fitur/pesanan/layanan.ts, menulis outbox dalam transaksi yang sama
 // Penerbitan: satu transaksi dengan perubahan datanya
 export function repoOutbox(tx: Database) {
   return {
@@ -139,11 +142,12 @@ export function repoOutbox(tx: Database) {
 ```
 
 ```ts
+// src/worker/pengirim-outbox.ts
 // Pengirim: proses terpisah yang membaca outbox lalu meneruskan ke broker
 export async function jalankanPengirimOutbox() {
   while (berjalan) {
     const batch = await db.transaction(async (tx) => {
-      // SKIP LOCKED dari modul 8: beberapa pengirim bisa jalan bersamaan
+      // SKIP LOCKED dari modul 9: beberapa pengirim bisa jalan bersamaan
       return tx.execute(sql`
         SELECT * FROM outbox
         WHERE terkirim_pada IS NULL
@@ -246,7 +250,7 @@ Dan satu peringatan tentang peristiwa tebal: isinya adalah **foto saat kejadian*
 
 ## Konsumen yang aman menerima dua kali
 
-Jaminan at-least-once berarti setiap konsumen **harus** idempoten. Berbeda dari modul 14 yang kuncinya dibuat penerbit, di sini kuncinya adalah id peristiwa.
+Jaminan at-least-once berarti setiap konsumen **harus** idempoten. Berbeda dari modul 15 yang kuncinya dibuat penerbit, di sini kuncinya adalah id peristiwa.
 
 ```sql
 CREATE TABLE peristiwa_diproses (
@@ -262,6 +266,7 @@ CREATE INDEX ON peristiwa_diproses (diproses_pada);
 ```
 
 ```ts
+// src/peristiwa/konsumsi-sekali.ts
 export async function konsumsiSekali(
   konsumen: string,
   peristiwaId: string,
@@ -287,6 +292,7 @@ export async function konsumsiSekali(
 ```
 
 ```ts
+// src/konsumen/kirim-struk.ts
 // Satu konsumen yang lengkap
 export async function konsumenLoyalitas(pesan: PesanMasuk) {
   const muatan = pesananDibayarV1.parse(pesan.muatan);
@@ -295,7 +301,7 @@ export async function konsumenLoyalitas(pesan: PesanMasuk) {
     const poin = Math.floor(muatan.totalRp / 100_000) * 10;
     if (poin <= 0) return;
 
-    // Tabel mutasi dengan batasan unik: lapisan kedua dari modul 14
+    // Tabel mutasi dengan batasan unik: lapisan kedua dari modul 15
     await tx.execute(sql`
       INSERT INTO mutasi_poin (id, pengguna_id, sumber, jumlah)
       VALUES (${idBaru()}, ${muatan.pembeliId}, ${'pesanan:' + muatan.pesananId}, ${poin})
@@ -339,6 +345,7 @@ Tiga masalah urutan yang nyata:
 Pertahanan praktis untuk peristiwa yang tiba tidak urut:
 
 ```ts
+// src/konsumen/proyeksi-status.ts
 // Konsumen yang menyimpan nomor urut terakhir per entitas
 await tx.execute(sql`
   UPDATE proyeksi_pesanan
@@ -352,9 +359,10 @@ Satu baris `AND versi < ...` itu membuat konsumen tahan terhadap peristiwa yang 
 
 ## Pemakaian untuk invalidasi cache
 
-Satu penerapan yang langsung menyelesaikan masalah modul 13: invalidasi cache yang tersebar.
+Satu penerapan yang langsung menyelesaikan masalah modul 14: invalidasi cache yang tersebar.
 
 ```ts
+// src/konsumen/invalidasi-cache.ts
 // Konsumen tunggal yang mengurus seluruh invalidasi cache
 export async function konsumenCache(pesan: PesanMasuk) {
   switch (pesan.topik) {
@@ -378,7 +386,7 @@ export async function konsumenCache(pesan: PesanMasuk) {
 
 Keuntungannya: pengetahuan "apa yang perlu dibatalkan saat X berubah" terkumpul di satu berkas, bukan tersebar di tiga puluh tempat yang menulis data. Dan menambah cache baru berarti menambah satu `case`, bukan mencari semua jalur tulis yang memengaruhinya.
 
-Satu catatan: invalidasi lewat peristiwa punya jeda beberapa ratus milidetik sampai beberapa detik. Untuk cache dengan TTL menit, itu tidak masalah. Untuk hal yang harus berlaku seketika, batalkan langsung setelah commit seperti di modul 13, **dan** terbitkan peristiwanya untuk konsumen lain.
+Satu catatan: invalidasi lewat peristiwa punya jeda beberapa ratus milidetik sampai beberapa detik. Untuk cache dengan TTL menit, itu tidak masalah. Untuk hal yang harus berlaku seketika, batalkan langsung setelah commit seperti di modul 14, **dan** terbitkan peristiwanya untuk konsumen lain.
 
 ## Jebakan yang mahal
 
@@ -393,6 +401,63 @@ Lima pola yang pantas dikenali:
 **Empat, kontrak yang tidak ditulis.** Peristiwa adalah API publik untuk sistem internal Anda. Tanpa skema dan versi, satu perubahan di penerbit akan memecahkan empat konsumen pada hari yang tidak terduga.
 
 **Lima, tidak ada yang memantau keterlambatan konsumen.** Konsumen yang tertinggal lima jam akan terlihat normal dari luar: semua API 200, dan poin loyalitas tidak masuk sejak sore. Pantau lag per konsumen, dan beri peringatan.
+
+## Buktikan jalan
+
+Janji pola outbox adalah "peristiwa tidak mungkin hilang". Buktikan dengan sengaja merusaknya.
+
+```bash
+# 1. Jalur normal: pesanan dibayar, peristiwa terkirim
+curl -s -X POST localhost:3000/v1/pesanan/<id>/pembayaran \
+  -H 'content-type: application/json' -d '{"metode":"va"}' | jq '.status'
+```
+
+```json
+"dibayar"
+```
+
+```bash
+# 2. Sekarang matikan brokernya, lalu bayar pesanan lain
+docker compose stop nats
+curl -s -X POST localhost:3000/v1/pesanan/<id-lain>/pembayaran \
+  -H 'content-type: application/json' -d '{"metode":"va"}' | jq '.status'
+```
+
+```json
+"dibayar"
+```
+
+**Pembayaran tetap berhasil meski broker mati.** Itu poin pertama: penerbitan peristiwa tidak boleh ikut menjatuhkan transaksi bisnis. Periksa outbox-nya:
+
+```bash
+docker compose exec -it db psql -U postgres -d toko \
+  -c "SELECT id, nama, dikirim_pada FROM outbox ORDER BY dibuat_pada DESC LIMIT 3;"
+```
+
+```text
+                  id                  |       nama        | dikirim_pada
+--------------------------------------+-------------------+--------------
+ 0193f2a1-...                         | pesanan.dibayar   |
+ 0193f29c-...                         | pesanan.dibayar   | 2026-12-21 ...
+```
+
+Baris teratas punya `dikirim_pada` kosong: peristiwanya **tersimpan dan menunggu**, bukan hilang.
+
+```bash
+# 3. Nyalakan lagi brokernya, dan jangan lakukan apa pun selain menunggu
+docker compose start nats
+sleep 5
+docker compose exec -it db psql -U postgres -d toko \
+  -c "SELECT count(*) FROM outbox WHERE dikirim_pada IS NULL;"
+```
+
+```text
+ count
+-------
+     0
+```
+
+Pengirim outbox menyusulnya sendiri tanpa campur tangan siapa pun. Itu perbedaan antara menerbitkan peristiwa langsung dari kode dan menerbitkannya lewat outbox: yang pertama kehilangan peristiwa saat broker mati, yang kedua hanya menundanya.
 
 ## Latihan
 
@@ -421,7 +486,7 @@ Dari Proyek 2, daftar sepuluh kejadian yang pantas jadi peristiwa, lalu untuk ma
 > Lima keputusan yang pantas dijelaskan:
 >
 > 1. **`pesanan.dibuat` dan `pesanan.dibayar` dipisah**, karena keduanya memicu reaksi yang berbeda. Menggabungkannya jadi `pesanan.berubah` dengan field status memaksa setiap konsumen memeriksa status dan mengabaikan yang bukan urusannya, dan itu membuat kontraknya kabur.
-> 2. **`stok.menipis` adalah peristiwa yang baik meski terasa aneh.** Ia fakta tentang keadaan yang pantas diketahui beberapa bagian, dan bukan perintah "pesan barang lagi".
+> 2. **`stok.menipis` adalah peristiwa yang baik meski terasa aneh.** Isinya fakta tentang keadaan yang pantas diketahui beberapa bagian, dan bukan perintah "pesan barang lagi".
 > 3. **Kunci agregat `pengembalian.disetujui` adalah pesananId, bukan pengembalianId.** Alasannya urutan: pembatalan pengembalian dan pengiriman untuk pesanan yang sama harus diproses urut, dan itu hanya terjamin kalau kuncinya sama.
 > 4. **Muatan tidak memuat daftar item lengkap.** Hanya gudang yang membutuhkannya, dan gudang bisa memanggil balik. Memuatnya berarti alamat dan daftar barang setiap pesanan tersebar ke lima sistem.
 > 5. **Yang tidak masuk daftar juga keputusan.** `keranjang.diubah`, `halaman.dilihat`, dan `pengguna.login` adalah kejadian yang lebih cocok sebagai data analitik lewat jalur terpisah, bukan peristiwa domain yang memicu logika bisnis.
@@ -435,6 +500,9 @@ Terapkan pola outbox di Proyek 2, lalu buktikan dengan tiga percobaan kegagalan.
 | 1 | Matikan broker, lalu buat 10 pesanan | 10 pesanan berhasil, 10 baris outbox menunggu |
 | 2 | Nyalakan broker kembali | 10 peristiwa terkirim, konsumen memprosesnya |
 | 3 | Matikan proses pengirim tepat setelah broker menerima | Peristiwa terkirim dua kali, konsumen tetap benar |
+
+> [!petunjuk]
+> Percobaan ketiga adalah yang membuktikan desain Anda, dan juga yang paling mudah dilewati. Kalau pengirim mati setelah broker menerima pesan tapi sebelum sempat menandai barisnya terkirim, peristiwa itu akan dikirim lagi saat pengirim menyala. Jadi pertanyaannya bukan "bagaimana mencegahnya", melainkan "apa yang membuat pengiriman kedua tidak merusak apa pun". Jawabannya ada di sisi konsumen, bukan di sisi pengirim.
 
 > [!pembahasan]
 >
@@ -458,7 +526,7 @@ Terapkan pola outbox di Proyek 2, lalu buktikan dengan tiga percobaan kegagalan.
 > 1. **Jaminannya memang at-least-once, dan Anda membuktikannya sendiri.** Ini bagian paling penting dari latihan: bukan percaya pada tulisan di dokumentasi, tapi melihat peristiwa yang sama tiba dua kali.
 > 2. **Percobaan pertama menunjukkan nilai sesungguhnya dari outbox.** Broker yang mati tidak menggagalkan satu pun pesanan. Bandingkan dengan pendaftaran langsung ke broker, di mana sepuluh pesanan akan gagal.
 > 3. **Anda akan menemukan satu bug yang tidak terpikir**, biasanya di penanganan urutan: setelah broker pulih, sepuluh peristiwa terkirim dalam urutan id, dan kalau Anda memakai `continue` alih-alih `break` saat gagal, urutannya bisa kacau.
-> 4. **Tabel outbox tumbuh dan perlu dibersihkan.** Baris yang sudah terkirim lebih dari tujuh hari bisa dihapus, dan tanpa itu tabel ini akan jadi yang terbesar di basis data Anda. Perhatikan juga bahwa tabel yang sering di-`UPDATE` cepat membengkak, jadi setel autovacuum lebih agresif seperti di modul 9.
+> 4. **Tabel outbox tumbuh dan perlu dibersihkan.** Baris yang sudah terkirim lebih dari tujuh hari bisa dihapus, dan tanpa itu tabel ini akan jadi yang terbesar di basis data Anda. Perhatikan juga bahwa tabel yang sering di-`UPDATE` cepat membengkak, jadi setel autovacuum lebih agresif seperti di modul 10.
 
 ### Latihan 3: Konsumen yang menerima peristiwa dua kali dan tidak urut
 
@@ -515,7 +583,7 @@ Bangun konsumen proyeksi yang membangun tabel ringkasan status pesanan dari peri
 >
 > Empat catatan:
 >
-> 1. **`INSERT ... ON CONFLICT DO UPDATE ... WHERE`** adalah satu pernyataan yang menangani pembuatan, pembaruan, dan penolakan peristiwa lama sekaligus. Tanpa bentuk ini, Anda akan menulis pembacaan dulu lalu pemeriksaan, dan kembali ke masalah konkurensi modul 8.
+> 1. **`INSERT ... ON CONFLICT DO UPDATE ... WHERE`** adalah satu pernyataan yang menangani pembuatan, pembaruan, dan penolakan peristiwa lama sekaligus. Tanpa bentuk ini, Anda akan menulis pembacaan dulu lalu pemeriksaan, dan kembali ke masalah konkurensi modul 9.
 > 2. **Skenario 4 wajib ditangani dan sering terlupakan.** Peristiwa pertama yang diterima konsumen baru belum tentu `pesanan.dibuat`. Konsumen harus bisa mulai dari tengah, terutama kalau nanti ada pemutaran ulang sebagian.
 > 3. **Nomor urutan harus monoton per kunci agregat.** Id baris outbox memenuhi syarat itu karena `IDENTITY` selalu naik. Memakai waktu sebagai nomor urut berbahaya: dua peristiwa dalam milidetik yang sama akan bernilai sama.
 > 4. **Proyeksi boleh dihitung ulang dari nol.** Itu sifat yang pantas dijaga: kalau suatu hari proyeksinya salah karena bug, Anda bisa mengosongkan tabelnya dan memutar ulang peristiwanya, dengan syarat broker Anda menyimpan riwayatnya.
@@ -558,9 +626,9 @@ Arsitektur berbasis peristiwa menyelesaikan penggandengan dan jaminan penerbitan
 
 **Konsistensi jadi tertunda, dan itu harus dirancang.** Setelah pesanan dibayar, poin belum masuk, laporan belum berubah, dan gudang belum tahu. Semuanya akan beres dalam hitungan detik, dan antarmuka harus jujur tentang itu.
 
-**Pemecahan masalah jadi lebih sulit.** Satu kejadian melahirkan lima reaksi di lima tempat, dan menelusurinya butuh id penelusuran yang ikut di setiap peristiwa. Itu modul 18.
+**Pemecahan masalah jadi lebih sulit.** Satu kejadian melahirkan lima reaksi di lima tempat, dan menelusurinya butuh id penelusuran yang ikut di setiap peristiwa. Itu modul 19.
 
-**Transaksi lintas layanan tetap tidak ada.** Kalau pembayaran berhasil dan pengurangan stok gagal di layanan lain, tidak ada `ROLLBACK` yang bisa membatalkan keduanya. Pola yang menanganinya adalah saga, dan itu modul 23.
+**Transaksi lintas layanan tetap tidak ada.** Kalau pembayaran berhasil dan pengurangan stok gagal di layanan lain, tidak ada `ROLLBACK` yang bisa membatalkan keduanya. Pola yang menanganinya adalah saga, dan itu modul 24.
 
 ## Rangkuman
 

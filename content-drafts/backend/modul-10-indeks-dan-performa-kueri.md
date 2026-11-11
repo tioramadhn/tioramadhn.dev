@@ -1,8 +1,8 @@
 ---
-title: 'Modul 9: Indeks dan Performa Kueri'
+title: 'Modul 10: Indeks dan Performa Kueri'
 description: Kueri yang sama bisa punya dua perilaku yang sama sekali berbeda pada seribu dan dua juta baris. Cara membaca rencana kueri, merancang indeks, dan mengenali kapan indeks bukan jawabannya.
-date: 2026-12-11
-slug: modul-9-indeks-dan-performa-kueri
+date: 2026-12-13
+slug: modul-10-indeks-dan-performa-kueri
 tags: tutorial backend
 series: Tutorial Backend
 status: draft
@@ -44,7 +44,7 @@ Tiga hal yang langsung masuk akal dari analogi ini:
 | Indeks kata per kata untuk pencarian isi | GIN untuk teks penuh |
 | Halaman yang ditambahkan jadi indeksnya kedaluwarsa | Statistik yang belum di-`ANALYZE` |
 
-Batas analoginya: pembaca manusia memutuskan sendiri memakai indeks atau tidak, sedangkan di basis data yang memutuskan adalah **perencana kueri**, berdasarkan perkiraan biaya. Dan perkiraan itu bisa salah. Memahami cara ia memutuskan adalah keterampilan yang membedakan menebak dan tahu.
+Batas analoginya: pembaca manusia memutuskan sendiri memakai indeks atau tidak, sedangkan di basis data yang memutuskan adalah **perencana kueri**, berdasarkan perkiraan biaya. Dan perkiraan itu bisa salah. Memahami cara perencana memutuskan adalah keterampilan yang membedakan menebak dan tahu.
 
 ## `EXPLAIN`: melihat keputusan perencana
 
@@ -205,7 +205,7 @@ Inilah mengapa di modul 4 disebut bahwa tiga pilihan pengurutan berarti tiga ind
 | **Hash** | Hanya kesetaraan | Jarang dipakai, B-tree biasanya cukup |
 
 ```sql
--- Pencarian teks dari modul 6
+-- Pencarian teks dari modul 7
 CREATE INDEX buku_cari_idx ON buku USING gin (cari);
 
 -- Pencarian potongan kata dengan ILIKE '%...%'
@@ -288,7 +288,7 @@ ORDER BY total_exec_time DESC
 LIMIT 20;
 ```
 
-Kueri kedua itu alat terpenting di seluruh modul ini. Ia menjawab pertanyaan yang benar: bukan "kueri mana yang paling lambat", tapi **"kueri mana yang paling banyak menghabiskan waktu basis data secara total"**. Kueri 5 ms yang dipanggil sejuta kali per jam lebih merugikan daripada laporan 3 detik yang dipanggil sepuluh kali sehari.
+Kueri kedua itu alat terpenting di seluruh modul ini. Kueri itu menjawab pertanyaan yang benar: bukan "kueri mana yang paling lambat", tapi **"kueri mana yang paling banyak menghabiskan waktu basis data secara total"**. Kueri 5 ms yang dipanggil sejuta kali per jam lebih merugikan daripada laporan 3 detik yang dipanggil sepuluh kali sehari.
 
 ## Perawatan
 
@@ -315,8 +315,8 @@ Empat jalan keluar, berurutan dari yang paling sederhana:
 
 | Pendekatan | Cara | Cocok untuk |
 | --- | --- | --- |
-| **Cache hasilnya** | Simpan di Redis, berlaku 1 jam | Laporan yang sama diminta banyak orang. Modul 13 |
-| **Tabel ringkasan** | Dihitung berkala oleh pekerjaan latar | Dasbor yang tidak perlu angka detik ini. Modul 14 |
+| **Cache hasilnya** | Simpan di Redis, berlaku 1 jam | Laporan yang sama diminta banyak orang. Modul 14 |
+| **Tabel ringkasan** | Dihitung berkala oleh pekerjaan latar | Dasbor yang tidak perlu angka detik ini. Modul 15 |
 | **Materialized view** | Kueri yang hasilnya disimpan, disegarkan berkala | Laporan tetap, dengan `REFRESH CONCURRENTLY` |
 | **Replika baca** | Laporan berat dijalankan di salinan basis data | Melindungi beban transaksi dari beban laporan |
 
@@ -337,6 +337,53 @@ CREATE UNIQUE INDEX ON rekap_bulanan (bulan);   -- wajib untuk CONCURRENTLY
 -- Disegarkan tiap jam tanpa memblokir pembacaan
 REFRESH MATERIALIZED VIEW CONCURRENTLY rekap_bulanan;
 ```
+
+## Buktikan jalan
+
+Indeks adalah satu-satunya topik di seri ini yang bisa Anda buktikan dengan angka dalam dua menit. Lakukan, karena membaca tentang indeks dan melihat 180 ms jadi 0,4 ms adalah dua pengalaman yang berbeda.
+
+Pastikan tabelnya sudah berisi ratusan ribu baris, lalu di `psql`:
+
+```sql
+-- Sebelum: tanpa indeks
+EXPLAIN ANALYZE
+SELECT * FROM peminjaman
+WHERE anggota_id = '<id-anggota>'
+ORDER BY dipinjam_pada DESC, id DESC
+LIMIT 20;
+```
+
+Yang Anda harapkan muncul, dengan angka yang tentu berbeda:
+
+```text
+ Limit  (cost=48210.11..48210.16 rows=20 width=96) (actual time=181.420..181.428 rows=20 loops=1)
+   ->  Sort  (cost=48210.11..48255.33 rows=18089 width=96) (actual time=181.418..181.422 rows=20 loops=1)
+         Sort Method: top-N heapsort  Memory: 28kB
+         ->  Seq Scan on peminjaman  (cost=0.00..47728.00 rows=18089 width=96) (actual time=0.031..178.902 rows=17842 loops=1)
+               Filter: (anggota_id = '...'::uuid)
+               Rows Removed by Filter: 1982158
+ Execution Time: 181.503 ms
+```
+
+Dua kata yang harus Anda cari: **`Seq Scan`** dan **`Rows Removed by Filter: 1982158`**. Artinya Postgres membaca dua juta baris untuk mengembalikan dua puluh.
+
+```sql
+CREATE INDEX CONCURRENTLY peminjaman_anggota_waktu_idx
+  ON peminjaman (anggota_id, dipinjam_pada DESC, id DESC);
+
+-- Jalankan ulang EXPLAIN ANALYZE yang sama persis
+```
+
+```text
+ Limit  (cost=0.56..8.71 rows=20 width=96) (actual time=0.038..0.071 rows=20 loops=1)
+   ->  Index Scan using peminjaman_anggota_waktu_idx on peminjaman  (...) (actual time=0.036..0.064 rows=20 loops=1)
+         Index Cond: (anggota_id = '...'::uuid)
+ Execution Time: 0.112 ms
+```
+
+Tiga perubahan yang pantas diperhatikan, dan ketiganya saling berkaitan. `Seq Scan` berganti jadi **`Index Scan`**. Baris `Sort` **hilang sama sekali**, karena urutan indeksnya sudah sesuai dengan `ORDER BY`. Dan `Rows Removed by Filter` tidak ada lagi: Postgres membaca dua puluh baris, bukan dua juta.
+
+Kalau rencana kueri Anda **tidak** berubah setelah membuat indeks, itu bukan kegagalan melainkan bahan latihan. Bagian "Kenapa indeks saya tidak dipakai" di atas menyebut enam sebabnya, dan yang paling sering adalah urutan kolom indeks yang tidak cocok dengan `ORDER BY`.
 
 ## Latihan
 
@@ -407,6 +454,9 @@ Limit  (actual time=8421.113..8421.118 rows=20 loops=1)
         Sort Method: external merge  Disk: 184320kB
         ->  Seq Scan on log_aktivitas (actual time=0.287..6213.982 rows=1984221 loops=1)
 ```
+
+> [!petunjuk]
+> Untuk setiap rencana, bandingkan `rows` yang **diperkirakan** dengan `rows` yang **sebenarnya**, dan perhatikan `loops`. Pada A, angka `loops=4822` lebih penting daripada waktu per loop yang terlihat kecil. Pada B, selisih antara perkiraan 1 baris dan kenyataan 98.412 baris adalah petunjuk utamanya. Pada C, dua kata `external merge` memberi tahu Anda ke mana waktunya pergi.
 
 > [!jawaban]
 >
@@ -520,9 +570,9 @@ SELECT * FROM pesanan WHERE nomor_invoice = 20261211;
 
 Indeks dan rencana kueri menyelesaikan kecepatan pembacaan, dan tiga hal tetap terbuka.
 
-**Agregasi atas data besar tetap mahal.** Jawabannya cache, tabel ringkasan, atau replika baca, dan ketiganya dibahas di modul 13 dan 14.
+**Agregasi atas data besar tetap mahal.** Jawabannya cache, tabel ringkasan, atau replika baca, dan ketiganya dibahas di modul 14 dan 15.
 
-**Basis data punya batas.** Pada data yang sangat besar, jawabannya partisi, replikasi baca, dan akhirnya sharding. Yang terakhir dibahas di modul 23, dan sebaiknya ditunda selama mungkin.
+**Basis data punya batas.** Pada data yang sangat besar, jawabannya partisi, replikasi baca, dan akhirnya sharding. Yang terakhir dibahas di modul 24, dan sebaiknya ditunda selama mungkin.
 
 **Semua yang Anda lakukan sejauh ini mengasumsikan semua pemanggil berhak atas semua data.** Belum ada satu pun pemeriksaan tentang siapa yang memanggil, dan itu lubang terbesar yang masih terbuka di layanan Anda.
 

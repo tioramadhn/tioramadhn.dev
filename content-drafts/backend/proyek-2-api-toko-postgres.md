@@ -1,22 +1,23 @@
 ---
 title: 'Proyek 2: API Toko dengan Postgres'
 description: Pemodelan data dengan batasan yang menegakkan aturan, transaksi saat memesan, pencegahan pesanan ganda, pagination kursor, dan laporan EXPLAIN yang membuktikan setiap kueri utama memakai indeks.
-date: 2026-12-12
+date: 2026-12-14
 slug: proyek-2-api-toko-postgres
 tags: tutorial backend
 series: Tutorial Backend
 status: draft
 ---
 
-Lima modul terakhir membahas basis data dari pemodelan sampai rencana kueri. Proyek ini memakai semuanya pada domain yang paling sering jadi pertanyaan wawancara backend: **toko dengan stok.**
+Enam modul terakhir membahas basis data dari pemodelan sampai rencana kueri. Proyek ini memakai semuanya pada domain yang paling sering jadi pertanyaan wawancara backend: **toko dengan stok.**
 
 | Dari modul | Yang dipakai |
 | --- | --- |
 | 5 | Batasan yang menegakkan aturan, tipe kolom yang benar, migrasi bertahap |
-| 6 | Join, agregasi, CTE, `ON CONFLICT`, `UPDATE ... WHERE`, window function |
-| 7 | Pool yang berukuran wajar, repository, penerjemah error, pencegahan N+1 |
-| 8 | Transaksi, pembaruan atomik, `FOR UPDATE`, idempotency transaksional |
-| 9 | Indeks yang dirancang dari kueri, `EXPLAIN ANALYZE` sebagai bukti |
+| 6 | Join, agregasi, `ON CONFLICT`, `UPDATE ... WHERE` |
+| 7 | CTE, window function, `generate_series`, pencarian teks penuh |
+| 8 | Pool yang berukuran wajar, repository, penerjemah error, pencegahan N+1 |
+| 9 | Transaksi, pembaruan atomik, `FOR UPDATE`, idempotency transaksional |
+| 10 | Indeks yang dirancang dari kueri, `EXPLAIN ANALYZE` sebagai bukti |
 
 Yang membedakan proyek ini dari tutorial toko biasa ada pada tiga syarat: **stok tidak boleh pernah minus walau diserang seratus permintaan bersamaan**, **setiap kueri utama wajib disertai bukti rencana kueri**, dan **laporan penjualan tidak boleh memperlambat endpoint pembelian**.
 
@@ -85,6 +86,26 @@ Satu keputusan pemodelan di awal menentukan seluruh kerumitan proyek ini: **stok
 32. Dokumentasi OpenAPI dihasilkan dari skema.
 
 Autentikasi masih belum ada: id pembeli tetap dikirim lewat header sementara, seperti di Proyek 1. Itu ditutup di Proyek 3.
+
+## Langkah pengerjaan bertahap
+
+Proyek ini punya satu urutan yang jauh lebih mudah daripada yang lain, dan urutannya berangkat dari satu prinsip: **rancangan data dulu, karena mengubahnya nanti berarti migrasi.**
+
+**Hari 1: skema dan migrasi.** Tabel, tipe kolom, dan setiap batasan dari modul 5. Jangan satu pun aturan yang hanya dijaga kode aplikasi kalau basis data bisa menjaganya. Selesai kalau `\d pesanan` di `psql` menampilkan semua batasan yang Anda maksud, dan percobaan `INSERT` yang melanggar aturan benar-benar ditolak.
+
+**Hari 2: data contoh dan kueri.** Isi dengan data secukupnya, minimal 50 ribu pesanan supaya angka performa punya arti, lalu tulis setiap kueri yang dibutuhkan API sebagai SQL di `psql` lebih dulu. Lebih murah memperbaiki kueri sebelum ada kode yang memanggilnya.
+
+**Hari 3: pool, repository, dan katalog.** Pool dengan ukuran yang bisa Anda jelaskan, repository, penerjemah error Postgres jadi error domain, lalu endpoint katalog dengan pagination kursor. Pasang pencatat jumlah kueri per permintaan dari modul 8 sekarang, bukan nanti.
+
+**Hari 4: jalur pembelian.** Satu transaksi, pengurangan stok yang aman dari konkurensi, dan idempotency yang ikut di dalam transaksi yang sama. Ini inti proyek, dan pantas mendapat satu hari penuh.
+
+**Hari 5: buktikan stoknya tidak bisa minus.** Tulis uji konkurensi yang menembakkan seratus permintaan bersamaan untuk stok sepuluh, lalu jalankan dua puluh kali. Kalau pernah sekali saja lolos sebelas, ada celah yang harus ditutup. Ini satu-satunya cara memastikan, karena bug konkurensi tidak muncul pada pengujian manual.
+
+**Hari 6: indeks dan bukti.** `EXPLAIN ANALYZE` untuk setiap kueri utama, indeks dirancang dari kueri bukan ditebak, lalu ukur ulang dan catat angka sebelum dan sesudah di `docs/kueri.md`.
+
+**Hari 7: checklist penilaian** dan perbaiki temuannya.
+
+Satu jebakan yang memakan waktu banyak orang: **jangan membangun endpoint lebih dulu lalu memikirkan transaksi belakangan.** Menyisipkan transaksi ke jalur yang sudah terlanjur dipecah jadi lima pemanggilan repository terpisah jauh lebih sulit daripada menulisnya benar sejak awal.
 
 ## Skema inti
 
@@ -182,6 +203,7 @@ Tiga batasan yang pantas diperhatikan khusus:
 Ini bagian paling menentukan di seluruh proyek. Perhatikan urutan dan alasan setiap langkah.
 
 ```ts
+// src/fitur/pesanan/layanan.ts
 export async function buatPesanan(
   pembeliId: string,
   kunciIdempotency: string,
@@ -200,7 +222,7 @@ export async function buatPesanan(
     if (!terkunci) return bacaHasilIdempotency(tx, kunciIdempotency, pembeliId, masukan);
 
     // 2. Gabungkan item dengan varian yang sama, lalu urutkan id.
-    //    Urutan stabil ini yang mencegah deadlock, pelajaran modul 8.
+    //    Urutan stabil ini yang mencegah deadlock, pelajaran modul 9.
     const item = gabungkanItemSama(masukan.item).sort((a, b) =>
       a.varianId.localeCompare(b.varianId)
     );
@@ -328,7 +350,7 @@ Syarat nomor 27 selesai dengan view ini: laporan dibaca dari tabel berisi bebera
 
 1. **Pembatalan pesanan yang mengembalikan stok tepat satu kali.** Syarat nomor 20 lebih sulit daripada kelihatannya. Petunjuk: jadikan perubahan status sebagai syarat di `WHERE`, dan lakukan pengembalian stok hanya kalau baris statusnya benar-benar berubah.
 2. **Pembayaran yang mengubah status pesanan**, dengan kemungkinan pemberitahuan datang dua kali dari penyedia. Perlakukan itu sebagai idempotensi.
-3. **Pekerjaan pembatalan otomatis** untuk pesanan yang tidak dibayar dalam 1 jam, beserta pengembalian stoknya. Untuk sekarang jalankan sebagai skrip manual, dan modul 14 memindahkannya ke penjadwal.
+3. **Pekerjaan pembatalan otomatis** untuk pesanan yang tidak dibayar dalam 1 jam, beserta pengembalian stoknya. Untuk sekarang jalankan sebagai skrip manual, dan modul 15 memindahkannya ke penjadwal.
 4. **`docs/explain.md`** dengan keluaran sebelum dan sesudah untuk delapan kueri. Ini bukan pekerjaan administratif: menuliskannya memaksa Anda benar-benar membaca rencananya.
 
 ## Checklist penilaian

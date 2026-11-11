@@ -1,7 +1,7 @@
 ---
 title: 'Proyek Akhir: Platform Pengiriman Terdistribusi'
 description: Rancang, bangun, amankan, ukur, dan rilis satu platform utuh, lalu pertanggungjawabkan setiap keputusan arsitekturnya dengan angka.
-date: 2026-12-30
+date: 2027-01-01
 slug: proyek-akhir-platform-pengiriman
 tags: tutorial backend
 series: Tutorial Backend
@@ -56,21 +56,21 @@ Satu susunan yang bekerja. Kalau Anda menyimpang, simpangannya harus bisa dijela
                          |                 |                |
                          v                 v                v
                   +-----------------------------------------------+
-                  |  API Gateway: TLS, rate limit, auth awal      |
+                  |   API Gateway: TLS, rate limit, auth awal     |
                   +-----------------------+-----------------------+
                                           |
         +---------------------------------+---------------------------------+
         |                                 |                                 |
         v                                 v                                 v
-+----------------+          +--------------------------+         +------------------+
-| Layanan |  | Monolit modular inti |  | Worker |
-| Identitas |  |  |  |  |
-| (dipecah) |  | modul: pengiriman |  | queue: notifikasi |
-|  |  | modul: rute |  | queue: tagihan |
-| pengguna |  | modul: penagihan |  | queue: laporan |
-| sesi, peran |  | modul: pelacakan |  | pengirim outbox |
-| kunci API |  |  |  | saga |
-+-------+--------+          +------------+-------------+         +---------+--------+
++----------------+          +--------------------------+         +-------------------+
+| Layanan        |          | Monolit modular inti     |         | Worker            |
+| Identitas      |          |                          |         |                   |
+| (dipecah)      |          |   modul: pengiriman      |         | queue: notifikasi |
+|                |          |   modul: rute            |         | queue: tagihan    |
+|  pengguna      |          |   modul: penagihan       |         | queue: laporan    |
+|  sesi, peran   |          |   modul: pelacakan       |         | pengirim outbox   |
+|  kunci API     |          |                          |         | saga              |
++-------+--------+          +------------+-------------+         +---------+---------+
         |                                |                                 |
         v                                v                                 v
   db identitas                   db inti (+ replika)              Redis + broker
@@ -166,7 +166,7 @@ Sebelum satu baris kode, tulis lima dokumen. Masing-masing cukup satu sampai dua
 27. Impor massal idempoten: pengulangan dengan kunci yang sama tidak membuat 5.000 paket kedua.
 28. Webhook keluar ke pengirim: ditandatangani, dicoba ulang dengan jeda bertambah, dan punya dead letter queue.
 29. Webhook masuk dari mitra: tanda tangan, umur, perbandingan aman, idempotensi.
-30. Daftar periksa keamanan 20 poin dari modul 12 dijalankan, dan hasilnya dicatat.
+30. Daftar periksa keamanan 20 poin dari modul 13 dijalankan, dan hasilnya dicatat.
 
 ### D. Kinerja dan kapasitas
 
@@ -208,7 +208,7 @@ Nomor 49 sering dianggap kelemahan. Sebaliknya: daftar itu bukti Anda membuat ke
 
 **Minggu 3: identitas dan otorisasi.** Sesi tersimpan, peran, kunci API, RLS, dan fungsi otorisasi terpusat beserta test matriksnya. Dikerjakan awal karena semua fitur bergantung padanya.
 
-**Minggu 4: jalur penerimaan paket.** Modul pengiriman: membuat paket, memindai masuk, dan menyimpan peristiwa. Ini jalur yang tidak boleh berhenti, jadi ia dibangun lebih dulu dan paling sedikit ketergantungannya.
+**Minggu 4: jalur penerimaan paket.** Modul pengiriman: membuat paket, memindai masuk, dan menyimpan peristiwa. Ini jalur yang tidak boleh berhenti, jadi jalur ini dibangun lebih dulu dan paling sedikit ketergantungannya.
 
 ### Bulan 2: alur operasional
 
@@ -232,7 +232,7 @@ Nomor 49 sering dianggap kelemahan. Sebaliknya: daftar itu bukti Anda membuat ke
 
 ### Bulan 4: distribusi, kapasitas, dan dokumen
 
-**Minggu 13: pecah identitas.** Delapan tahap dari modul 22, dengan flag untuk kembali di setiap tahap.
+**Minggu 13: pecah identitas.** Delapan tahap dari modul 23, dengan flag untuk kembali di setiap tahap.
 
 **Minggu 14: saga dan rekonsiliasi.** Alur yang melintasi dua layanan, pemulihan saga mandek, dan rekonsiliasi harian.
 
@@ -303,7 +303,7 @@ Kalau Anda mengerjakan seri ini sampai sini, Anda punya sesuatu yang lebih berha
 
 Anda tahu kenapa transaksi ada, karena Anda pernah melihat stok jadi minus pada seratus permintaan bersamaan. Anda tahu kenapa indeks penting, karena Anda pernah mengukur kueri yang sama pada seribu dan dua juta baris. Anda tahu kenapa outbox ada, karena Anda pernah mematikan broker dan melihat pesanan gagal. Anda tahu kenapa idempotensi muncul di separuh seri ini, karena Anda pernah mengirim peristiwa yang sama dua kali dan membandingkan isi tabelnya.
 
-Dan Anda tahu satu hal yang paling jarang dimiliki: **kapan sebuah pola belum perlu dipakai.** Tangga keputusan di modul 23 adalah bentuk paling padat dari pengetahuan itu, dan hampir semuanya lahir dari pengalaman orang lain yang membangun terlalu banyak terlalu dini.
+Dan Anda tahu satu hal yang paling jarang dimiliki: **kapan sebuah pola belum perlu dipakai.** Tangga keputusan di modul 24 adalah bentuk paling padat dari pengetahuan itu, dan hampir semuanya lahir dari pengalaman orang lain yang membangun terlalu banyak terlalu dini.
 
 Itu bentuk pengetahuan yang tidak bisa didapat dengan membaca dokumentasi, dan tidak bisa digantikan alat bantu apa pun. Alat bantu bisa menuliskan endpoint dalam sepuluh detik, dan endpoint itu akan terlihat benar. Yang tidak bisa dilakukannya: menyadari bahwa kode itu punya celah konkurensi, akan lambat pada sepuluh juta baris, akan memproses satu pembayaran dua kali saat jaringan pengguna tersendat, dan bahwa sebenarnya satu tabel ringkasan sudah cukup tanpa perlu satu layanan baru.
 

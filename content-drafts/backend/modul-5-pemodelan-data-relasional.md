@@ -1,7 +1,7 @@
 ---
 title: 'Modul 5: Pemodelan Data Relasional'
 description: Membiarkan basis data menjaga kebenaran data jauh lebih murah daripada mengingatnya di setiap jalur kode. Kunci, relasi, tipe kolom, batasan, dan migrasi yang tidak menurunkan layanan.
-date: 2026-12-07
+date: 2026-12-08
 slug: modul-5-pemodelan-data-relasional
 tags: tutorial backend
 series: Tutorial Backend
@@ -19,7 +19,7 @@ Basis data relasional menawarkan pertukaran yang berbeda: Anda **menyatakan** at
 | Email tidak boleh ganda | Perlu diingat di 5 jalur, dan tetap bisa bocor saat bersamaan | `UNIQUE`, mustahil dilanggar |
 | Peminjaman harus milik anggota yang ada | Satu kueri tambahan per jalur | `FOREIGN KEY`, otomatis |
 | Denda tidak boleh negatif | Pemeriksaan di setiap tempat | `CHECK (denda >= 0)` |
-| Dua penulisan harus menyatu | Tidak mungkin dijamin | Transaksi, modul 8 |
+| Dua penulisan harus menyatu | Tidak mungkin dijamin | Transaksi, modul 9 |
 | Satu ruangan tidak dipesan dua kali pada jam sama | Rumit dan rapuh | `EXCLUDE`, satu baris |
 
 Baris terakhir akan dibuktikan di latihan, dan hasilnya sering mengejutkan: aturan yang butuh seratus baris kode aplikasi beserta penguncian bisa diselesaikan satu baris deklarasi.
@@ -67,12 +67,52 @@ volumes:
   pgdata:
 ```
 
+Pastikan Docker Desktop sedang berjalan, lalu:
+
 ```bash
 docker compose up -d
+docker compose ps
+```
+
+Yang Anda harapkan muncul dari perintah kedua:
+
+```text
+NAME         IMAGE         STATUS                   PORTS
+...-db-1     postgres:17   Up 6 seconds (healthy)   0.0.0.0:5432->5432/tcp
+```
+
+Kolom `STATUS` harus bertuliskan `Up`, dan idealnya `(healthy)` setelah beberapa detik. Kalau yang muncul `Exit 1`, baca sebabnya dengan `docker compose logs db`.
+
+Lalu masuk ke dalamnya:
+
+```bash
+docker compose exec -it db psql -U postgres -d perpustakaan
+```
+
+Perintah ini memakai `psql` yang **sudah ada di dalam container**, jadi tidak ada yang perlu dipasang ke laptop Anda dan versinya dijamin cocok dengan servernya. Kalau yang muncul `perpustakaan=#`, Anda siap. Ketik `\q` untuk keluar.
+
+Kalau Anda memasang `psql` sendiri seperti di Modul 0, cara ini juga bekerja dan berguna saat menyambung ke basis data di tempat lain:
+
+```bash
 psql postgresql://postgres:rahasia@localhost:5432/perpustakaan
 ```
 
-Kenapa Postgres, dan bukan yang lain: ia menegakkan batasan dengan serius, punya tipe data yang kaya termasuk JSON yang bisa diindeks, transaksinya benar, dan tersedia di semua penyedia cloud. Untuk aplikasi baru, pertanyaan "SQL atau NoSQL" hampir selalu berakhir di Postgres, dan pilihan lain perlu alasan khusus yang bisa dijelaskan.
+Terakhir, daftarkan alamatnya di `src/config.ts` dari modul 2, karena mulai Modul 8 aplikasi Anda yang akan menyambung ke sini:
+
+```ts
+// src/config.ts, tambahkan ke dalam z.object({ ... })
+// Wajib dan tanpa nilai bawaan: lebih baik mati saat start
+// daripada diam-diam menyambung ke basis data yang salah
+DATABASE_URL: z.string().url(),
+```
+
+Lalu tulis alamatnya di berkas `.env` beserta `.env.example` di akar proyek:
+
+```bash
+DATABASE_URL=postgresql://postgres:rahasia@localhost:5432/perpustakaan
+```
+
+Kenapa Postgres, dan bukan yang lain: Postgres menegakkan batasan dengan serius, punya tipe data yang kaya termasuk JSON yang bisa diindeks, transaksinya benar, dan tersedia di semua penyedia cloud. Untuk aplikasi baru, pertanyaan "SQL atau NoSQL" hampir selalu berakhir di Postgres, dan pilihan lain perlu alasan khusus yang bisa dijelaskan.
 
 ## Kunci: apa yang mengidentifikasi satu baris
 
@@ -103,7 +143,7 @@ Soal bentuk kunci buatan, tiga pilihan dengan konsekuensi berbeda:
 | `uuid` versi 4 | Acak, bisa dibuat di aplikasi | Tidak berurutan, membuat indeks terpecah dan penulisan lebih mahal |
 | **`uuid` versi 7 atau ULID** | Acak sekaligus berurutan menurut waktu | Perlu fungsi pembuat, di Postgres 17 belum bawaan |
 
-Untuk seri ini: UUIDv7 yang dibuat di aplikasi. Modul 9 menjelaskan kenapa keberurutan berpengaruh besar pada performa penulisan.
+Untuk seri ini: UUIDv7 yang dibuat di aplikasi. Modul 10 menjelaskan kenapa keberurutan berpengaruh besar pada performa penulisan.
 
 ## Relasi
 
@@ -154,7 +194,7 @@ Empat penjelasan yang paling sering ditanyakan:
 
 **`float` untuk uang adalah bug yang menunggu waktu.** `0.1 + 0.2` tidak sama dengan `0.3` pada bilangan pecahan biner, dan selisih sepersepuluh sen yang dikalikan sejuta transaksi muncul sebagai ketidakcocokan di laporan keuangan. Untuk rupiah, `bigint` berisi jumlah rupiah paling sederhana.
 
-**`timestamptz` bukan berarti menyimpan zona waktu.** Ia menyimpan momen dalam UTC dan mengubahnya saat dibaca sesuai zona waktu sesi. Yang penting: ia menyimpan **momen yang tidak ambigu**, sedangkan `timestamp` biasa menyimpan angka tanpa keterangan, dan nilainya jadi tergantung siapa yang membacanya.
+**`timestamptz` bukan berarti menyimpan zona waktu.** Tipe itu menyimpan momen dalam UTC dan mengubahnya saat dibaca sesuai zona waktu sesi. Yang penting: yang tersimpan adalah **momen yang tidak ambigu**, sedangkan `timestamp` biasa menyimpan angka tanpa keterangan, dan nilainya jadi tergantung siapa yang membacanya.
 
 **Tipe `enum` Postgres terlihat tepat dan merepotkan dalam praktik.** Menambah nilai bisa, tapi menghapus atau mengganti nama butuh langkah yang tidak nyaman di dalam transaksi migrasi. Dua alternatif yang lebih lentur: `text` dengan `CHECK (status IN (...))` untuk daftar yang jarang berubah, atau tabel acuan dengan foreign key kalau daftarnya perlu punya atribut sendiri seperti label dan urutan tampil.
 
@@ -197,7 +237,7 @@ CREATE UNIQUE INDEX satu_buku_per_anggota
   WHERE status = 'berjalan';
 ```
 
-Perhatikan dua indeks unik sebagian di bawah. Keduanya menegakkan aturan nomor 6 dan 7 dari Proyek 1, dan menegakkannya **secara mutlak**: tidak ada urutan permintaan, tidak ada kondisi bersamaan, dan tidak ada jalur kode yang bisa melanggarnya. Dua masalah konkurensi yang di Proyek 1 Anda catat sebagai "akan dibahas di modul 8" sebagian sudah selesai di sini, hanya dengan deklarasi.
+Perhatikan dua indeks unik sebagian di bawah. Keduanya menegakkan aturan nomor 6 dan 7 dari Proyek 1, dan menegakkannya **secara mutlak**: tidak ada urutan permintaan, tidak ada kondisi bersamaan, dan tidak ada jalur kode yang bisa melanggarnya. Dua masalah konkurensi yang di Proyek 1 Anda catat sebagai "akan dibahas di modul 9" sebagian sudah selesai di sini, hanya dengan deklarasi.
 
 Satu batasan yang jarang dikenal dan sangat berguna:
 
@@ -251,10 +291,10 @@ Denormalisasi yang sah lainnya, beserta syaratnya:
 | --- | --- | --- |
 | Menyalin harga ke item pesanan | Kebenaran historis | Tidak pernah diperbarui |
 | `buku_id` di tabel peminjaman meski bisa dicapai lewat salinan | Memungkinkan indeks unik sebagian | Diisi saat insert, tidak pernah berubah |
-| Kolom hitungan seperti `jumlah_komentar` | Menghindari agregasi mahal | Diperbarui dalam transaksi yang sama, lihat modul 8 |
+| Kolom hitungan seperti `jumlah_komentar` | Menghindari agregasi mahal | Diperbarui dalam transaksi yang sama, lihat modul 9 |
 | Kolom hasil pencarian teks | Performa pencarian | Kolom tergenerasi, dihitung basis data |
 
-Yang tidak sah: menyalin data **karena merasa join itu mahal**. Join pada kolom terindeks di Postgres sangat cepat, dan modul 9 akan menunjukkan angkanya. Denormalisasi tanpa pengukuran adalah menukar kebenaran dengan performa yang tidak terbukti.
+Yang tidak sah: menyalin data **karena merasa join itu mahal**. Join pada kolom terindeks di Postgres sangat cepat, dan modul 10 akan menunjukkan angkanya. Denormalisasi tanpa pengukuran adalah menukar kebenaran dengan performa yang tidak terbukti.
 
 ## Kolom audit dan penghapusan
 
@@ -264,7 +304,7 @@ Empat kolom yang pantas ada di hampir semua tabel:
 dibuat_pada     timestamptz NOT NULL DEFAULT now(),
 diperbarui_pada timestamptz NOT NULL DEFAULT now(),
 dibuat_oleh     uuid REFERENCES pengguna(id),
-versi           integer NOT NULL DEFAULT 1   -- untuk penguncian optimistis, modul 8
+versi           integer NOT NULL DEFAULT 1   -- untuk penguncian optimistis, modul 9
 ```
 
 Soal penghapusan, dua pendekatan dengan konsekuensi berbeda:
@@ -372,7 +412,7 @@ Tulis DDL lengkap untuk domain Proyek 1, dengan syarat sepuluh aturan bisnisnya 
 >
 > | # | Aturan | Dijamin skema? | Caranya |
 > | --- | --- | --- | --- |
-> | 1 | Maksimal 3 pinjaman per anggota | Tidak | Perlu hitungan baris. Aplikasi + transaksi, modul 8 |
+> | 1 | Maksimal 3 pinjaman per anggota | Tidak | Perlu hitungan baris. Aplikasi + transaksi, modul 9 |
 > | 2 | Masa pinjam 14 hari | Sebagian | `CHECK (jatuh_tempo >= dipinjam_pada::date)`, nilai tepatnya di aplikasi |
 > | 3 | Perpanjangan satu kali | **Ya** | `CHECK (diperpanjang BETWEEN 0 AND 1)` |
 > | 4 | Tidak boleh pinjam kalau ada terlambat | Tidak | Perlu kueri, aplikasi |
@@ -422,6 +462,9 @@ CREATE TABLE orders (
   deleted     SMALLINT DEFAULT 0
 );
 ```
+
+> [!petunjuk]
+> Telusuri kolom per kolom dengan empat pertanyaan: tipenya sudah yang paling tepat, atau sekadar yang paling mudah? Nilai apa yang mustahil tapi tidak ada yang mencegahnya? Kolom mana yang isinya sebenarnya beberapa hal sekaligus? Dan kolom mana yang menyalin data milik tabel lain, sehingga suatu hari keduanya akan berbeda? Kolom `items` dan `total` masing-masing melanggar salah satunya.
 
 > [!jawaban]
 >
@@ -545,7 +588,7 @@ Rancang skema untuk peminjaman ruangan rapat: setiap pemesanan punya ruangan, wa
 > }
 > ```
 >
-> Pola "coba tulis, tangkap pelanggaran batasan, ubah jadi error domain" akan dipakai berulang di seri ini. Ia lebih benar **dan** lebih sederhana daripada memeriksa dulu sebelum menulis, dan modul 8 menjelaskan alasannya secara lengkap.
+> Pola "coba tulis, tangkap pelanggaran batasan, ubah jadi error domain" akan dipakai berulang di seri ini. Pola itu lebih benar **dan** lebih sederhana daripada memeriksa dulu sebelum menulis, dan modul 9 menjelaskan alasannya secara lengkap.
 
 ### Latihan 4: Simpan atau hitung
 
@@ -568,12 +611,12 @@ Untuk delapan nilai berikut, putuskan: dihitung saat diminta, disimpan sebagai k
 > | --- | --- | --- |
 > | 1 | **Simpan**, sebagai bagian dari catatan historis | Harus sama dengan yang dibayar pelanggan, meski harga produk berubah |
 > | 2 | **Hitung** | Hanya beberapa baris yang dibaca, dan penghitung yang disimpan bisa menyimpang |
-> | 3 | **Simpan** sebagai penghitung | Agregasi pada 2 juta baris terlalu mahal untuk setiap kali tampil. Diperbarui dalam transaksi yang sama, modul 8 |
+> | 3 | **Simpan** sebagai penghitung | Agregasi pada 2 juta baris terlalu mahal untuk setiap kali tampil. Diperbarui dalam transaksi yang sama, modul 9 |
 > | 4 | **Hitung** | Berubah sendiri setiap hari. Menyimpannya berarti perlu pekerjaan harian yang memperbaruinya |
 > | 5 | **Kolom tergenerasi** | Dihitung basis data, selalu konsisten, bisa diindeks |
 > | 6 | **Simpan** | Sudah final saat pengembalian. Menghitung ulang nanti bisa menghasilkan angka berbeda kalau aturan dendanya berubah |
 > | 7 | **Hitung** | Bergantung pada tanggal hari ini, jadi tidak boleh dibekukan |
-> | 8 | **Simpan** sebagai ringkasan berkala | Agregasi atas jutaan baris transaksi. Dihitung sekali per jam, lihat modul 14 |
+> | 8 | **Simpan** sebagai ringkasan berkala | Agregasi atas jutaan baris transaksi. Dihitung sekali per jam, lihat modul 15 |
 >
 > Contoh kolom tergenerasi untuk nomor 5:
 >
@@ -593,9 +636,9 @@ Untuk delapan nilai berikut, putuskan: dihitung saat diminta, disimpan sebagai k
 
 Skema yang dirancang baik menjaga bentuk dan kebenaran data, dan tidak menyelesaikan tiga hal.
 
-**Aturan yang melibatkan jumlah baris tidak bisa dinyatakan sebagai batasan sederhana.** "Maksimal 3 pinjaman per anggota" butuh membaca lalu memutuskan, dan itu membuka celah konkurensi yang baru ditutup di modul 8.
+**Aturan yang melibatkan jumlah baris tidak bisa dinyatakan sebagai batasan sederhana.** "Maksimal 3 pinjaman per anggota" butuh membaca lalu memutuskan, dan itu membuka celah konkurensi yang baru ditutup di modul 9.
 
-**Skema tidak membuat kueri cepat.** Tabel dengan batasan lengkap tetap bisa butuh empat detik untuk satu pertanyaan kalau indeksnya tidak ada. Itu modul 9.
+**Skema tidak membuat kueri cepat.** Tabel dengan batasan lengkap tetap bisa butuh empat detik untuk satu pertanyaan kalau indeksnya tidak ada. Itu modul 10.
 
 **Anda belum bisa mengambil datanya.** DDL sudah ada, dan cara menanyakan sesuatu kepada basis data belum dibahas sama sekali.
 
@@ -621,4 +664,4 @@ Keempatnya bisa dikerjakan dengan cara Proyek 1: ambil semua baris ke aplikasi, 
 
 Semuanya juga bisa dijawab dengan satu pernyataan yang dijalankan di tempat datanya berada.
 
-Itu isi modul berikutnya: SQL yang dipakai sehari-hari, dari join sampai window function, beserta jebakan `NULL` yang membuat kueri terlihat benar dan memberi jawaban salah.
+Itu isi modul berikutnya: SQL yang dipakai sehari-hari, dari `SELECT` sampai join dan agregasi, beserta jebakan `NULL` yang membuat kueri terlihat benar dan memberi jawaban salah.

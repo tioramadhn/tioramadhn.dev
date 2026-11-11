@@ -1,14 +1,14 @@
 ---
-title: 'Modul 14: Pekerjaan Latar dan Queue'
+title: 'Modul 15: Pekerjaan Latar dan Queue'
 description: Pengguna menunggu 3,2 detik untuk pesanan yang sudah tersimpan dalam 32 milidetik. Memindahkan pekerjaan keluar dari permintaan, percobaan ulang yang benar, dan pekerjaan yang aman dijalankan dua kali.
-date: 2026-12-18
-slug: modul-14-queue-dan-pekerjaan-latar
+date: 2026-12-20
+slug: modul-15-queue-dan-pekerjaan-latar
 tags: tutorial backend
 series: Tutorial Backend
 status: draft
 ---
 
-Rincian satu permintaan pembuatan pesanan dari akhir modul 13:
+Rincian satu permintaan pembuatan pesanan dari akhir modul 14:
 
 | Langkah | Waktu | Perlu ditunggu pengguna? |
 | --- | --- | --- |
@@ -29,7 +29,7 @@ Modul ini memindahkan empat langkah terakhir keluar dari jalur permintaan, dan m
 | Siapa yang mengerjakannya kalau bukan permintaan? | Worker yang mengambil dari queue |
 | Apa yang terjadi kalau pekerjaannya gagal? | Percobaan ulang dengan jeda bertambah, lalu dead letter queue |
 | Apa yang terjadi kalau dijalankan dua kali? | Harus tidak berakibat apa-apa, dan itu syarat wajib |
-| Bagaimana kalau pesanan tersimpan tapi pekerjaannya tidak masuk queue? | Pola outbox, dibahas lengkap di modul 15 |
+| Bagaimana kalau pesanan tersimpan tapi pekerjaannya tidak masuk queue? | Pola outbox, dibahas lengkap di modul 16 |
 
 ## Analogi: tiket pesanan di dapur
 
@@ -59,13 +59,13 @@ Batas analoginya: koki bisa melihat jepitannya penuh dan berteriak minta bantuan
 | **pg-boss** atau tabel sendiri | Postgres | Sudah punya Postgres, volume sampai puluhan ribu pekerjaan per menit. **Satu transaksi dengan data Anda** |
 | **BullMQ** | Redis | Volume tinggi, butuh prioritas, penjadwalan, dan pembatasan laju bawaan |
 | **SQS**, Pub/Sub, Service Bus | Layanan cloud | Tidak ingin mengelola apa pun, dan volume sangat besar |
-| **Kafka**, NATS | Log peristiwa | Bukan queue pekerjaan, melainkan aliran peristiwa. Modul 15 |
+| **Kafka**, NATS | Log peristiwa | Bukan queue pekerjaan, melainkan aliran peristiwa. Modul 16 |
 
 Keputusannya lebih sederhana daripada yang terlihat. **Kalau Anda sudah punya Postgres dan belum punya Redis, pakai Postgres.** Alasannya satu dan menentukan: pekerjaan bisa dimasukkan ke queue **dalam transaksi yang sama** dengan perubahan datanya, sehingga tidak mungkin ada pesanan tanpa pekerjaan email, atau email untuk pesanan yang gagal disimpan.
 
-Dengan Redis, dua penyimpanan berbeda berarti dua hal yang bisa gagal terpisah, dan jalan keluarnya adalah pola outbox di modul 15.
+Dengan Redis, dua penyimpanan berbeda berarti dua hal yang bisa gagal terpisah, dan jalan keluarnya adalah pola outbox di modul 16.
 
-Seri ini memakai **BullMQ** karena fiturnya lengkap dan banyak dipakai, dengan pola outbox sebagai pelengkapnya. Dasar `SKIP LOCKED` dari modul 8 sudah cukup untuk membangun queue Postgres sendiri kalau Anda memilih jalan itu.
+Seri ini memakai **BullMQ** karena fiturnya lengkap dan banyak dipakai, dengan pola outbox sebagai pelengkapnya. Dasar `SKIP LOCKED` dari modul 9 sudah cukup untuk membangun queue Postgres sendiri kalau Anda memilih jalan itu.
 
 ## Menyusun pekerjaan
 
@@ -213,6 +213,7 @@ Mengulang kegagalan permanen membuang sumber daya dan menunda pekerjaan lain. Ti
 ## Jalur pesanan setelah dirapikan
 
 ```ts
+// src/fitur/pesanan/layanan.ts, jalur pesanan setelah dirapikan
 export async function buatPesanan(/* ... */) {
   const pesanan = await dalamTransaksi(db, async (tx) => {
     // ... validasi, stok, simpan: 32 ms seperti sebelumnya
@@ -235,7 +236,8 @@ export async function buatPesanan(/* ... */) {
 Satu pengirim outbox berjalan terpisah, membaca tabel itu, dan memasukkan pekerjaannya ke queue:
 
 ```ts
-// Dijalankan setiap detik. Pola lengkapnya di modul 15.
+// src/worker/pengirim-outbox.ts
+// Dijalankan setiap detik. Pola lengkapnya di modul 16.
 async function kirimOutbox() {
   const batch = await db.execute(sql`
     UPDATE outbox SET status = 'diproses', diambil_pada = now()
@@ -244,7 +246,7 @@ async function kirimOutbox() {
       WHERE status = 'menunggu'
       ORDER BY dibuat_pada
       LIMIT 100
-      FOR UPDATE SKIP LOCKED      -- pelajaran modul 8
+      FOR UPDATE SKIP LOCKED      -- pelajaran modul 9
     )
     RETURNING *
   `);
@@ -265,6 +267,7 @@ Hasilnya: pengguna mendapat respons dalam 32 ms, dan empat pekerjaan berjalan di
 Tiga kebutuhan yang selalu muncul:
 
 ```ts
+// src/queue/penjadwalan.ts
 // 1. Tertunda: batalkan pesanan yang tidak dibayar dalam 1 jam
 await queuePesanan.add(
   'batalkan-jika-belum-dibayar',
@@ -300,7 +303,7 @@ Enam hal yang membedakan worker yang bisa dirawat dari yang jadi sumber insiden:
 
 **Satu, worker berjalan sebagai proses terpisah dari API.** Alasannya: beban keduanya berbeda, dan Anda ingin bisa menambah worker tanpa menambah instance API. Satu proses yang melayani HTTP sekaligus memproses pekerjaan berat akan membuat permintaan HTTP melambat setiap kali ada pekerjaan besar, persis masalah modul 2.
 
-**Dua, konkurensi dibatasi dan dihitung.** `concurrency: 10` pada worker yang setiap pekerjaannya memakai satu sambungan basis data berarti sepuluh sambungan dari pool. Dengan tiga worker, tiga puluh sambungan, dan itu harus masuk perhitungan dari modul 7.
+**Dua, konkurensi dibatasi dan dihitung.** `concurrency: 10` pada worker yang setiap pekerjaannya memakai satu sambungan basis data berarti sepuluh sambungan dari pool. Dengan tiga worker, tiga puluh sambungan, dan itu harus masuk perhitungan dari modul 8.
 
 **Tiga, penutupan yang rapi.** Saat container dimatikan, worker harus berhenti mengambil pekerjaan baru dan menyelesaikan yang sedang jalan. Tanpa itu, pekerjaan terputus di tengah dan diulang dari awal, dan kalau tidak idempoten, akibatnya ganda.
 
@@ -323,6 +326,7 @@ Angka kedua yang paling berguna dan paling sering tidak dipantau. Kedalaman 10.0
 Pekerjaan yang gagal setelah semua percobaan tidak boleh hilang tanpa jejak.
 
 ```ts
+// src/worker/index.ts, penanganan kegagalan permanen
 worker.on('failed', async (pekerjaan, error) => {
   if (!pekerjaan || pekerjaan.attemptsMade < (pekerjaan.opts.attempts ?? 1)) return;
 
@@ -340,6 +344,7 @@ worker.on('failed', async (pekerjaan, error) => {
 Dan satu endpoint admin untuk memasukkannya kembali setelah penyebabnya diperbaiki:
 
 ```ts
+// src/fitur/admin/rute.ts, menjalankan ulang dari dead letter queue
 app.post('/v1/admin/pekerjaan-gagal/:id/ulang', async (req) => {
   pastikanBoleh(req.pelaku, 'pekerjaan:kelola');
 
@@ -357,6 +362,45 @@ app.post('/v1/admin/pekerjaan-gagal/:id/ulang', async (req) => {
 
 Kemampuan memasukkan kembali pekerjaan yang gagal adalah fitur operasional yang akan Anda syukuri saat penyedia email gangguan enam jam dan tiga ribu email tertahan.
 
+## Buktikan jalan
+
+Queue punya satu sifat yang membuatnya mudah dipasang salah: kalau worker Anda tidak jalan, pembuatan pesanan **tetap berhasil** dan tidak ada yang error. Pekerjaannya hanya menumpuk diam-diam.
+
+```bash
+# 1. Permintaan jadi jauh lebih cepat setelah pekerjaan dipindahkan
+curl -s -o /dev/null -w 'buat pesanan: %{time_total}s\n' \
+  -X POST localhost:3000/v1/pesanan -H 'content-type: application/json' \
+  -H 'idempotency-key: uji-1' -d '{"item":[{"produkId":"<id>","jumlah":1}]}'
+```
+
+```text
+buat pesanan: 0.048s
+```
+
+Sebelum pemindahan, angka yang sama ada di kisaran tiga detik. Selisih itulah seluruh isi modul ini.
+
+```bash
+# 2. Pekerjaannya benar-benar masuk antrean
+docker compose exec -it redis redis-cli LLEN 'bull:email:wait'
+```
+
+```text
+(integer) 1
+```
+
+```bash
+# 3. Worker mengambilnya
+pnpm worker
+```
+
+```text
+{"level":"info","msg":"pekerjaan selesai","queue":"email","id":"42","durasi_ms":820}
+```
+
+Lalu periksa lagi dengan `LLEN`, dan angkanya kembali `0`.
+
+**Sekarang matikan worker dan buat sepuluh pesanan lagi.** Semuanya tetap menjawab 201 dalam puluhan milidetik, dan `LLEN` menunjukkan 10 pekerjaan menunggu tanpa satu pun tanda bahaya di mana pun. Itu bukan bug, melainkan sifat yang harus Anda sadari: **sistem berbasis queue gagal dengan diam.** Satu-satunya yang membuat kegagalan itu terlihat adalah pemantauan kedalaman antrean, dan itu sebabnya bagian "Operasional worker" di atas bukan tambahan opsional.
+
 ## Latihan
 
 ### Latihan 1: Pindahkan empat pekerjaan keluar dari permintaan
@@ -364,7 +408,7 @@ Kemampuan memasukkan kembali pekerjaan yang gagal adalah fitur operasional yang 
 Ambil jalur pembuatan pesanan dari Proyek 2, pindahkan email, PDF, notifikasi, dan penyegaran rekap ke queue. Ukur latensi p95 sebelum dan sesudah, lalu uji satu hal: matikan penyedia email dan pastikan pesanan tetap berhasil.
 
 > [!petunjuk]
-> Jangan masukkan pekerjaan ke queue langsung dari dalam transaksi basis data. Pakai tabel outbox seperti di contoh, dan buat satu proses pengirim sederhana yang jalan setiap detik. Alasan lengkapnya ada di modul 15, dan Anda akan merasakannya sendiri saat menguji kegagalan.
+> Jangan masukkan pekerjaan ke queue langsung dari dalam transaksi basis data. Pakai tabel outbox seperti di contoh, dan buat satu proses pengirim sederhana yang jalan setiap detik. Alasan lengkapnya ada di modul 16, dan Anda akan merasakannya sendiri saat menguji kegagalan.
 
 > [!jawaban]
 >
@@ -379,7 +423,7 @@ Ambil jalur pembuatan pesanan dari Proyek 2, pindahkan email, PDF, notifikasi, d
 >
 > Empat hal yang akan Anda temukan saat mengerjakannya:
 >
-> 1. **Latensi turun 70 kali, dan itu bukan bagian paling berharga.** Yang lebih berharga: pesanan tidak lagi gagal karena layanan pihak ketiga. Ini pelajaran modul 19 yang muncul lebih awal.
+> 1. **Latensi turun 70 kali, dan itu bukan bagian paling berharga.** Yang lebih berharga: pesanan tidak lagi gagal karena layanan pihak ketiga. Ini pelajaran modul 20 yang muncul lebih awal.
 > 2. **Pembuatan PDF di worker menyelesaikan masalah modul 2 sekaligus.** Pekerjaan yang memblokir event loop sekarang berada di proses yang memang untuk itu, dan API tetap responsif.
 > 3. **Anda akan menemukan pekerjaan kelima yang tidak terpikir**, biasanya pembaruan indeks pencarian atau sinkronisasi ke sistem akuntansi. Begitu polanya ada, memindahkan yang berikutnya jadi mudah.
 > 4. **Satu hal baru harus diputuskan: apa yang dilihat pengguna.** Pesanan kembali dalam 48 ms dengan status "menunggu", dan struk PDF belum ada. Antarmuka perlu menyatakan itu dengan jujur, misalnya "struk akan dikirim ke email Anda dalam beberapa menit", bukan menampilkan tautan unduh yang belum ada isinya.
@@ -397,6 +441,9 @@ Lima pekerjaan ini akan dijalankan dua kali pada suatu hari, karena queue member
 | 3 | Buat PDF struk dan simpan ke penyimpanan objek |
 | 4 | Tambahkan poin loyalitas 1% dari nilai pesanan |
 | 5 | Segarkan rekap penjualan harian |
+
+> [!petunjuk]
+> Kelimanya tidak punya satu jawaban yang sama, dan itu intinya. Untuk tiap pekerjaan, tanyakan: apakah efeknya bisa diulang tanpa kerusakan? Kalau ya, tidak perlu penjaga apa pun. Kalau tidak, apakah ada nilai alami yang bisa jadi penanda "ini sudah pernah dikerjakan", atau Anda perlu menyimpan penanda sendiri? Nomor 5 adalah satu-satunya yang aman apa adanya, dan nomor 4 yang paling mahal kalau salah.
 
 > [!pembahasan]
 >
@@ -472,7 +519,7 @@ Untuk enam kegagalan berikut, tentukan: diulang atau tidak, berapa kali, jeda se
 >
 > **Nomor 6 harus terlihat segera.** `TypeError` adalah bug di kode Anda, dan mengulanginya lima kali hanya menunda penemuannya. Yang perlu: langsung ke dead letter queue dengan peringatan ke pengembang, bukan percobaan ulang yang pasti gagal.
 >
-> **Jitter wajib ada pada jeda eksponensial.** Tanpa itu, seribu pekerjaan yang gagal bersamaan akan mencoba ulang bersamaan pada detik yang sama, dan memukul penyedia yang baru pulih sampai tumbang lagi. Pola ini punya nama: thundering herd, dan sama dengan cache stampede di modul 13.
+> **Jitter wajib ada pada jeda eksponensial.** Tanpa itu, seribu pekerjaan yang gagal bersamaan akan mencoba ulang bersamaan pada detik yang sama, dan memukul penyedia yang baru pulih sampai tumbang lagi. Pola ini punya nama: thundering herd, dan sama dengan cache stampede di modul 14.
 >
 > ```ts
 > backoff: {
@@ -507,7 +554,7 @@ Queue email Anda menerima 50 pekerjaan per detik pada jam sibuk. Satu email butu
 > });
 > ```
 >
-> Dan pengaruhnya ke tempat lain, yang sering terlupakan: 30 slot yang masing-masing memakai satu sambungan basis data berarti **30 sambungan tambahan**. Itu harus masuk perhitungan pool dari modul 7, dan pada basis data 4 inti, 30 sambungan dari worker saja sudah terlalu banyak. Jalan keluarnya: kurangi pekerjaan basis data per pekerjaan email, atau turunkan konkurensi dan terima queue yang lebih panjang.
+> Dan pengaruhnya ke tempat lain, yang sering terlupakan: 30 slot yang masing-masing memakai satu sambungan basis data berarti **30 sambungan tambahan**. Itu harus masuk perhitungan pool dari modul 8, dan pada basis data 4 inti, 30 sambungan dari worker saja sudah terlalu banyak. Jalan keluarnya: kurangi pekerjaan basis data per pekerjaan email, atau turunkan konkurensi dan terima queue yang lebih panjang.
 >
 > **Peringatan yang dipasang:**
 >
@@ -530,11 +577,11 @@ Queue email Anda menerima 50 pekerjaan per detik pada jam sibuk. Satu email butu
 
 Queue menyelesaikan pekerjaan yang tidak perlu ditunggu, dan tiga hal tetap terbuka.
 
-**Satu transaksi tidak bisa mencakup basis data dan queue.** Memasukkan pekerjaan ke Redis dari dalam transaksi Postgres bisa berakhir dengan pekerjaan yang masuk padahal transaksinya gagal, atau sebaliknya. Pola outbox yang dipakai di modul ini baru dijelaskan sebagian, dan lengkapnya di modul 15.
+**Satu transaksi tidak bisa mencakup basis data dan queue.** Memasukkan pekerjaan ke Redis dari dalam transaksi Postgres bisa berakhir dengan pekerjaan yang masuk padahal transaksinya gagal, atau sebaliknya. Pola outbox yang dipakai di modul ini baru dijelaskan sebagian, dan lengkapnya di modul 16.
 
 **Queue adalah penyampaian satu arah ke satu penerima.** Kalau lima bagian sistem perlu bereaksi terhadap satu kejadian, mendaftarkan lima pekerjaan dari satu tempat berarti tempat itu harus tahu kelima penerimanya. Itu masalah penggandengan yang dijawab arsitektur berbasis peristiwa.
 
-**Pekerjaan latar tidak menjawab kebutuhan waktu nyata.** Pengguna yang menunggu status pesanannya berubah masih harus memuat ulang halaman, dan itu modul 16.
+**Pekerjaan latar tidak menjawab kebutuhan waktu nyata.** Pengguna yang menunggu status pesanannya berubah masih harus memuat ulang halaman, dan itu modul 17.
 
 ## Rangkuman
 

@@ -1,8 +1,8 @@
 ---
-title: 'Modul 18: Observability'
+title: 'Modul 19: Observability'
 description: Pukul dua pagi, satu pelanggan melapor dan Anda punya ratusan ribu baris log dari tujuh proses. Logging terstruktur, metrik, dan tracing yang membuat pertanyaan "apa yang terjadi" bisa dijawab dalam hitungan menit.
-date: 2026-12-23
-slug: modul-18-observability
+date: 2026-12-25
+slug: modul-19-observability
 tags: tutorial backend
 series: Tutorial Backend
 status: draft
@@ -63,6 +63,7 @@ Batas analoginya: rumah sakit punya perawat yang melihat ruang tunggu penuh dan 
 Aturan pertamanya: **log adalah data, bukan tulisan untuk manusia.**
 
 ```ts
+// Jangan disalin: log yang tidak bisa dicari
 // Tidak bisa dicari, dan tidak bisa diagregasi
 console.log(`Pesanan ${id} gagal untuk user ${userId}: ${error.message}`);
 
@@ -111,6 +112,7 @@ export const log = pino({
 ```
 
 ```ts
+// src/lib/log/konteks.ts
 // Dipasang sekali di awal setiap permintaan
 app.addHook('onRequest', (req, _res, selesai) => {
   konteks.run(
@@ -133,7 +135,7 @@ app.addHook('preHandler', async (req) => {
 });
 ```
 
-`AsyncLocalStorage` adalah bagian terpenting di potongan itu: ia membawa konteks melintasi `await` tanpa Anda meneruskannya sebagai parameter ke setiap fungsi. Tanpa itu, satu-satunya cara memberi konteks ke log di lapisan repository adalah mengirim objek logger lewat sepuluh pemanggilan fungsi, dan itu tidak akan dikerjakan konsisten.
+`AsyncLocalStorage` adalah bagian terpenting di potongan itu, karena konteksnya ikut terbawa melintasi `await` tanpa Anda meneruskannya sebagai parameter ke setiap fungsi. Tanpa itu, satu-satunya cara memberi konteks ke log di lapisan repository adalah mengirim objek logger lewat sepuluh pemanggilan fungsi, dan itu tidak akan dikerjakan konsisten.
 
 Enam aturan log yang pantas jadi kesepakatan tim:
 
@@ -153,6 +155,7 @@ Dan satu hal tentang biaya: log adalah komponen tagihan yang mudah lepas kendali
 Metrik murah, tetap berguna pada volume besar, dan menjawab pertanyaan yang tidak bisa dijawab log.
 
 ```ts
+// src/lib/metrik.ts
 import { Counter, Histogram, Gauge, register } from 'prom-client';
 
 export const metrik = {
@@ -193,6 +196,7 @@ export const metrik = {
 ```
 
 ```ts
+// src/app.ts, mencatat metrik setiap respons
 app.addHook('onResponse', async (req, res) => {
   const rute = req.routeOptions.url ?? 'tidak-dikenal';
   const label = { metode: req.method, rute };
@@ -221,6 +225,7 @@ Baris keempat yang membedakan tim yang reaktif dari yang siap: tiga sinyal perta
 Satu bahaya yang perlu dipahami: **kardinalitas label.**
 
 ```ts
+// Jangan disalin: label berkardinalitas tinggi
 // Berbahaya: satu seri metrik per pengguna. Dengan 100 ribu pengguna,
 // itu 100 ribu seri, dan sistem metrik Anda akan tumbang.
 metrik.permintaan.inc({ penggunaId: req.pelaku.penggunaId });
@@ -263,6 +268,7 @@ sdk.start();
 Instrumentasi otomatis sudah memberi banyak: permintaan HTTP masuk dan keluar, kueri Postgres, perintah Redis. Yang perlu Anda tambahkan adalah rentang untuk logika bisnis Anda sendiri:
 
 ```ts
+// src/lib/jejak.ts
 import { trace, SpanStatusCode } from '@opentelemetry/api';
 
 const tracer = trace.getTracer('pesanan');
@@ -293,6 +299,7 @@ export async function buatPesanan(/* ... */) {
 Bagian yang paling berharga, dan paling sering tidak dikerjakan: **meneruskan konteks jejak melintasi queue dan peristiwa.**
 
 ```ts
+// src/queue/jejak.ts, menyambung jejak lintas queue
 // Saat mendaftarkan pekerjaan: bawa konteks jejak di muatan
 import { propagation, context } from '@opentelemetry/api';
 
@@ -382,6 +389,44 @@ Dengan ketiga alat terpasang, pesan pukul dua pagi itu dijawab seperti ini:
 
 Enam langkah, sekitar lima menit, dan tidak ada tebakan. Perhatikan bahwa setiap langkah memakai alat yang berbeda: metrik untuk cakupan, trace untuk lokasi, log untuk pelaku, dan basis data untuk penyebab. Itu sebabnya ketiganya dipasang, bukan salah satunya.
 
+## Buktikan jalan
+
+Observability yang terpasang setengah jalan memberi rasa aman yang palsu. Tiga pemeriksaan.
+
+```bash
+# 1. Log terstruktur, dan id permintaan yang sama di semua barisnya
+curl -s -H 'x-request-id: coba-123' localhost:3000/v1/pesanan > /dev/null
+```
+
+Di terminal server, semua baris yang dihasilkan permintaan itu harus membawa `reqId` yang sama:
+
+```text
+{"level":"info","reqId":"coba-123","msg":"permintaan masuk","method":"GET","url":"/v1/pesanan"}
+{"level":"debug","reqId":"coba-123","msg":"kueri selesai","durasi_ms":8}
+{"level":"info","reqId":"coba-123","msg":"permintaan selesai","status":200,"durasi_ms":21}
+```
+
+Kalau baris tengah **tidak** membawa `reqId`, berarti `AsyncLocalStorage` belum terpasang di jalur itu. Itu masalah yang pantas diperbaiki sekarang, karena baris tanpa konteks adalah baris yang tidak bisa ditelusuri saat insiden.
+
+```bash
+# 2. Metrik benar-benar tercatat
+curl -s localhost:3000/metrics | grep -E 'http_permintaan_durasi_detik_bucket|http_permintaan_total' | head -5
+```
+
+```text
+http_permintaan_total{rute="/v1/pesanan",method="GET",status="200"} 1
+http_permintaan_durasi_detik_bucket{rute="/v1/pesanan",le="0.05"} 1
+```
+
+Perhatikan label `rute`: isinya harus **pola rute** seperti `/v1/pesanan/:id`, bukan URL sungguhan seperti `/v1/pesanan/0193f2a1-...`. Kalau yang muncul id sungguhan, Anda sedang membuat satu seri metrik baru untuk setiap pesanan, dan sistem metrik Anda akan tumbang dalam hitungan hari. Itu masalah kardinalitas dari bagian sebelumnya.
+
+```bash
+# 3. Satu permintaan menghasilkan satu jejak dengan beberapa span
+curl -s localhost:3000/v1/pesanan/<id> > /dev/null
+```
+
+Buka Jaeger di `http://localhost:16686`, cari layanan Anda, dan buka jejak terakhir. Yang Anda harapkan: satu span induk untuk permintaan HTTP, dengan span anak untuk setiap kueri basis data dan setiap panggilan keluar. **Jejak yang hanya berisi satu span** berarti instrumentasi otomatisnya belum aktif, dan jejak seperti itu tidak menjawab pertanyaan apa pun yang tidak sudah dijawab metrik.
+
 ## Latihan
 
 ### Latihan 1: Pasang observability di layanan Anda
@@ -425,7 +470,7 @@ Pasang ketiga alat di Proyek 4, lalu buktikan dengan satu pertanyaan: **lacak sa
 >
 > 1. **Satu gambar yang memuat delapan komponen**, dan jarak waktu antar komponen langsung terlihat. Biasanya ada satu jeda yang mengejutkan, dan paling sering itu jeda polling pengirim outbox.
 > 2. **Jeda pengirim outbox akan terasa besar.** Polling setiap 500 ms berarti rata-rata 250 ms jeda hanya untuk menunggu giliran dibaca. Kalau itu penting, tambahkan pemberitahuan dengan `NOTIFY` Postgres supaya pengirim bangun seketika.
-> 3. **Rentang basis data jauh lebih banyak daripada dugaan Anda.** Instrumentasi otomatis akan memperlihatkan kueri yang tidak Anda sadari ada, dan sering menemukan N+1 yang lolos dari modul 7.
+> 3. **Rentang basis data jauh lebih banyak daripada dugaan Anda.** Instrumentasi otomatis akan memperlihatkan kueri yang tidak Anda sadari ada, dan sering menemukan N+1 yang lolos dari modul 8.
 > 4. **Konteks jejak di log membuat keduanya saling terhubung.** Dengan `traceId` di setiap baris log, alat pemantauan modern bisa melompat dari satu rentang trace ke log yang dihasilkan di dalamnya.
 > 5. **Satu hal yang perlu diputuskan: berapa lama trace disimpan.** Trace mahal, dan 7 hari biasanya cukup. Untuk insiden yang perlu diselidiki lebih lama, log dan metrik yang bertahan lebih panjang.
 
@@ -434,6 +479,9 @@ Pasang ketiga alat di Proyek 4, lalu buktikan dengan satu pertanyaan: **lacak sa
 Buat daftar peringatan untuk Proyek 4, dan untuk masing-masing tulis runbook satu halaman.
 
 Lalu jalankan uji yang paling penting: **matikan satu komponen, dan catat berapa lama sampai peringatan menyala.**
+
+> [!petunjuk]
+> Peringatan yang baik punya satu sifat yang mudah diuji: setiap kali menyala, ada orang yang perlu melakukan sesuatu. Periksa daftar Anda dengan pertanyaan itu, dan buang yang jawabannya "tidak". Untuk uji waktu deteksi, ingat bahwa angkanya adalah penjumlahan tiga hal: selang pengambilan metrik, rentang waktu yang diperiksa aturan peringatan, dan jeda pengiriman notifikasi. Banyak tim kaget menemukan totalnya belasan menit.
 
 > [!pembahasan]
 >
@@ -448,7 +496,7 @@ Lalu jalankan uji yang paling penting: **matikan satu komponen, dan catat berapa
 >
 > Dua baris yang menghasilkan temuan paling berharga:
 >
-> **Redis yang mati tidak memicu apa pun.** Itu hasil dari keputusan yang benar di modul 13: kegagalan cache tidak menjatuhkan layanan. Akibatnya, Redis bisa mati berjam-jam dan satu-satunya gejalanya adalah latensi yang naik sedikit dan tagihan basis data yang naik banyak. Perbaikan: metrik tingkat kena cache, dan peringatan kalau tiba-tiba nol.
+> **Redis yang mati tidak memicu apa pun.** Itu hasil dari keputusan yang benar di modul 14: kegagalan cache tidak menjatuhkan layanan. Akibatnya, Redis bisa mati berjam-jam dan satu-satunya gejalanya adalah latensi yang naik sedikit dan tagihan basis data yang naik banyak. Perbaikan: metrik tingkat kena cache, dan peringatan kalau tiba-tiba nol.
 >
 > **Pengirim outbox yang mati adalah kegagalan paling tenang di seluruh sistem.** API tetap sehat, semua permintaan 200, pesanan tersimpan dengan benar, dan tidak ada satu pun email terkirim atau poin diberikan. Dari luar, semuanya normal. Perbaikan: metrik gauge berisi jumlah baris outbox yang belum terkirim dan umur yang tertua, dengan peringatan di atas 2 menit.
 >
@@ -521,7 +569,7 @@ Dengan observability terpasang, jawab lima pertanyaan berikut tentang layanan An
 > const label = { rute, versi: config.VERSI_RILIS };
 > ```
 >
-> **Nomor 5 adalah pertanyaan kapasitas, dan jawabannya hampir selalu mengejutkan.** Pada layanan yang dibangun di seri ini, kandidat terkuat adalah pool sambungan basis data dari modul 7, bukan CPU aplikasi. Angka pemakaian pool yang sudah 60% pada beban normal berarti 10 kali lalu lintas akan menabrak batasnya jauh sebelum CPU penuh. Itu temuan yang mengubah prioritas pekerjaan.
+> **Nomor 5 adalah pertanyaan kapasitas, dan jawabannya hampir selalu mengejutkan.** Pada layanan yang dibangun di seri ini, kandidat terkuat adalah pool sambungan basis data dari modul 8, bukan CPU aplikasi. Angka pemakaian pool yang sudah 60% pada beban normal berarti 10 kali lalu lintas akan menabrak batasnya jauh sebelum CPU penuh. Itu temuan yang mengubah prioritas pekerjaan.
 
 ### Latihan 4: Selidiki insiden dari log
 
@@ -540,7 +588,7 @@ Berikut potongan log dari satu insiden. Tentukan apa yang terjadi, dan apa tinda
 >
 > **Apa yang terjadi, dibaca dari bawah ke atas:**
 >
-> Baris kelima adalah penyebabnya: satu ekspor laporan membaca 1,84 juta baris dan berjalan 48 detik **di dalam permintaan HTTP**. Itu melanggar dua pelajaran sekaligus: pekerjaan panjang di jalur permintaan (modul 2 dan 14), dan daftar tanpa batas (modul 12).
+> Baris kelima adalah penyebabnya: satu ekspor laporan membaca 1,84 juta baris dan berjalan 48 detik **di dalam permintaan HTTP**. Itu melanggar dua pelajaran sekaligus: pekerjaan panjang di jalur permintaan (modul 2 dan 15), dan daftar tanpa batas (modul 13).
 >
 > Akibatnya berantai:
 >
@@ -562,7 +610,7 @@ Berikut potongan log dari satu insiden. Tentukan apa yang terjadi, dan apa tinda
 > Tiga pelajaran dari insiden ini:
 >
 > 1. **Satu endpoint yang tidak dibatasi bisa menjatuhkan seluruh layanan**, termasuk bagian yang sama sekali tidak terkait. Pool sambungan adalah sumber daya bersama, dan itu membuatnya jadi jalur penularan.
-> 2. **Pemisahan sumber daya adalah pertahanan yang nyata.** Kalau laporan memakai pool terpisah dengan batas kecil, kerusakannya terkurung di laporan. Pola itu disebut bulkhead, dan modul 19 membahasnya.
+> 2. **Pemisahan sumber daya adalah pertahanan yang nyata.** Kalau laporan memakai pool terpisah dengan batas kecil, kerusakannya terkurung di laporan. Pola itu disebut bulkhead, dan modul 20 membahasnya.
 > 3. **Semua gejala terlihat di log, dan tidak satu pun menyebut penyebabnya secara langsung.** Yang menghubungkannya adalah pengetahuan tentang bagaimana komponen saling bergantung, dan itu tidak bisa diotomatiskan. Observability memberi data, dan penalaran tetap pekerjaan Anda.
 
 ## Batasnya
@@ -573,7 +621,7 @@ Observability memberi jawaban, dan tiga hal tetap di luarnya.
 
 **Biayanya nyata dan bisa lepas kendali.** Log, metrik dengan kardinalitas tinggi, dan trace 100% bisa menghabiskan anggaran yang lebih besar daripada layanan yang dipantaunya. Sampel dengan sadar.
 
-**Observability tidak memperbaiki apa pun.** Ia hanya memberi tahu. Yang membuat layanan tetap berjalan saat ada yang rusak adalah pola ketahanan, dan itu modul berikutnya.
+**Observability tidak memperbaiki apa pun.** Yang dikerjakannya hanya memberi tahu. Yang membuat layanan tetap berjalan saat ada yang rusak adalah pola ketahanan, dan itu modul berikutnya.
 
 ## Rangkuman
 

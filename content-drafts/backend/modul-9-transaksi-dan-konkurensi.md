@@ -1,8 +1,8 @@
 ---
-title: 'Modul 8: Transaksi dan Konkurensi'
+title: 'Modul 9: Transaksi dan Konkurensi'
 description: Dua hal yang Anda anggap satu kesatuan bisa diselingi orang lain. Transaksi, tingkat isolasi, penguncian baris, deadlock, dan empat cara benar mengurangi stok.
-date: 2026-12-10
-slug: modul-8-transaksi-dan-konkurensi
+date: 2026-12-12
+slug: modul-9-transaksi-dan-konkurensi
 tags: tutorial backend
 series: Tutorial Backend
 status: draft
@@ -13,6 +13,7 @@ Modul sebelumnya ditutup dengan satu percobaan: anggota yang sudah punya 2 pinja
 Tidak ada bug di kode itu. Yang terjadi adalah pola yang akan Anda temui seumur karier:
 
 ```ts
+// Pola baca-lalu-tulis dari Proyek 1, dan celahnya
 const jumlah = await repo.hitungBerjalanMilik(anggotaId); // membaca 2
 if (jumlah >= 3) throw new ErrorAturanBisnis(...);        // lolos
 await repo.simpan(peminjamanBaru);                        // menulis
@@ -65,6 +66,7 @@ export async function dalamTransaksi<T>(
 ```
 
 ```ts
+// src/fitur/peminjaman/layanan.ts
 // Masalah kelima dari Proyek 1, sekarang selesai
 async function pinjam(anggotaId: string, bukuId: string) {
   return dalamTransaksi(db, async (tx) => {
@@ -95,6 +97,7 @@ Tiga aturan tentang lingkup transaksi yang menyelamatkan banyak insiden:
 **Dua, jangan pernah memanggil layanan luar di dalam transaksi.**
 
 ```ts
+// Jangan disalin: transaksi yang menahan sambungan terlalu lama
 // Salah: transaksi terbuka selama menunggu jaringan
 await dalamTransaksi(db, async (tx) => {
   const pesanan = await repoPesanan(tx).simpan(data);
@@ -103,7 +106,7 @@ await dalamTransaksi(db, async (tx) => {
 });
 ```
 
-Kalau layanan pembayaran melambat, seluruh transaksi menahan kunci dan sambungan. Kalau layanan itu menggantung sampai batas waktu, transaksinya ikut menggantung. Polanya: tulis dulu niatnya di dalam transaksi, panggil luar di luar transaksi, lalu perbarui hasilnya. Bentuk lengkapnya adalah pola outbox di modul 15.
+Kalau layanan pembayaran melambat, seluruh transaksi menahan kunci dan sambungan. Kalau layanan itu menggantung sampai batas waktu, transaksinya ikut menggantung. Polanya: tulis dulu niatnya di dalam transaksi, panggil luar di luar transaksi, lalu perbarui hasilnya. Bentuk lengkapnya adalah pola outbox di modul 16.
 
 **Tiga, jangan menunggu pengguna di dalam transaksi.** Transaksi tidak pernah melintasi beberapa permintaan HTTP. Keranjang yang "dikunci" selama pengguna mengisi form adalah masalah domain, bukan masalah transaksi, dan jawabannya reservasi dengan masa berlaku.
 
@@ -141,6 +144,7 @@ RETURNING stok;
 ```
 
 ```ts
+// src/fitur/pesanan/layanan.ts, cara 1: pembaruan bersyarat
 const hasil = await tx.execute(sqlKurangiStok, [produkId, jumlah]);
 
 if (hasil.rowCount === 0) {
@@ -165,7 +169,7 @@ INSERT INTO pesanan_item (...) VALUES (...);
 COMMIT;
 ```
 
-Benar, dan harganya: permintaan lain untuk produk yang sama akan menunggu. Pada produk yang sangat laris, itu berarti antrean. Pasang `lock_timeout` seperti di modul 7 supaya penantiannya tidak tak berbatas.
+Benar, dan harganya: permintaan lain untuk produk yang sama akan menunggu. Pada produk yang sangat laris, itu berarti antrean. Pasang `lock_timeout` seperti di modul 8 supaya penantiannya tidak tak berbatas.
 
 **Cara 3: penguncian optimistis dengan kolom versi.** Dipakai saat bentrokan jarang terjadi dan Anda ingin menghindari penguncian.
 
@@ -177,6 +181,7 @@ RETURNING versi;
 ```
 
 ```ts
+// src/fitur/pesanan/layanan.ts, membaca jumlah baris terpengaruh
 if (hasil.rowCount === 0) {
   // Ada yang mengubah baris ini sejak kita membacanya
   throw new ErrorKonflik('Data sudah diubah pihak lain, muat ulang lalu coba lagi');
@@ -188,6 +193,7 @@ Ini pola yang dipakai saat pengguna membuka form edit lalu menyimpannya beberapa
 **Cara 4: `Serializable` dengan percobaan ulang.** Dipakai untuk aturan yang tidak bisa dinyatakan pada satu baris, misalnya write skew.
 
 ```ts
+// src/db/transaksi.ts
 export async function dalamTransaksiSerializable<T>(
   db: Database,
   kerjakan: (tx: Database) => Promise<T>,
@@ -227,7 +233,7 @@ Ringkasan pilihan:
 
 ## Pekerja antrean dengan `SKIP LOCKED`
 
-Satu pola yang pantas dihafal, dan akan dipakai lagi di modul 14:
+Satu pola yang pantas dihafal, dan akan dipakai lagi di modul 15:
 
 ```sql
 -- Sepuluh pekerja bisa menjalankan ini bersamaan tanpa saling menunggu
@@ -262,6 +268,7 @@ Dua pencegahan, dan yang pertama menyelesaikan sebagian besar kasus:
 **Satu, kunci baris dalam urutan yang sama, selalu.** Urutkan berdasarkan id sebelum memperbarui:
 
 ```ts
+// src/fitur/transfer/layanan.ts, urutan kunci yang mencegah deadlock
 // Selalu kunci rekening dengan id lebih kecil dulu, apa pun arah transfernya
 const [pertama, kedua] = [dariId, keId].sort();
 
@@ -277,6 +284,7 @@ Dan karena deadlock tidak bisa dihapus sepenuhnya, bungkus operasi tulis penting
 Pola di modul 4 sekarang bisa dilengkapi: penyimpanan kunci dan pekerjaannya dilakukan dalam **satu transaksi**.
 
 ```ts
+// src/fitur/pesanan/layanan.ts, idempotency di dalam transaksi yang sama
 async function buatPesanan(penggunaId: string, kunci: string, masukan: Masukan) {
   return dalamTransaksi(db, async (tx) => {
     // Penulisan bersyarat atomik. Tidak ada baris kembali berarti kunci sudah ada.
@@ -302,7 +310,47 @@ async function buatPesanan(penggunaId: string, kunci: string, masukan: Masukan) 
 }
 ```
 
-Karena keduanya dalam satu transaksi, tidak mungkin ada keadaan "pesanan sudah dibuat tapi kuncinya belum tercatat", yang akan membuat percobaan ulang membuat pesanan kedua. Inilah pertemuan antara pelajaran modul 4 dan modul 8.
+Karena keduanya dalam satu transaksi, tidak mungkin ada keadaan "pesanan sudah dibuat tapi kuncinya belum tercatat", yang akan membuat percobaan ulang membuat pesanan kedua. Inilah pertemuan antara idempotency dari modul 4 dan transaksi dari modul ini.
+
+## Buktikan jalan
+
+Konkurensi tidak bisa dibuktikan dengan satu permintaan. Satu-satunya cara adalah menembakkan banyak sekaligus, lalu memeriksa apakah angkanya masuk akal.
+
+Siapkan satu produk dengan stok 10:
+
+```bash
+docker compose exec -it db psql -U postgres -d toko \
+  -c "UPDATE produk SET stok = 10 WHERE id = '<id-produk>'; SELECT stok FROM produk WHERE id = '<id-produk>';"
+```
+
+Lalu kirim 50 permintaan pembelian bersamaan:
+
+```bash
+seq 50 | xargs -P 50 -I{} curl -s -o /dev/null -w '%{http_code}\n' \
+  -X POST localhost:3000/v1/pesanan \
+  -H 'content-type: application/json' \
+  -H "idempotency-key: uji-{}" \
+  -d '{"item":[{"produkId":"<id-produk>","jumlah":1}]}' | sort | uniq -c
+```
+
+Yang Anda harapkan:
+
+```text
+  10 201
+  40 409
+```
+
+Lalu periksa stoknya:
+
+```text
+ stok
+------
+    0
+```
+
+Tiga hal yang membuat hasil ini bernilai. **Tepat sepuluh berhasil**, tidak sebelas dan tidak sembilan. **Stok berhenti di nol**, tidak pernah minus. Dan empat puluh sisanya ditolak dengan **409, bukan 500**: penolakan itu keputusan yang Anda ambil, bukan kecelakaan.
+
+Jalankan seluruh percobaan ini **sepuluh kali**. Bug konkurensi bersifat probabilistik, dan satu kali hijau tidak membuktikan apa pun. Kalau pernah sekali saja muncul sebelas `201` atau stok minus, ada celah antara memeriksa dan menulis yang belum ditutup.
 
 ## Latihan
 
@@ -311,6 +359,7 @@ Karena keduanya dalam satu transaksi, tidak mungkin ada keadaan "pesanan sudah d
 Siapkan tabel produk dengan satu baris berstok 1. Tulis skrip yang mengirim 20 permintaan pembelian bersamaan, lalu jalankan lima kali.
 
 ```ts
+// test/konkurensi.test.ts, uji yang membuktikan stok tidak bisa minus
 await Promise.all(
   Array.from({ length: 20 }, () =>
     fetch('http://localhost:3000/v1/beli', {
@@ -362,6 +411,7 @@ Mulai dari implementasi baca-putuskan-tulis, catat stok akhirnya, lalu perbaiki 
 Ada aturan: setiap shift harus punya minimal satu petugas yang berjaga. Tabel `jaga` berisi baris per petugas per shift dengan kolom `hadir`.
 
 ```ts
+// Kode yang harus Anda telaah di latihan ini
 async function ajukanIzin(petugasId: string, shiftId: string) {
   const jumlahHadir = await db.hitungHadir(shiftId); // membaca 2
 
@@ -374,6 +424,9 @@ async function ajukanIzin(petugasId: string, shiftId: string) {
 ```
 
 Dua petugas mengajukan izin bersamaan untuk shift yang sama. Jelaskan apa yang terjadi, lalu perbaiki dengan dua cara berbeda.
+
+> [!petunjuk]
+> Perhatikan bahwa kedua transaksi membaca baris yang sama, lalu masing-masing menulis baris yang **berbeda**. Tidak ada satu pun baris yang ditulis dua kali, jadi penguncian baris biasa tidak akan menyadari ada yang salah. Pertanyaan yang membuka jawabannya: apa yang sebenarnya dijaga aturan ini, dan apakah "benda" itu punya baris sendiri di basis data?
 
 > [!pembahasan]
 >
@@ -532,11 +585,11 @@ Aturan "maksimal 3 pinjaman", "tidak boleh ada yang terlambat", dan "denda di ba
 >
 > Lima hal yang pantas diperhatikan:
 >
-> 1. **`bolehMeminjam` dari Proyek 1 tidak berubah satu baris pun.** Ia tetap fungsi murni yang menerima keadaan. Yang berubah hanya **di mana** keadaan itu dibaca: sekarang di dalam kunci.
+> 1. **`bolehMeminjam` dari Proyek 1 tidak berubah satu baris pun.** Bentuknya tetap fungsi murni yang menerima keadaan. Yang berubah hanya **di mana** keadaan itu dibaca: sekarang di dalam kunci.
 > 2. **Kuncinya pada baris anggota, bukan tabel.** Pertengkaran hanya terjadi antar permintaan dari anggota yang sama, dan itu jarang. Seribu anggota bisa meminjam bersamaan tanpa saling menunggu.
 > 3. **Tiga pemeriksaan jadi satu kueri** dengan `FILTER`, menghemat dua perjalanan jaringan di dalam transaksi. Mengingat aturan "transaksi harus pendek", setiap perjalanan yang dihemat berarti kunci dipegang lebih singkat.
 > 4. **Aturan 6 dan 7 tetap mengandalkan indeks unik.** Pembagian kerjanya: batasan basis data untuk aturan per baris, kunci untuk aturan agregat.
-> 5. **Transaksi ini tidak memanggil apa pun di luar basis data.** Pengiriman email pemberitahuan, kalau ada, dilakukan setelah commit, dan modul 15 menunjukkan cara melakukannya tanpa kehilangan pesan.
+> 5. **Transaksi ini tidak memanggil apa pun di luar basis data.** Pengiriman email pemberitahuan, kalau ada, dilakukan setelah commit, dan modul 16 menunjukkan cara melakukannya tanpa kehilangan pesan.
 >
 > Alternatif `Serializable` juga benar dan lebih sederhana ditulis. Untuk perpustakaan, `FOR UPDATE` pada anggota dipilih karena pertengkarannya sempit, perilakunya mudah dijelaskan, dan tidak butuh klien yang siap menerima percobaan ulang.
 
@@ -544,9 +597,9 @@ Aturan "maksimal 3 pinjaman", "tidak boleh ada yang terlambat", dan "denda di ba
 
 Transaksi menjamin kebenaran penulisan, dan tiga hal tetap di luarnya.
 
-**Transaksi tidak melintasi sistem.** Menyimpan pesanan di basis data dan mengirim pesan ke layanan lain tidak bisa dijadikan satu transaksi. Pola yang menanganinya adalah outbox di modul 15, dan saga di modul 23.
+**Transaksi tidak melintasi sistem.** Menyimpan pesanan di basis data dan mengirim pesan ke layanan lain tidak bisa dijadikan satu transaksi. Pola yang menanganinya adalah outbox di modul 16, dan saga di modul 24.
 
-**Transaksi tidak membuat kueri cepat.** Kunci yang dipegang lebih lama karena kueri lambat memperbesar peluang pertengkaran, jadi performa dan konkurensi saling terkait. Itu modul 9.
+**Transaksi tidak membuat kueri cepat.** Kunci yang dipegang lebih lama karena kueri lambat memperbesar peluang pertengkaran, jadi performa dan konkurensi saling terkait. Itu modul 10.
 
 **Percobaan ulang butuh idempotensi.** Mengulang transaksi yang sudah sempat mengirim email berarti email terkirim dua kali. Setiap operasi yang dibungkus percobaan ulang harus aman dijalankan ulang.
 

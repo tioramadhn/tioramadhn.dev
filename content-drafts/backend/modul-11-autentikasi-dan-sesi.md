@@ -1,8 +1,8 @@
 ---
-title: 'Modul 10: Autentikasi dan Sesi'
+title: 'Modul 11: Autentikasi dan Sesi'
 description: Menyimpan sandi supaya tetap aman meski basis data bocor, sesi yang benar-benar bisa dicabut, rotasi refresh token, dan kenapa pesan error login harus sengaja dibuat tidak informatif.
-date: 2026-12-13
-slug: modul-10-autentikasi-dan-sesi
+date: 2026-12-15
+slug: modul-11-autentikasi-dan-sesi
 tags: tutorial backend
 series: Tutorial Backend
 status: draft
@@ -57,6 +57,7 @@ Asumsikan basis data Anda akan bocor suatu hari. Seluruh desain penyimpanan sand
 | **Argon2id** | **Pilihan utama** | Lambat secara sengaja, dan mahal di memori sehingga GPU tidak banyak menolong |
 
 ```ts
+// src/fitur/auth/sandi.ts
 import { hash, verify } from '@node-rs/argon2';
 
 // Parameter ini menentukan biaya serangan. Sesuaikan supaya satu kali
@@ -143,6 +144,7 @@ Tiga keputusan di skema itu:
 ## Alur login dan rotasi
 
 ```ts
+// src/fitur/auth/layanan.ts
 export async function masuk(email: string, sandi: string, ctx: KonteksPermintaan) {
   const pengguna = await repoPengguna.ambilDenganEmail(email.toLowerCase().trim());
 
@@ -188,6 +190,7 @@ async function buatSesiBaru(penggunaId: string, ctx: KonteksPermintaan) {
 Bagian yang paling menentukan keamanan adalah penyegaran token, dengan **rotasi dan deteksi pemakaian ulang**:
 
 ```ts
+// src/fitur/auth/layanan.ts, lanjutan: rotasi refresh token
 export async function segarkan(refreshToken: string, ctx: KonteksPermintaan) {
   const hash = sha256(refreshToken);
 
@@ -254,6 +257,7 @@ Inilah bagian terpenting di seluruh modul: **kalau sebuah refresh token dipakai 
 Untuk klien web, cookie mengundang CSRF, jadi pasangkan dengan `sameSite=lax` dan pemeriksaan `Origin` pada permintaan yang mengubah data. Untuk klien ponsel dan pihak ketiga, header `Authorization: Bearer` lebih tepat karena tidak dikirim otomatis peramban.
 
 ```ts
+// src/fitur/auth/rute.ts
 // Satu endpoint bisa melayani keduanya
 function ambilRefreshToken(req: FastifyRequest): string | null {
   return req.cookies.refresh_token ?? ambilDariBody(req) ?? null;
@@ -289,6 +293,7 @@ Untuk produk baru, menyediakannya sebagai pilihan bukan lagi hal eksotis. Dari s
 Alur yang terlihat sepele dan jadi sumber celah berulang:
 
 ```ts
+// src/fitur/auth/reset.ts
 export async function mintaResetSandi(email: string) {
   const pengguna = await repoPengguna.ambilDenganEmail(email.toLowerCase().trim());
 
@@ -369,6 +374,64 @@ Satu fitur yang murah dan sangat dihargai pengguna: **daftar sesi aktif** dengan
 
 Menulisnya sendiri di modul ini bukan rekomendasi untuk produksi, melainkan cara memahami apa yang dikerjakan pustaka itu. Saat Anda memakai Auth.js nanti dan membaca konfigurasi `rotateRefreshToken`, Anda akan tahu persis apa yang dijaganya.
 
+## Buktikan jalan
+
+Autentikasi adalah tempat kesalahan paling mahal, jadi buktikan empat perilakunya sebelum lanjut.
+
+```bash
+# 1. Login berhasil
+curl -s -X POST localhost:3000/v1/auth/masuk \
+  -H 'content-type: application/json' \
+  -d '{"email":"ada@contoh.id","sandi":"sandi-yang-benar"}' | jq
+```
+
+```json
+{
+  "accessToken": "eyJhbGciOi...",
+  "kedaluwarsaDalam": 900
+}
+```
+
+Refresh token tidak muncul di body, karena tempatnya di cookie `HttpOnly`. Periksa dengan `-i` dan cari baris `set-cookie`: harus ada `HttpOnly`, `Secure`, `SameSite=Strict`, dan `Path=/v1/auth`.
+
+```bash
+# 2. Email terdaftar dengan sandi salah
+curl -s -X POST localhost:3000/v1/auth/masuk -H 'content-type: application/json' \
+  -d '{"email":"ada@contoh.id","sandi":"salah"}' | jq
+
+# 3. Email yang tidak terdaftar sama sekali
+curl -s -X POST localhost:3000/v1/auth/masuk -H 'content-type: application/json' \
+  -d '{"email":"tidak-ada@contoh.id","sandi":"salah"}' | jq
+```
+
+Keduanya **harus menjawab persis sama**:
+
+```json
+{
+  "kode": "KREDENSIAL_SALAH",
+  "pesan": "Email atau sandi salah",
+  "requestId": "req-7"
+}
+```
+
+Lalu ukur waktunya, karena pesan yang sama saja belum cukup:
+
+```bash
+for e in ada@contoh.id tidak-ada@contoh.id; do
+  curl -s -o /dev/null -w "$e: %{time_total}s\n" -X POST localhost:3000/v1/auth/masuk \
+    -H 'content-type: application/json' -d "{\"email\":\"$e\",\"sandi\":\"salah\"}"
+done
+```
+
+Selisih keduanya harus di bawah beberapa milidetik. Kalau email yang tidak terdaftar menjawab jauh lebih cepat, berarti kode Anda keluar lebih awal tanpa sempat memverifikasi sandi, dan **selisih waktu itu memberi tahu penyerang email mana yang terdaftar**. Perbaikannya ada di bagian "Melindungi endpoint login".
+
+```bash
+# 4. Sandi tidak pernah tersimpan apa adanya
+docker compose exec -it db psql -U postgres -d auth -c "SELECT email, sandi_hash FROM pengguna LIMIT 1;"
+```
+
+Kolom `sandi_hash` harus diawali `$argon2id$`. Kalau Anda bisa membaca sandinya, berhenti sekarang dan ulangi bagian "Menyimpan sandi".
+
 ## Latihan
 
 ### Latihan 1: Bangun autentikasi penuh
@@ -404,7 +467,7 @@ Syaratnya: sandi dengan Argon2id, token sesi di-hash sebelum disimpan, dan pemak
 >
 > 2. **Ganti sandi harus menyisakan sesi yang sedang dipakai.** Mencabut semua sesi termasuk milik sendiri membuat pengguna langsung keluar setelah mengganti sandi, dan itu terasa seperti kesalahan. Cabut semua kecuali `sid` yang sedang aktif.
 > 3. **Verifikasi email jangan memblokir seluruh aplikasi.** Putuskan dengan sadar: pengguna yang belum verifikasi boleh masuk dan melihat katalog, tapi tidak boleh membuat pesanan. Memblokir total membuat pendaftaran terasa putus.
-> 4. **Email dikirim lewat antrean, bukan di dalam permintaan.** Pelajaran modul 2: pengiriman email bisa 3 detik dan bisa gagal. Untuk sekarang simpan ke tabel pekerjaan, dan modul 14 memprosesnya.
+> 4. **Email dikirim lewat antrean, bukan di dalam permintaan.** Pelajaran modul 2: pengiriman email bisa 3 detik dan bisa gagal. Untuk sekarang simpan ke tabel pekerjaan, dan modul 15 memprosesnya.
 > 5. **Hapus sesi kedaluwarsa secara berkala.** Tabel sesi yang tidak pernah dibersihkan akan tumbuh terus. Satu pekerjaan harian yang menghapus baris kedaluwarsa lebih dari 30 hari sudah cukup.
 
 ### Latihan 2: Audit desain yang hanya memakai JWT
@@ -412,6 +475,7 @@ Syaratnya: sandi dengan Argon2id, token sesi di-hash sebelum disimpan, dan pemak
 Sebuah tim merancang autentikasi seperti ini. Temukan enam masalahnya, lalu usulkan perbaikan yang tidak harus mengubah segalanya.
 
 ```ts
+// src/fitur/auth/rute.ts, batas laju per endpoint
 // Login
 const token = jwt.sign(
   { userId: user.id, email: user.email, role: user.role, isAdmin: user.isAdmin },
@@ -428,6 +492,9 @@ req.user = klaim;
 // Otorisasi di handler
 if (!req.user.isAdmin) throw new Error('forbidden');
 ```
+
+> [!petunjuk]
+> Tiga pertanyaan yang membuka sebagian besar masalahnya. Kalau seorang admin diturunkan jadi pengguna biasa pada pukul 10.00, kapan tepatnya token lamanya berhenti berlaku? Kalau sebuah token dicuri, apa yang bisa dilakukan tim untuk menghentikannya? Dan apa yang terjadi kalau penyerang mengubah `alg` di header JWT jadi `none`?
 
 > [!pembahasan]
 >
@@ -450,7 +517,7 @@ if (!req.user.isAdmin) throw new Error('forbidden');
 > | 2 | Keluarkan peran dari token, baca dari basis data atau cache saat memeriksa | Masalah 2 dan 7 selesai |
 > | 3 | Tambahkan `sid` dan pemeriksaan pencabutan di Redis | Logout jadi nyata |
 > | 4 | Tambahkan `aud`, `iss`, dan `kid` untuk rotasi kunci | Masalah 5 selesai |
-> | 5 | Ganti `isAdmin` dengan tabel peran dan izin | Masalah 6, dan ini modul 11 |
+> | 5 | Ganti `isAdmin` dengan tabel peran dan izin | Masalah 6, dan ini modul 12 |
 >
 > Perhatikan bahwa tahap 1 dan 2 bisa dikerjakan dalam satu rilis, dan selebihnya bisa menyusul. Pertanyaan "apakah kami harus menulis ulang autentikasi" hampir selalu dijawab tidak: yang perlu dilakukan adalah memperpendek umur token dan memindahkan keputusan otorisasi keluar dari token.
 

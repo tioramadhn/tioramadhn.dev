@@ -1,14 +1,14 @@
 ---
-title: 'Modul 22: Dari Monolit ke Beberapa Layanan'
+title: 'Modul 23: Dari Monolit ke Beberapa Layanan'
 description: Masalahnya bukan skala lalu lintas, melainkan koordinasi antar manusia yang muncul sebagai masalah kode. Batas modul yang ditegakkan, kapan memecah layanan menjawab masalahnya, dan harganya.
-date: 2026-12-28
-slug: modul-22-dari-monolit-ke-layanan
+date: 2026-12-30
+slug: modul-23-dari-monolit-ke-layanan
 tags: tutorial backend
 series: Tutorial Backend
 status: draft
 ---
 
-Lima keluhan dari akhir modul 21, dan satu kesamaan di antara semuanya:
+Lima keluhan dari akhir modul 22, dan satu kesamaan di antara semuanya:
 
 | Keluhan | Akar masalahnya |
 | --- | --- |
@@ -20,7 +20,7 @@ Lima keluhan dari akhir modul 21, dan satu kesamaan di antara semuanya:
 
 Tidak satu pun soal lalu lintas. Tidak satu pun diselesaikan dengan server yang lebih besar.
 
-Dan di situlah kesalahpahaman terbesar tentang microservice: ia dijual sebagai jawaban untuk skala, padahal masalah yang benar-benar diselesaikannya adalah **skala organisasi.** Layanan terpisah memberi satu hal yang tidak bisa diberikan monolit: tim bisa merilis tanpa menunggu tim lain.
+Dan di situlah kesalahpahaman terbesar tentang microservice: microservice dijual sebagai jawaban untuk skala, padahal masalah yang benar-benar diselesaikannya adalah **skala organisasi.** Layanan terpisah memberi satu hal yang tidak bisa diberikan monolit: tim bisa merilis tanpa menunggu tim lain.
 
 Harganya nyata, dan modul ini membahas keduanya: cara mendapat sebagian besar manfaatnya tanpa memecah apa pun, dan cara memecahnya kalau memang perlu.
 
@@ -162,8 +162,8 @@ Harga yang harus Anda hitung sebelum memulai:
 
 | Biaya | Wujudnya |
 | --- | --- |
-| Panggilan jaringan bisa gagal | Setiap pemanggilan fungsi yang jadi HTTP butuh batas waktu, percobaan ulang, pemutus arus (modul 19) |
-| Transaksi hilang | Dua layanan tidak bisa satu transaksi. Butuh saga (modul 23) |
+| Panggilan jaringan bisa gagal | Setiap pemanggilan fungsi yang jadi HTTP butuh batas waktu, percobaan ulang, pemutus arus (modul 20) |
+| Transaksi hilang | Dua layanan tidak bisa satu transaksi. Butuh saga (modul 24) |
 | Pengembangan lokal | Menjalankan lima layanan di laptop, atau menirukannya |
 | Pemecahan masalah | Satu permintaan melintasi empat layanan. Tanpa tracing, hampir mustahil |
 | Jalur rilis dikali jumlah layanan | Lima pipeline, lima set rahasia, lima dasbor |
@@ -209,7 +209,7 @@ Dan tiga pola batas yang biasanya salah:
 
 **Satu, batas berdasarkan lapisan teknis.** Layanan "basis data", layanan "API", dan layanan "logika bisnis" adalah monolit yang dipecah di tempat yang paling merugikan: setiap fitur butuh perubahan di ketiganya.
 
-**Dua, batas yang terlalu kecil.** Layanan yang isinya satu tabel dan tiga endpoint menambah seluruh biaya operasional tanpa memberi kemandirian apa pun, karena ia tidak pernah bisa berubah tanpa layanan lain ikut berubah.
+**Dua, batas yang terlalu kecil.** Layanan yang isinya satu tabel dan tiga endpoint menambah seluruh biaya operasional tanpa memberi kemandirian apa pun, karena layanan sekecil itu tidak pernah bisa berubah tanpa layanan lain ikut berubah.
 
 **Tiga, batas yang tidak sejalan dengan tim.** Layanan yang diubah tiga tim berbeda tidak memberi kemandirian rilis kepada siapa pun. Batas layanan sebaiknya mengikuti batas kepemilikan tim, dan itu pengamatan lama yang dikenal sebagai hukum Conway.
 
@@ -229,6 +229,7 @@ Tahap 6  Akses langsung monolit ke tabel itu dicabut
 Tahap 2 pantas dijelaskan: **ubah semua pemanggilan lintas modul jadi `async` sebelum memecah apa pun.** Fungsi sinkron yang nanti jadi panggilan jaringan akan memaksa perubahan di setiap pemanggil, dan melakukannya bersamaan dengan pemecahan berarti dua perubahan besar sekaligus.
 
 ```ts
+// Perbandingan bentuk sebelum dan sesudah pemisahan
 // Sebelum: pemanggilan langsung
 const produk = katalog.ambilProduk(id);
 
@@ -261,7 +262,7 @@ Enam tahap, dengan pemeriksaan selisih di antara tahap 3 dan 4: jalankan pekerja
 | --- | --- | --- |
 | **HTTP dengan JSON** | Pembacaan yang butuh jawaban segera | Paling sederhana, paling mudah didiagnosis |
 | **gRPC** | Pembacaan antar layanan internal dengan volume tinggi | Lebih cepat, bertipe, dan butuh perkakas tambahan |
-| **Peristiwa** | Memberi tahu bahwa sesuatu terjadi | Modul 15. Pilihan utama antar layanan |
+| **Peristiwa** | Memberi tahu bahwa sesuatu terjadi | Modul 16. Pilihan utama antar layanan |
 | **Basis data bersama** | **Jangan** | Dua layanan yang berbagi tabel bukan dua layanan |
 
 Baris terakhir adalah aturan yang paling sering dilanggar dan paling merugikan: begitu dua layanan menulis ke tabel yang sama, keduanya tidak bisa mengubah skema tanpa koordinasi, tidak bisa dirilis mandiri, dan tidak punya batas kepemilikan data. Yang Anda dapat: semua biaya microservice tanpa satu pun manfaatnya.
@@ -275,9 +276,10 @@ Pemanggil akan gagal kalau tujuan mati?             -> pertimbangkan ulang
 Bisa dikerjakan beberapa saat kemudian?             -> peristiwa
 ```
 
-Baris ketiga adalah pertanyaan paling penting: **setiap panggilan langsung antar layanan menambah satu titik kegagalan ke jalur permintaan Anda.** Layanan pesanan yang memanggil layanan katalog secara langsung akan gagal saat katalog gangguan. Dua jalan keluar: salin data yang dibutuhkan lewat peristiwa, atau sediakan jalan mundur dari modul 19.
+Baris ketiga adalah pertanyaan paling penting: **setiap panggilan langsung antar layanan menambah satu titik kegagalan ke jalur permintaan Anda.** Layanan pesanan yang memanggil layanan katalog secara langsung akan gagal saat katalog gangguan. Dua jalan keluar: salin data yang dibutuhkan lewat peristiwa, atau sediakan jalan mundur dari modul 20.
 
 ```ts
+// src/layanan-pesanan/salinan-katalog.ts
 // Layanan pesanan menyimpan salinan data katalog yang dibutuhkannya,
 // diperbarui lewat peristiwa. Pembuatan pesanan tidak lagi bergantung
 // pada ketersediaan layanan katalog.
@@ -317,6 +319,7 @@ Yang **tidak** boleh ada di gateway: logika bisnis. Gateway yang memutuskan apak
 Untuk klien yang butuh data dari beberapa layanan, pola yang lebih sehat adalah **BFF**, yaitu satu lapisan per jenis klien yang menggabungkan panggilan:
 
 ```ts
+// bff-mobile/src/rute/ringkasan.ts
 // bff-mobile: satu endpoint untuk satu layar, menggabungkan tiga layanan
 app.get('/mobile/beranda', async (req) => {
   const [profil, pesananTerakhir, promo] = await Promise.all([
@@ -329,7 +332,7 @@ app.get('/mobile/beranda', async (req) => {
 });
 ```
 
-`Promise.all` di situ penting: tiga panggilan berurutan berarti tiga kali latensi, dan itu pelajaran dari anggaran waktu di modul 19. Dan setiap panggilan tetap butuh batas waktu, pemutus arus, serta jalan mundur masing-masing.
+`Promise.all` di situ penting: tiga panggilan berurutan berarti tiga kali latensi, dan itu pelajaran dari anggaran waktu di modul 20. Dan setiap panggilan tetap butuh batas waktu, pemutus arus, serta jalan mundur masing-masing.
 
 ## Kontrak dan versi
 
@@ -341,11 +344,12 @@ Begitu dua layanan dirilis terpisah, bentuk data di antara keduanya jadi API pub
 | Klien bertipe dihasilkan dari kontrak | Bukan ditulis tangan |
 | Perubahan aditif saja | Menambah field aman, menghapus dan mengganti tipe tidak |
 | Uji kontrak di CI | Konsumen menguji terhadap kontrak penyedia |
-| Versi peristiwa | Nomor versi di muatan, seperti modul 15 |
+| Versi peristiwa | Nomor versi di muatan, seperti modul 16 |
 
 Uji kontrak adalah yang paling berharga dan paling sering tidak ada:
 
 ```ts
+// layanan-katalog/test/kontrak.test.ts
 // Di repositori layanan katalog: test yang memastikan kontraknya tidak rusak
 it('kontrak produk tetap kompatibel', async () => {
   const respons = await app.inject({ method: 'GET', url: '/internal/produk/uji-1' });
@@ -364,7 +368,7 @@ Tiga hal yang berubah drastis setelah pemecahan, dan pantas disiapkan sebelumnya
 
 **Satu, pengembangan lokal.** Menjalankan lima layanan beserta basis data dan broker di laptop butuh memori dan kesabaran. Tiga pilihan: Docker Compose untuk semuanya, tiruan untuk layanan yang tidak sedang dikerjakan, atau lingkungan pengembangan bersama di cloud. Yang kedua paling praktis, dan membutuhkan kontrak yang jelas.
 
-**Dua, pemecahan masalah.** Satu permintaan yang melintasi empat layanan hanya bisa ditelusuri dengan tracing dari modul 18. Tanpa itu, mencari penyebab satu permintaan lambat berarti membuka empat log terpisah dan mencocokkan waktu dengan tangan. **Tracing bukan pelengkap pada arsitektur layanan terpisah, melainkan syarat.**
+**Dua, pemecahan masalah.** Satu permintaan yang melintasi empat layanan hanya bisa ditelusuri dengan tracing dari modul 19. Tanpa itu, mencari penyebab satu permintaan lambat berarti membuka empat log terpisah dan mencocokkan waktu dengan tangan. **Tracing bukan pelengkap pada arsitektur layanan terpisah, melainkan syarat.**
 
 **Tiga, siapa yang dihubungi.** Dengan satu layanan, jawabannya jelas. Dengan lima, peringatan harus menyebut layanan dan tim pemiliknya, dan harus ada kesepakatan tentang siapa yang memimpin saat insidennya melintasi beberapa layanan.
 
@@ -406,17 +410,20 @@ Jalankan analisis penggandengan pada layanan Anda, lalu usulkan tiga sampai lima
 >
 > Dan dua temuan yang biasanya mengejutkan:
 >
-> **Satu, stok ternyata jadi pertanyaan terbuka.** Secara naluri stok milik katalog, dan yang menguranginya adalah pesanan, dalam transaksi yang sama dengan pembuatan pesanan. Kalau katalog dan pesanan jadi dua layanan, transaksi itu hilang, dan Anda butuh reservasi stok dengan saga dari modul 23.
+> **Satu, stok ternyata jadi pertanyaan terbuka.** Secara naluri stok milik katalog, dan yang menguranginya adalah pesanan, dalam transaksi yang sama dengan pembuatan pesanan. Kalau katalog dan pesanan jadi dua layanan, transaksi itu hilang, dan Anda butuh reservasi stok dengan saga dari modul 24.
 >
 > Tiga pilihan, dan semuanya punya harga: stok tetap milik katalog dengan reservasi dua tahap, stok dipindahkan jadi milik pesanan, atau katalog dan pesanan tetap satu layanan. Untuk sebagian besar toko, pilihan ketiga yang paling masuk akal, dan itu temuan yang layak: **batas yang terlihat jelas di papan tulis sering tidak tahan saat transaksi diperiksa.**
 >
 > **Dua, analisis commit menunjukkan katalog dan pesanan berubah bersamaan di 40% commit.** Itu angka yang terlalu tinggi untuk dua layanan terpisah, dan menguatkan kesimpulan di atas.
 >
-> Satu batas yang hampir selalu benar untuk dipisahkan lebih dulu: **identitas.** Ia punya data yang jelas miliknya sendiri, hampir tidak pernah berubah bersama modul lain, punya kebutuhan kepatuhan tersendiri, dan sering jadi kebutuhan beberapa produk sekaligus.
+> Satu batas yang hampir selalu benar untuk dipisahkan lebih dulu: **identitas.** Identitas punya data yang jelas miliknya sendiri, hampir tidak pernah berubah bersama modul lain, punya kebutuhan kepatuhan tersendiri, dan sering jadi kebutuhan beberapa produk sekaligus.
 
 ### Latihan 2: Tegakkan batas modul dengan mesin
 
 Susun layanan Anda jadi monolit modular dengan batas yang ditegakkan, bukan diimbau. Lalu buktikan: tulis kode yang melanggar batas, dan pastikan CI menolaknya.
+
+> [!petunjuk]
+> Ada tiga tingkat penegakan, dan sebaiknya Anda memasang lebih dari satu. Yang paling mudah dipasang adalah aturan linter terhadap jalur impor. Yang paling kuat tidak melibatkan TypeScript sama sekali, dan bekerja saat program berjalan, bukan saat lint: pikirkan apa yang bisa dilakukan basis data untuk mencegah satu modul membaca tabel milik modul lain.
 
 > [!pembahasan]
 >
@@ -452,7 +459,7 @@ Susun layanan Anda jadi monolit modular dengan batas yang ditegakkan, bukan diim
 > ];
 > ```
 >
-> **Dua, izin basis data per modul.** Ini penegakan terkuat, karena ia berlaku saat program berjalan, bukan saat lint.
+> **Dua, izin basis data per modul.** Ini penegakan terkuat, karena berlaku saat program berjalan, bukan saat lint.
 >
 > ```sql
 > -- Modul pesanan tidak bisa menulis ke tabel katalog, apa pun yang ditulis kodenya

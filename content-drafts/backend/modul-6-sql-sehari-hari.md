@@ -1,7 +1,7 @@
 ---
 title: 'Modul 6: SQL yang Dipakai Sehari-hari'
-description: Satu pernyataan yang dijalankan di tempat datanya berada mengalahkan seribu baris pengolahan di aplikasi. Join, agregasi, CTE, window function, upsert, dan jebakan NULL.
-date: 2026-12-08
+description: Satu pernyataan yang dijalankan di tempat datanya berada mengalahkan seribu baris pengolahan di aplikasi. Select, join, agregasi, penulisan bersyarat, dan jebakan NULL yang memberi jawaban salah tanpa error.
+date: 2026-12-09
 slug: modul-6-sql-sehari-hari
 tags: tutorial backend
 series: Tutorial Backend
@@ -19,9 +19,23 @@ Empat pertanyaan dari pengelola perpustakaan di akhir modul 5 punya dua kemungki
 | Total denda bulan ini | Ambil 80.000 baris, jumlahkan | Satu baris hasil |
 | Sepuluh peminjam teraktif | Ambil semua, kelompokkan, urutkan | Satu kueri dengan `LIMIT 10` |
 | Buku yang belum pernah dipinjam | Ambil dua tabel, bandingkan | Satu `LEFT JOIN` |
-| Peringkat per kategori | Hampir mustahil ditulis rapi | Satu window function |
+| Stok berkurang hanya kalau masih ada | Baca, periksa, tulis, dan ada celah di antaranya | Satu `UPDATE ... WHERE` |
 
-SQL bukan bahasa tambahan yang bisa ditunda sampai nanti. Untuk backend, ia bagian dari pekerjaan sehari-hari, dan kemampuan menulisnya membedakan layanan yang tetap cepat pada data besar dari layanan yang perlu ditulis ulang tiap tahun.
+SQL bukan bahasa tambahan yang bisa ditunda sampai nanti. Untuk backend, SQL adalah bagian dari pekerjaan sehari-hari, dan kemampuan menulisnya membedakan layanan yang tetap cepat pada data besar dari layanan yang perlu ditulis ulang tiap tahun.
+
+Modul ini membahas bagian SQL yang Anda pakai hampir setiap hari, dan berhenti di situ dengan sengaja. Pertanyaan analitik yang lebih berat, misalnya peringkat per kategori dan pertumbuhan dibanding bulan lalu, punya alat sendiri yang dibahas di modul 7.
+
+## Yang harus sudah siap
+
+Modul 5 meninggalkan satu basis data `perpustakaan` yang berjalan di Docker, berisi tabel `buku`, `salinan`, `anggota`, `peminjaman`, `kategori`, dan `buku_kategori`. Semua kueri di modul ini dijalankan di sana.
+
+```bash
+# Dari folder proyek Anda
+docker compose up -d
+docker compose exec -it db psql -U postgres -d perpustakaan
+```
+
+Kalau yang muncul adalah `perpustakaan=#`, Anda siap. Ketik `\dt` untuk melihat daftar tabel, dan `\q` untuk keluar.
 
 ## Analogi: dua cara meminta data ke petugas arsip
 
@@ -31,7 +45,7 @@ Analogi kantor dari modul 1 masih dipakai, sekarang untuk gudang arsipnya.
 
 **Cara kedua:** Anda menuliskan permintaan, misalnya "semua peminjaman bulan ini yang terlambat, dikelompokkan per kategori, urutkan dari terbanyak". Petugas tahu letak rak dan punya kartu indeks, lalu kembali membawa satu lembar ringkasan.
 
-Satu sifat SQL yang perlu dipahami sejak awal: Anda menyatakan **apa** yang diinginkan, bukan **bagaimana** mengambilnya. Yang memutuskan caranya adalah perencana kueri di dalam Postgres, dan ia bisa memilih jalan berbeda untuk pernyataan yang sama tergantung ukuran data dan indeks yang tersedia. Modul 9 membahas cara membaca keputusannya.
+Satu sifat SQL yang perlu dipahami sejak awal: Anda menyatakan **apa** yang diinginkan, bukan **bagaimana** mengambilnya. Yang memutuskan caranya adalah perencana kueri di dalam Postgres, dan perencana itu bisa memilih jalan berbeda untuk pernyataan yang sama tergantung ukuran data dan indeks yang tersedia. Modul 10 membahas cara membaca keputusannya.
 
 | Dunia arsip | Dunia SQL |
 | --- | --- |
@@ -40,7 +54,7 @@ Satu sifat SQL yang perlu dipahami sejak awal: Anda menyatakan **apa** yang diin
 | Kartu indeks di tepi rak | Indeks |
 | Menggabungkan dua buku induk | `JOIN` |
 | Rekap per kecamatan | `GROUP BY` |
-| Peringkat di dalam tiap kecamatan | Window function |
+| Mencoret satu baris hanya kalau stoknya masih ada | `UPDATE ... WHERE` |
 
 Batas analoginya: petugas manusia mengerti maksud Anda meski permintaannya kurang jelas, sedangkan basis data menjalankan tepat seperti yang tertulis. Kueri yang salah tidak protes, hanya memberi jawaban yang salah dengan percaya diri, dan jebakan `NULL` di akhir modul ini contoh terbaiknya.
 
@@ -58,11 +72,12 @@ LIMIT 20;
 
 Tiga kebiasaan yang membedakan kueri yang layak produksi:
 
-**`SELECT *` tidak dipakai di kode aplikasi.** Ia mengirim kolom yang tidak dibutuhkan, memecah kode saat ada kolom baru ditambahkan, dan menghalangi pengoptimalan di mana indeks saja sudah cukup untuk menjawab kueri. Untuk eksplorasi di `psql`, silakan.
+**`SELECT *` tidak dipakai di kode aplikasi.** Bentuk itu mengirim kolom yang tidak dibutuhkan, memecah kode saat ada kolom baru ditambahkan, dan menghalangi pengoptimalan di mana indeks saja sudah cukup untuk menjawab kueri. Untuk eksplorasi di `psql`, silakan.
 
 **`LIMIT` tanpa `ORDER BY` tidak menjamin apa pun.** Tanpa urutan, Postgres bebas mengembalikan baris mana pun, dan hasilnya bisa berbeda antar pemanggilan. Ini sumber bug pagination yang paling sering.
 
-**Nilai selalu lewat parameter, tidak pernah disambung.** Alasannya injeksi SQL, dan modul 7 menunjukkan bentuknya di kode Node.
+**Nilai selalu lewat parameter, tidak pernah disambung.** Alasannya injeksi SQL, dan modul 8 menunjukkan bentuknya di kode Node.
+
 
 ## Join: menggabungkan tabel
 
@@ -112,6 +127,7 @@ LEFT JOIN peminjaman p ON p.buku_id = b.id AND p.status = 'berjalan';
 
 Patokannya: syarat tentang **pasangan** tempatnya di `ON`, syarat tentang **baris kiri** tempatnya di `WHERE`.
 
+
 ## Agregasi
 
 ```sql
@@ -141,85 +157,6 @@ Empat hal yang perlu dikuasai tentang agregasi:
 
 **Agregat mengabaikan `NULL`.** `avg` atas sepuluh baris yang tiga di antaranya `NULL` membagi dengan tujuh, bukan sepuluh. Kadang itu yang Anda inginkan, kadang bukan, dan `coalesce` menentukannya.
 
-## CTE: memecah kueri panjang
-
-```sql
--- Sepuluh peminjam teraktif tahun ini beserta persentase keterlambatannya
-WITH pinjaman_tahun_ini AS (
-  SELECT anggota_id,
-         count(*) AS total,
-         count(*) FILTER (
-           WHERE dikembalikan_pada::date > jatuh_tempo
-         ) AS telat
-  FROM peminjaman
-  WHERE dipinjam_pada >= date_trunc('year', now())
-  GROUP BY anggota_id
-)
-SELECT a.nama,
-       t.total,
-       t.telat,
-       round(100.0 * t.telat / t.total, 1) AS persen_telat
-FROM pinjaman_tahun_ini t
-JOIN anggota a ON a.id = t.anggota_id
-ORDER BY t.total DESC
-LIMIT 10;
-```
-
-`count(*) FILTER (WHERE ...)` layak dihafal: ia menghitung dua hal berbeda dari satu kali pembacaan tabel. Alternatifnya dua kueri terpisah, atau `sum(CASE WHEN ... THEN 1 ELSE 0 END)` yang lebih panjang.
-
-CTE membuat kueri panjang bisa dibaca dari atas ke bawah, dan dua hal perlu diketahui: di Postgres modern, CTE biasa bisa digabung oleh perencana kueri sehingga performanya setara subquery, dan `MATERIALIZED` memaksanya dihitung sekali kalau memang itu yang Anda mau. Yang perlu dihindari hanya CTE rekursif yang tidak sengaja tak berujung.
-
-## Window function
-
-Inilah kemampuan yang paling sering tidak dikenal dan paling sering dibutuhkan: menghitung sesuatu **per baris** dengan melihat baris lain, tanpa menggabungkan barisnya.
-
-```sql
--- Tiga buku terpopuler di setiap kategori
-WITH hitungan AS (
-  SELECT k.nama AS kategori,
-         b.judul,
-         count(p.id) AS jumlah,
-         row_number() OVER (
-           PARTITION BY k.nama
-           ORDER BY count(p.id) DESC, b.judul
-         ) AS peringkat
-  FROM buku b
-  JOIN buku_kategori bk ON bk.buku_id = b.id
-  JOIN kategori k       ON k.id = bk.kategori_id
-  LEFT JOIN salinan s    ON s.buku_id = b.id
-  LEFT JOIN peminjaman p ON p.salinan_id = s.id
-  GROUP BY k.nama, b.id, b.judul
-)
-SELECT kategori, judul, jumlah
-FROM hitungan
-WHERE peringkat <= 3
-ORDER BY kategori, peringkat;
-```
-
-Empat fungsi yang menutup sebagian besar kebutuhan:
-
-| Fungsi | Gunanya |
-| --- | --- |
-| `row_number()` | Peringkat tanpa seri, untuk "ambil N teratas per kelompok" |
-| `rank()` dan `dense_rank()` | Peringkat yang mengizinkan nilai seri |
-| `lag()` dan `lead()` | Membandingkan dengan baris sebelumnya atau sesudahnya |
-| `sum(...) OVER (ORDER BY ...)` | Total berjalan, untuk grafik kumulatif |
-
-```sql
--- Pertumbuhan peminjaman per bulan dibanding bulan sebelumnya
-SELECT bulan,
-       jumlah,
-       lag(jumlah) OVER (ORDER BY bulan) AS bulan_lalu,
-       jumlah - lag(jumlah) OVER (ORDER BY bulan) AS selisih
-FROM (
-  SELECT date_trunc('month', dipinjam_pada) AS bulan, count(*) AS jumlah
-  FROM peminjaman
-  GROUP BY 1
-) t
-ORDER BY bulan;
-```
-
-Pertanyaan "berapa pertumbuhannya dibanding bulan lalu" adalah permintaan rutin dari pemilik produk, dan dengan `lag()` jawabannya satu baris tambahan. Dikerjakan di aplikasi, itu berarti mengambil semua bulan lalu menelusurinya dengan indeks array.
 
 ## Menulis data
 
@@ -245,14 +182,14 @@ ON CONFLICT (kunci) DO NOTHING
 RETURNING kunci;
 
 -- UPDATE bersyarat: pengurangan yang aman dari konkurensi.
--- Baris terpengaruh 0 berarti stok tidak cukup. Modul 8 membahasnya.
+-- Baris terpengaruh 0 berarti stok tidak cukup. Modul 9 membahasnya.
 UPDATE produk
 SET stok = stok - $2
 WHERE id = $1 AND stok >= $2
 RETURNING stok;
 ```
 
-Empat pola di atas pantas dihafal. `ON CONFLICT DO NOTHING ... RETURNING` adalah penulisan bersyarat atomik yang dibutuhkan di Latihan 2 modul 4, dan `UPDATE ... WHERE stok >= $2` adalah bentuk paling sederhana dari pencegahan konkurensi yang akan dibahas tuntas di modul 8.
+Empat pola di atas pantas dihafal. `ON CONFLICT DO NOTHING ... RETURNING` adalah penulisan bersyarat atomik yang dibutuhkan di Latihan 2 modul 4, dan `UPDATE ... WHERE stok >= $2` adalah bentuk paling sederhana dari pencegahan konkurensi yang akan dibahas tuntas di modul 9.
 
 Satu bentuk lagi yang menghemat banyak perjalanan jaringan: menyisipkan banyak baris sekaligus.
 
@@ -263,6 +200,7 @@ SELECT (x->>'id')::uuid, $1, (x->>'produk_id')::uuid,
        x->>'nama', (x->>'harga')::bigint, (x->>'jumlah')::int
 FROM jsonb_array_elements($2::jsonb) AS x;
 ```
+
 
 ## Jebakan `NULL`
 
@@ -307,34 +245,59 @@ WHERE dipinjam_pada >= date_trunc('day', now() AT TIME ZONE 'Asia/Jakarta')
 
 Laporan "transaksi hari ini" yang memakai batas UTC akan memasukkan transaksi dari pukul 07.00 kemarin sampai 06.59 hari ini untuk Jakarta. Selisih tujuh jam yang membuat angka laporan tidak pernah cocok dengan hitungan manual kasir.
 
-## Pencarian teks
-
-```sql
--- Cukup untuk pencarian sederhana, dan bisa pakai indeks dengan pg_trgm
-SELECT id, judul FROM buku WHERE judul ILIKE '%bumi manusia%';
-
--- Pencarian teks penuh: mengerti kata, bukan hanya potongan huruf
-ALTER TABLE buku ADD COLUMN cari tsvector
-  GENERATED ALWAYS AS (
-    to_tsvector('indonesian', coalesce(judul,'') || ' ' || coalesce(penulis,''))
-  ) STORED;
-
-CREATE INDEX buku_cari_idx ON buku USING gin (cari);
-
-SELECT id, judul, ts_rank(cari, q) AS skor
-FROM buku, websearch_to_tsquery('indonesian', 'bumi manusia') q
-WHERE cari @@ q
-ORDER BY skor DESC
-LIMIT 20;
-```
-
-Kolom tergenerasi di situ memastikan isi indeks pencarian **tidak mungkin** menyimpang dari judul dan penulisnya, karena basis data yang menghitungnya. Ini penerapan langsung dari pelajaran modul 5 tentang nilai turunan.
-
-Patokan memilih: `ILIKE` untuk pencarian sederhana pada tabel kecil, teks penuh untuk pencarian di kolom panjang dengan peringkat relevansi, dan layanan pencarian terpisah hanya kalau Anda butuh fitur yang memang tidak ada di Postgres.
-
 ## Latihan
 
-### Latihan 1: Jawab empat pertanyaan pengelola
+### Latihan 1: Ramalkan dulu, jalankan kemudian
+
+Latihan paling murah dan paling sering dilewati. Untuk tujuh pernyataan berikut, **tulis dugaan Anda di kertas atau komentar sebelum menjalankannya**, lalu jalankan di `psql` dan bandingkan. Yang dicari bukan nilai benarnya, melainkan tempat dugaan Anda meleset.
+
+```sql
+-- 1
+SELECT count(*) FROM buku;
+
+-- 2
+SELECT count(*) FROM buku WHERE tahun IS NULL;
+
+-- 3
+SELECT 'Halo ' || NULL;
+
+-- 4
+SELECT NULL = NULL;
+
+-- 5
+SELECT count(*) FROM peminjaman p JOIN anggota a ON a.id = p.anggota_id;
+
+-- 6
+SELECT count(*) FROM peminjaman p LEFT JOIN anggota a ON a.id = p.anggota_id;
+
+-- 7
+SELECT judul FROM buku LIMIT 3;
+-- lalu jalankan persis pernyataan yang sama sekali lagi
+```
+
+> [!petunjuk]
+> Untuk nomor 3 dan 4, ingat bahwa `NULL` tidak berarti "kosong", melainkan "tidak diketahui". Apa hasil penjumlahan sesuatu dengan nilai yang tidak diketahui? Untuk nomor 7, pertanyaannya bukan "apa isinya" melainkan "apakah urutannya dijamin sama".
+
+> [!jawaban]
+>
+> | # | Hasil | Yang dipelajari |
+> | --- | --- | --- |
+> | 1 | Jumlah seluruh baris | `count(*)` menghitung baris, titik |
+> | 2 | Jumlah buku yang tahunnya belum diisi | `IS NULL`, bukan `= NULL` |
+> | 3 | `NULL`, bukan `'Halo '` | Apa pun yang digabung dengan sesuatu yang tidak diketahui jadi tidak diketahui |
+> | 4 | `NULL`, bukan `true` | Dua hal yang sama-sama tidak diketahui tidak bisa dinyatakan sama |
+> | 5 dan 6 | Angkanya sama | `anggota_id` punya foreign key dan `NOT NULL`, jadi setiap peminjaman pasti punya pasangan. `LEFT JOIN` tidak menambah apa pun di sini |
+> | 7 | Boleh berbeda antar pemanggilan | `LIMIT` tanpa `ORDER BY` tidak menjamin urutan apa pun |
+>
+> Tiga hal yang pantas menempel dari latihan sekecil ini:
+>
+> **Nomor 3 dan 4 adalah akar dari hampir semua kesalahan `NULL`.** Bagian "Jebakan `NULL`" di modul ini hanya memperluas dua baris itu. Kalau keduanya sudah masuk akal, sisanya tinggal penerapan.
+>
+> **Nomor 5 dan 6 menunjukkan bahwa `LEFT JOIN` bukan selalu lebih aman.** Pada relasi yang dijamin `NOT NULL` dan foreign key dari modul 5, hasilnya identik, dan memakai `LEFT JOIN` di situ hanya menyamarkan maksud Anda. Pakai `LEFT JOIN` saat Anda memang ingin baris tanpa pasangan ikut muncul.
+>
+> **Nomor 7 adalah bug pagination yang paling sering.** Postgres tidak berjanji apa-apa soal urutan sampai Anda memintanya. Pada tabel kecil hasilnya sering kebetulan stabil, dan itu justru yang berbahaya: bugnya baru muncul setelah data bertambah atau setelah ada `UPDATE`.
+
+### Latihan 2: Jawab empat pertanyaan pengelola
 
 Tulis kueri untuk empat pertanyaan dari akhir modul 5, pakai basis data perpustakaan Anda.
 
@@ -382,7 +345,8 @@ Tulis kueri untuk empat pertanyaan dari akhir modul 5, pakai basis data perpusta
 > 4. **Pengurangan dua `date` menghasilkan jumlah hari sebagai bilangan bulat.** Ini lebih aman daripada mengurangi dua `timestamptz` yang menghasilkan interval.
 > 5. **Keempat kueri ini masing-masing satu perjalanan jaringan**, dan hasilnya puluhan baris, bukan puluhan ribu. Bandingkan dengan versi aplikasi yang harus mengambil seluruh tabel.
 
-### Latihan 2: Perbaiki kueri yang salah
+
+### Latihan 3: Perbaiki kueri yang salah
 
 Lima kueri ini berjalan tanpa error dan memberi hasil yang salah. Jelaskan dan perbaiki.
 
@@ -411,6 +375,9 @@ WHERE dipinjam_pada >= now() - interval '7 days'
 GROUP BY 1 ORDER BY 1;
 ```
 
+> [!petunjuk]
+> Tidak satu pun dari kelimanya menghasilkan error, jadi cara menemukannya bukan dengan menjalankannya, melainkan dengan bertanya: baris apa yang **seharusnya** muncul dan ternyata hilang? Untuk A, bayangkan anggota yang belum pernah meminjam. Untuk B, bayangkan satu baris yang kolomnya `NULL`. Untuk D, perhatikan bahwa dua angka di satu baris itu dihitung dari himpunan yang berbeda. Dan untuk C dan E, pikirkan pembaca yang ada di Jakarta.
+
 > [!jawaban]
 >
 > **A: `LEFT JOIN` yang berubah jadi inner join.** Syarat `p.status` di `WHERE` membuang anggota yang tidak punya peminjaman berjalan, padahal maksudnya menampilkan semua anggota beserta angka nol. Pindahkan syaratnya ke `ON`. Masalah kedua: `GROUP BY a.nama` menyatukan anggota bernama sama, jadi pakai `a.id, a.nama`.
@@ -425,56 +392,6 @@ GROUP BY 1 ORDER BY 1;
 >
 > Pola yang menghubungkan kelimanya: **tidak satu pun menghasilkan error.** SQL yang salah memberi jawaban dengan percaya diri, dan satu-satunya pertahanan adalah memeriksa hasilnya terhadap data yang Anda tahu jawabannya.
 
-### Latihan 3: Laporan untuk dasbor
-
-Buat satu kueri yang menghasilkan data untuk dasbor pengelola: per bulan selama 12 bulan terakhir, tampilkan jumlah peminjaman, jumlah yang terlambat, persentase keterlambatan, total denda, dan pertumbuhan jumlah peminjaman dibanding bulan sebelumnya. Bulan tanpa peminjaman harus tetap muncul dengan nilai nol.
-
-> [!pembahasan]
->
-> ```sql
-> WITH bulan AS (
->   -- Rangka 12 bulan, supaya bulan kosong tetap ada barisnya
->   SELECT generate_series(
->     date_trunc('month', now() AT TIME ZONE 'Asia/Jakarta') - interval '11 months',
->     date_trunc('month', now() AT TIME ZONE 'Asia/Jakarta'),
->     interval '1 month'
->   ) AS bulan
-> ),
-> rekap AS (
->   SELECT date_trunc('month', p.dipinjam_pada AT TIME ZONE 'Asia/Jakarta') AS bulan,
->          count(*) AS total,
->          count(*) FILTER (
->            WHERE p.dikembalikan_pada IS NOT NULL
->              AND p.dikembalikan_pada::date > p.jatuh_tempo
->          ) AS telat,
->          coalesce(sum(p.denda_rp), 0) AS denda
->   FROM peminjaman p
->   WHERE p.dipinjam_pada >= date_trunc('month', now()) - interval '11 months'
->   GROUP BY 1
-> )
-> SELECT to_char(b.bulan, 'YYYY-MM')              AS bulan,
->        coalesce(r.total, 0)                     AS total,
->        coalesce(r.telat, 0)                     AS telat,
->        CASE WHEN coalesce(r.total, 0) = 0 THEN 0
->             ELSE round(100.0 * r.telat / r.total, 1)
->        END                                      AS persen_telat,
->        coalesce(r.denda, 0)                     AS total_denda_rp,
->        coalesce(r.total, 0) - lag(coalesce(r.total, 0)) OVER (ORDER BY b.bulan)
->                                                 AS pertumbuhan
-> FROM bulan b
-> LEFT JOIN rekap r ON r.bulan = b.bulan
-> ORDER BY b.bulan;
-> ```
->
-> Lima teknik di dalamnya yang akan terus Anda pakai:
->
-> 1. **`generate_series` sebagai rangka waktu.** Tanpa ini, bulan tanpa data hilang dari hasil, dan grafik di frontend melompat dari Februari ke April tanpa penjelasan. Menambal di aplikasi dengan mengisi bulan yang hilang adalah pekerjaan yang tidak perlu.
-> 2. **`count(*) FILTER` menghitung dua angka dari satu kali pembacaan.**
-> 3. **Pembagian dilindungi `CASE`.** Tanpa itu, bulan kosong menghasilkan pembagian dengan nol. Di Postgres itu error, bukan `NaN`, dan seluruh laporan gagal.
-> 4. **`coalesce` di dalam `lag`** supaya pertumbuhan dari bulan kosong terhitung sebagai nol, bukan `NULL`.
-> 5. **Zona waktu ditetapkan satu kali dan konsisten** di rangka maupun di rekap. Kalau berbeda, bulan di kedua sisi tidak akan berpasangan dan hasilnya kosong tanpa petunjuk kenapa.
->
-> Satu catatan untuk nanti: kueri ini membaca seluruh peminjaman 12 bulan setiap kali dasbor dibuka. Pada data besar, jawabannya bukan kueri yang lebih pintar, melainkan tabel ringkasan yang dihitung berkala. Itu modul 14, dan keputusan kapan beralih dibahas di modul 9.
 
 ### Latihan 4: Satu kueri untuk setiap operasi tulis
 
@@ -500,7 +417,7 @@ Tulis SQL untuk enam operasi tulis di Proyek 1, masing-masing sebagai **satu per
 >
 > -- 2. Pilih satu salinan tersedia dan kunci barisnya dalam satu pernyataan.
 > -- SKIP LOCKED membuat permintaan bersamaan mengambil salinan berbeda,
-> -- bukan saling menunggu. Modul 8 membahasnya.
+> -- bukan saling menunggu. Modul 9 membahasnya.
 > INSERT INTO peminjaman (id, anggota_id, salinan_id, buku_id, status, jatuh_tempo)
 > SELECT $1, $2, s.id, s.buku_id, 'berjalan', (now() + interval '14 days')::date
 > FROM salinan s
@@ -566,11 +483,13 @@ Tulis SQL untuk enam operasi tulis di Proyek 1, masing-masing sebagai **satu per
 
 ## Batasnya
 
-SQL menyelesaikan pertanyaan dan penulisan, dan tiga hal berada di luarnya.
+SQL dasar menyelesaikan sebagian besar pertanyaan harian, dan empat hal berada di luarnya.
 
-**Kueri yang benar belum tentu cepat.** Semua kueri di modul ini bisa memakan beberapa detik pada data besar tanpa indeks yang tepat. Itu modul 9.
+**Pertanyaan analitik butuh alat yang belum dibahas.** "Tiga buku terpopuler di setiap kategori" dan "pertumbuhan dibanding bulan lalu" tidak bisa ditulis rapi hanya dengan `GROUP BY`. Itu modul 7.
 
-**Satu pernyataan tidak cukup untuk operasi yang menyentuh beberapa tabel.** Mengurangi saldo di satu tabel dan menambahnya di tabel lain butuh keduanya berhasil atau keduanya gagal. Itu modul 8.
+**Kueri yang benar belum tentu cepat.** Semua kueri di modul ini bisa memakan beberapa detik pada data besar tanpa indeks yang tepat. Itu modul 10.
+
+**Satu pernyataan tidak cukup untuk operasi yang menyentuh beberapa tabel.** Mengurangi saldo di satu tabel dan menambahnya di tabel lain butuh keduanya berhasil atau keduanya gagal. Itu modul 9.
 
 **Anda masih menjalankannya dari `psql`.** Cara memanggilnya dari Node, mengelola sambungan, dan memetakan hasilnya ke tipe TypeScript belum dibahas, dan di situ ada beberapa kesalahan yang mahal.
 
@@ -579,19 +498,24 @@ SQL menyelesaikan pertanyaan dan penulisan, dan tiga hal berada di luarnya.
 - Kerjakan di tempat datanya berada. Mengangkut delapan puluh ribu baris ke aplikasi untuk mengambil lima adalah pemborosan jaringan, memori, dan event loop.
 - `SELECT *` tidak dipakai di kode aplikasi, dan `LIMIT` tanpa `ORDER BY` yang unik tidak menjamin apa pun.
 - Syarat tentang pasangan tempatnya di `ON`, syarat tentang baris kiri di `WHERE`. Salah tempat pada `LEFT JOIN` membuangnya jadi inner join.
-- `count(*) FILTER (WHERE ...)` menghitung beberapa angka dari satu kali pembacaan tabel.
-- Window function menjawab "peringkat per kelompok" dan "dibanding periode sebelumnya", dua permintaan paling sering dari pemilik produk.
+- `WHERE` menyaring sebelum pengelompokan, `HAVING` menyaring kelompok sesudahnya.
+- `count(*)` menghitung baris, `count(kolom)` hanya yang bukan `NULL`, dan semua agregat mengabaikan `NULL`.
 - `ON CONFLICT DO NOTHING ... RETURNING` adalah penulisan bersyarat atomik, dan `UPDATE ... WHERE syarat` adalah bentuk paling sederhana dari pencegahan konkurensi.
-- `NULL` berarti tidak diketahui: `NOT IN` dengan `NULL` selalu kosong, penggabungan teks jadi `NULL`, dan agregat mengabaikannya.
-- Batas hari dan bulan wajib menyebut zona waktu, atau laporan Anda tidak akan pernah cocok dengan hitungan manual.
+- `NULL` berarti tidak diketahui: `NOT IN` dengan `NULL` selalu kosong, penggabungan teks jadi `NULL`, dan `= NULL` tidak pernah benar.
+- Batas hari dan bulan wajib menyebut zona waktu, atau laporan Anda tidak akan pernah cocok dengan hitungan manual kasir.
 - Pindahkan syarat ke dalam `WHERE` dan periksa jumlah baris terpengaruh, daripada memeriksa dulu lalu menulis.
 
 ## Masalah terbuka
 
-Kueri Anda sudah benar, dan masih dijalankan dari terminal. Memanggilnya dari Node memunculkan pertanyaan baru yang punya jawaban salah yang populer.
+Pengelola perpustakaan membaca laporan Anda, lalu datang dengan empat permintaan baru yang terdengar sama sederhananya dengan yang tadi:
 
-Membuka sambungan baru untuk setiap permintaan terlihat paling sederhana, dan akan menghabiskan batas sambungan Postgres pada lalu lintas sedang. Menyambung string ke dalam SQL terlihat paling mudah, dan itu injeksi SQL. Memakai ORM yang mengurus semuanya terlihat paling nyaman, sampai satu endpoint daftar memicu seratus satu kueri tanpa ada yang menyadarinya sampai produksi melambat.
+1. "Tampilkan **tiga buku terpopuler di setiap kategori**." Bukan tiga terpopuler keseluruhan, melainkan tiga teratas di dalam setiap kategori sekaligus.
+2. "Berapa **pertumbuhan peminjaman bulan ini dibanding bulan lalu**, untuk dua belas bulan terakhir?"
+3. "Grafik saya melompat dari Februari ke April. Bulan Maret memang nol, dan saya tetap ingin batangnya terlihat."
+4. "Saya mengetik `bumi manusa` dan tidak ketemu apa-apa, padahal bukunya ada."
 
-Dan ada satu pertanyaan yang jawabannya tidak intuitif: berapa sambungan yang sebaiknya dibuka? Menambah sambungan terasa seperti menambah kapasitas, dan di luar titik tertentu justru membuat segalanya lebih lambat.
+Coba tulis nomor 1 dengan alat yang sudah Anda punya. `GROUP BY kategori` memberi satu baris per kategori, bukan tiga. Mengambil semua lalu memotong di aplikasi berarti kembali ke cara pertama yang baru saja kita tinggalkan. Dan nomor 3 meminta baris untuk data yang **tidak ada**, sesuatu yang belum pernah dilakukan satu pun kueri di modul ini.
 
-Itu isi modul berikutnya: akses basis data dari Node, pool sambungan, pilihan antara SQL langsung dan ORM, serta masalah N+1 yang paling sering menjatuhkan performa.
+Keempatnya punya jawaban satu kueri, dan keempatnya butuh alat yang belum diperkenalkan: CTE untuk menyusun kueri bertingkat supaya tetap terbaca, window function untuk menghitung per baris sambil melihat baris lain, `generate_series` untuk membuat rangka waktu, dan pencarian teks penuh yang mengerti kata, bukan hanya potongan huruf.
+
+Itu isi modul berikutnya.

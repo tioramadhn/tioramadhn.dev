@@ -1,7 +1,7 @@
 ---
 title: 'Proyek 1: API Perpustakaan tanpa Basis Data'
 description: Routing, validasi skema, aturan bisnis, idempotency, pagination kursor, dan dokumentasi OpenAPI jadi satu layanan utuh. Penyimpanannya di memori, supaya Anda merasakan sendiri kenapa basis data dibutuhkan.
-date: 2026-12-06
+date: 2026-12-07
 slug: proyek-1-api-perpustakaan
 tags: tutorial backend
 series: Tutorial Backend
@@ -103,12 +103,32 @@ Keempat hal ini akan ditambahkan di modul-modul berikutnya, dan menyebutkannya s
 
 | Belum ada | Akan datang di |
 | --- | --- |
-| Autentikasi: untuk sekarang id anggota dikirim di header `X-Anggota-Id` | Modul 10 |
-| Basis data | Modul 5 sampai 7 |
-| Test otomatis | Modul 20, tapi silakan tulis beberapa sekarang |
-| Pekerjaan latar untuk pengingat jatuh tempo | Modul 14 |
+| Autentikasi: untuk sekarang id anggota dikirim di header `X-Anggota-Id` | Modul 11 |
+| Basis data | Modul 5 sampai 8 |
+| Test otomatis | Modul 21, tapi silakan tulis beberapa sekarang |
+| Pekerjaan latar untuk pengingat jatuh tempo | Modul 15 |
 
 Soal `X-Anggota-Id`: cara ini **tidak aman** dan hanya untuk proyek latihan ini. Tulis komentar jelas di kodenya, karena pola seperti ini kadang tertinggal sampai produksi.
+
+## Langkah pengerjaan bertahap
+
+Spesifikasi di atas panjang, dan membacanya sekaligus membuat proyek ini terasa mustahil. Kerjakan berurutan. Setiap hari berakhir dengan sesuatu yang bisa Anda panggil dengan `curl`, dan itu disengaja: layanan yang jalan sejak hari pertama jauh lebih mudah diperbaiki daripada layanan yang baru dicoba di hari keenam.
+
+**Hari 1: kerangka yang menyala.** Proyek TypeScript dari modul 2, `src/config.ts` tervalidasi, Fastify dengan logger dan id permintaan, penanganan error terpusat beserta kelima kelas error dari modul 3, dan `GET /sehat`. Selesai kalau `curl localhost:3000/sehat` menjawab `{"status":"ok"}` dan `curl localhost:3000/tidak-ada` menjawab 404 dengan bentuk error yang sama seperti error lain.
+
+**Hari 2: aturan bisnis sebagai fungsi murni.** Hanya `src/fitur/peminjaman/aturan.ts` dan `src/lib/waktu.ts`. Tidak menyentuh HTTP sama sekali. Tulis beberapa test Vitest untuk sepuluh aturan itu sekarang, bukan nanti: fungsi murni adalah hal termurah yang pernah Anda uji, dan keputusan denda serta jatuh tempo akan jauh lebih jelas setelah ditulis sebagai test.
+
+**Hari 3: buku dan anggota.** Repository memori beserta antarmukanya, skema Zod untuk params, query, body, dan respons, lalu CRUD keduanya dengan pagination kursor. Di akhir hari ini Anda sudah punya pola yang akan diulang untuk peminjaman.
+
+**Hari 4: peminjaman.** Tiga endpoint yang menegakkan sepuluh aturan: `POST /v1/peminjaman`, `/pengembalian`, dan `/perpanjangan`. Aturannya dipanggil dari `layanan.ts`, bukan ditulis ulang di handler.
+
+**Hari 5: yang membuatnya layak dipakai.** Idempotency pada pembuatan peminjaman, rate limit yang lebih ketat di jalur itu, `GET /v1/anggota/{id}/ringkasan` yang dihitung bukan disimpan, penutupan rapi pada SIGTERM, dan dokumentasi OpenAPI di `/dokumentasi`.
+
+**Hari 6: checklist penilaian.** Enam belas butir di bawah, dikerjakan satu per satu dengan `curl`. Perlakukan setiap butir yang gagal sebagai temuan, bukan sebagai kegagalan: itu memang gunanya daftar itu dibuat.
+
+**Hari 7: rapikan dan catat.** Perbaiki temuan hari keenam, lalu tulis satu paragraf tentang bagian yang paling sulit. Catatan itu akan berguna saat Proyek 2 meminta hal yang sama di atas Postgres.
+
+Kalau waktu Anda terbatas, **hari 1, 2, 4, dan 6 adalah inti yang tidak boleh dilewati.** Hari 3 bisa dipersempit jadi buku saja, dan hari 5 bisa dipersempit jadi idempotency saja.
 
 ## Struktur folder
 
@@ -141,7 +161,7 @@ src/
     └── idempotency.ts
 ```
 
-Satu hal yang menentukan nasib proyek ini di modul 7: **repository didefinisikan sebagai antarmuka, dan implementasi memori hanya salah satu isinya.** Dengan begitu, mengganti penyimpanan ke Postgres nanti tidak menyentuh satu baris pun di `layanan.ts`.
+Satu hal yang menentukan nasib proyek ini di modul 8: **repository didefinisikan sebagai antarmuka, dan implementasi memori hanya salah satu isinya.** Dengan begitu, mengganti penyimpanan ke Postgres nanti tidak menyentuh satu baris pun di `layanan.ts`.
 
 ```ts
 // src/fitur/peminjaman/repo.ts
@@ -153,10 +173,11 @@ export interface RepoPeminjaman {
   hitungBerjalanMilik(anggotaId: string): Promise<number>;
   adaTerlambatMilik(anggotaId: string): Promise<boolean>;
   totalDendaBelumDibayar(anggotaId: string): Promise<number>;
+  adaPinjamanBukuIni(anggotaId: string, bukuId: string): Promise<boolean>;
 }
 ```
 
-Perhatikan tiga method terakhir. Semuanya pertanyaan yang muncul dari aturan bisnis, dan menuliskannya sebagai method repository (bukan mengambil semua peminjaman lalu menyaring di aplikasi) adalah kebiasaan yang akan menyelamatkan Anda di modul 9. Pada implementasi memori keduanya sama cepat, pada Postgres dengan dua juta baris perbedaannya antara 3 ms dan 4 detik.
+Perhatikan empat method terakhir. Semuanya pertanyaan yang muncul dari aturan bisnis, dan menuliskannya sebagai method repository (bukan mengambil semua peminjaman lalu menyaring di aplikasi) adalah kebiasaan yang akan menyelamatkan Anda di modul 10. Pada implementasi memori semuanya sama cepat, pada Postgres dengan dua juta baris perbedaannya antara 3 ms dan 4 detik.
 
 ## Aturan sebagai fungsi murni
 
@@ -309,7 +330,7 @@ Empat hal yang hampir pasti terjadi saat mengerjakan proyek ini, beserta jawaban
 
 **"Kursor saya rusak setelah data berubah."** Periksa apakah pengurutnya unik. Kalau mengurutkan berdasarkan judul buku, dua judul yang sama akan membuat baris terlewat.
 
-**"Dua permintaan peminjaman bersamaan sama-sama berhasil padahal salinan tinggal satu."** Ini bukan bug di kode Anda, melainkan sifat yang muncul karena pemeriksaan dan pengurangan dilakukan dalam dua langkah. Di penyimpanan memori dengan satu proses, Node melindungi Anda secara kebetulan. Catat kejadiannya, dan modul 8 membahasnya tuntas.
+**"Dua permintaan peminjaman bersamaan sama-sama berhasil padahal salinan tinggal satu."** Ini bukan bug di kode Anda, melainkan sifat yang muncul karena pemeriksaan dan pengurangan dilakukan dalam dua langkah. Di penyimpanan memori dengan satu proses, Node melindungi Anda secara kebetulan. Catat kejadiannya, dan modul 9 membahasnya tuntas.
 
 ## Checklist penilaian
 
@@ -335,7 +356,7 @@ Empat hal yang hampir pasti terjadi saat mengerjakan proyek ini, beserta jawaban
 ## Tantangan bonus
 
 - **Pemesanan buku** yang sedang dipinjam, dengan antrean dan aturan "yang memesan lebih dulu dapat lebih dulu". Perhatikan interaksinya dengan aturan perpanjangan.
-- **Riwayat perubahan** per peminjaman sebagai daftar peristiwa, bukan hanya status terakhir. Ini pengantar pola yang dibahas di modul 23.
+- **Riwayat perubahan** per peminjaman sebagai daftar peristiwa, bukan hanya status terakhir. Ini pengantar pola yang dibahas di modul 24.
 - **Ekspor daftar peminjaman terlambat** sebagai CSV yang dialirkan, bukan ditampung di memori. Pakai pelajaran stream dari modul 2.
 - **Beberapa test** untuk `aturan.ts` dengan Vitest. Sepuluh aturan bisnis, sepuluh test, dan semuanya berjalan dalam milidetik karena tidak menyentuh apa pun.
 

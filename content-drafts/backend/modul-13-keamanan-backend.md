@@ -1,8 +1,8 @@
 ---
-title: 'Modul 12: Keamanan Backend'
+title: 'Modul 13: Keamanan Backend'
 description: API Anda terbuka di internet, dan tidak semua yang memanggilnya berniat baik. Sepuluh celah yang paling sering ditemukan, pengelolaan rahasia, dan daftar periksa sebelum layanan dibuka ke publik.
-date: 2026-12-15
-slug: modul-12-keamanan-backend
+date: 2026-12-17
+slug: modul-13-keamanan-backend
 tags: tutorial backend
 series: Tutorial Backend
 status: draft
@@ -25,15 +25,15 @@ Modul ini memetakan apa yang sudah tertutup, apa yang belum, dan satu hal yang t
 
 | Celah | Status setelah 11 modul |
 | --- | --- |
-| Otorisasi tingkat objek (membaca data orang lain) | Tertutup, modul 11 |
-| Autentikasi yang lemah | Tertutup, modul 10 |
-| Injeksi SQL | Tertutup, modul 7 |
+| Otorisasi tingkat objek (membaca data orang lain) | Tertutup, modul 12 |
+| Autentikasi yang lemah | Tertutup, modul 11 |
+| Injeksi SQL | Tertutup, modul 8 |
 | Konsumsi sumber daya tanpa batas | Sebagian, modul 3 |
 | Mass assignment | Sebagian, tergantung cara Anda menulis skema |
 | Konfigurasi yang keliru | **Belum** |
 | SSRF | **Belum** |
 | Pengelolaan rahasia | **Belum** |
-| Pemantauan dan deteksi | **Belum**, modul 18 |
+| Pemantauan dan deteksi | **Belum**, modul 19 |
 | Rantai pasok dependensi | **Belum** |
 
 ## Analogi: gedung yang dibuka untuk umum
@@ -60,6 +60,7 @@ Batas analoginya: penjaga gedung bisa melihat orang yang mencurigakan, sedangkan
 Celah yang paling mudah terjadi dan paling sering ditemukan di API buatan sendiri.
 
 ```ts
+// Jangan disalin: mass assignment
 // Berbahaya: seluruh body masuk ke basis data
 app.post('/v1/pengguna', async (req) => {
   return repoPengguna.simpan(req.body);
@@ -72,6 +73,7 @@ app.post('/v1/pengguna', async (req) => {
 Pola ini juga muncul dalam bentuk yang lebih halus:
 
 ```ts
+// Jangan disalin: validasi yang benar, penerusan yang salah
 // Juga berbahaya: skema memvalidasi, lalu semuanya diteruskan
 const data = skemaPengguna.parse(req.body);
 await repoPengguna.perbarui(id, { ...data, ...req.body });  // req.body menimpa lagi
@@ -83,6 +85,7 @@ const skema = z.object({ nama: z.string() }).passthrough();  // field lain lolos
 Tiga pertahanan, dan dipakai bersama:
 
 ```ts
+// src/fitur/pengguna/skema.ts, tiga lapis pertahanan mass assignment
 // 1. Skema ketat: field yang tidak dikenal ditolak, bukan dibuang diam-diam
 const buatPengguna = z
   .object({
@@ -115,6 +118,7 @@ Pakai `.strict()` sebagai kebiasaan. Field tidak dikenal yang **ditolak** member
 Ini celah yang paling sering diremehkan, dan akibatnya bisa paling parah.
 
 ```ts
+// Jangan disalin: SSRF
 // Fitur yang terlihat wajar: impor produk dari URL
 app.post('/v1/impor', async (req) => {
   const respons = await fetch(req.body.url);   // berbahaya
@@ -137,6 +141,7 @@ http://pemendek.url/abc              -> pengalihan ke alamat internal
 Pertahanan yang benar-benar bekerja:
 
 ```ts
+// src/lib/ambil-url-aman.ts
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 
@@ -185,6 +190,7 @@ Untuk fitur yang memang butuh mengambil URL dari pengguna, pertimbangkan jalan y
 ## Path traversal dan nama berkas
 
 ```ts
+// Jangan disalin: path traversal
 // Berbahaya
 app.get('/v1/berkas', async (req) => {
   return createReadStream(`./uploads/${req.query.nama}`);
@@ -203,7 +209,7 @@ app.get('/v1/berkas/:id', async (req) => {
 });
 ```
 
-Aturannya: **nama berkas dari pengguna hanya disimpan sebagai metadata untuk ditampilkan, tidak pernah dipakai sebagai path atau kunci penyimpanan.** Modul 17 membahas unggahan dengan lengkap.
+Aturannya: **nama berkas dari pengguna hanya disimpan sebagai metadata untuk ditampilkan, tidak pernah dipakai sebagai path atau kunci penyimpanan.** Modul 18 membahas unggahan dengan lengkap.
 
 ## Injeksi di luar SQL
 
@@ -212,11 +218,12 @@ Aturannya: **nama berkas dari pengguna hanya disimpan sebagai metadata untuk dit
 | **Perintah sistem** | `exec(\`convert ${nama}\`)` | `execFile` dengan array argumen, jangan shell |
 | **Template** | Templat yang dirender dari masukan | Jangan pernah mengompilasi templat dari masukan pengguna |
 | **Header** | Nilai header dari masukan yang berisi baris baru | Bersihkan `\r\n`, dan pakai API yang memvalidasi |
-| **Log** | Masukan berisi baris baru yang memalsukan baris log | Log terstruktur JSON, modul 18 |
+| **Log** | Masukan berisi baris baru yang memalsukan baris log | Log terstruktur JSON, modul 19 |
 | **Prototype pollution** | `Object.assign({}, bodyDenganKey__proto__)` | Skema ketat, dan `Object.create(null)` untuk peta |
 | **ReDoS** | Regex bersarang pada masukan pengguna | Regex sederhana, batas panjang, lihat modul 2 |
 
 ```ts
+// Jangan disalin: injeksi perintah
 // Berbahaya: shell menafsirkan karakter khusus
 exec(`convert ${namaBerkas} -resize 200x200 keluaran.jpg`);
 // namaBerkas = "x.jpg; rm -rf /"
@@ -230,6 +237,7 @@ await execFile('convert', [pathAman, '-resize', '200x200', pathKeluaran]);
 Setiap masukan dari luar menentukan berapa banyak pekerjaan yang dilakukan server Anda, kecuali Anda yang menentukannya. Ini pelajaran modul 2 yang diterapkan sebagai kebijakan.
 
 ```ts
+// src/app.ts, batas sumber daya yang dipasang di hari pertama
 const app = Fastify({
   bodyLimit: 1 * 1024 * 1024,              // 1 MB, naikkan per rute kalau perlu
   requestTimeout: 15_000,
@@ -265,7 +273,7 @@ Daftar batas yang pantas ada di setiap layanan:
 | Jumlah elemen setiap array | Ditentukan per field di skema |
 | `limit` pada daftar | Bawaan 20, maksimum 100 |
 | Batas waktu permintaan | 15 detik |
-| Batas waktu kueri | 10 detik, modul 7 |
+| Batas waktu kueri | 10 detik, modul 8 |
 | Pembatasan laju | Per pengguna dan per IP, lebih ketat pada login dan endpoint mahal |
 | Jumlah sambungan bersamaan | Lewat `under-pressure`, modul 3 |
 
@@ -303,6 +311,7 @@ pnpm outdated
 Webhook adalah endpoint publik yang menerima pemberitahuan dari layanan lain, misalnya penyedia pembayaran. Siapa pun bisa memanggilnya, jadi memverifikasi pengirimnya bukan pilihan.
 
 ```ts
+// src/fitur/webhook/verifikasi.ts
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
 app.post('/v1/webhook/pembayaran', {
@@ -322,6 +331,7 @@ app.post('/v1/webhook/pembayaran', {
   }
 
   // 2. Hitung dari body mentah, bukan dari hasil JSON.parse
+  // WEBHOOK_SECRET ditambahkan ke src/config.ts, wajib dan tanpa nilai bawaan
   const diharapkan = createHmac('sha256', config.WEBHOOK_SECRET)
     .update(`${timestamp}.${req.rawBody}`)
     .digest();
@@ -372,6 +382,86 @@ Empat langkah itu lengkap dan semuanya perlu. Yang paling sering dilewati nomor 
 
 Nomor 17 pantas ditekankan: cadangan yang belum pernah diuji pemulihannya bukan cadangan, hanya harapan. Dan nomor 20 sering dilupakan: berkas `security.txt` dengan alamat email yang benar-benar dibaca membuat peneliti keamanan melapor kepada Anda, bukan ke tempat lain.
 
+## Buktikan jalan
+
+Daftar periksa di atas panjang. Enam serangan ini bisa Anda jalankan sendiri dalam sepuluh menit, dan **semuanya harus ditolak**.
+
+```bash
+# 1. Mass assignment: mencoba menaikkan peran sendiri
+curl -s -X PATCH localhost:3000/v1/profil \
+  -H 'authorization: Bearer <token-pengguna-biasa>' \
+  -H 'content-type: application/json' \
+  -d '{"nama":"Ada","peran":"admin"}' | jq
+```
+
+```json
+{
+  "kode": "VALIDASI_GAGAL",
+  "pesan": "Sebagian isian tidak valid",
+  "perKolom": { "peran": ["field tidak dikenal"] },
+  "requestId": "req-11"
+}
+```
+
+Ditolak, bukan diterima lalu diam-diam dibuang. Itu bedanya `.strict()` dan perilaku bawaan Zod.
+
+```bash
+# 2. SSRF: menyuruh server mengambil alamat internal
+curl -s -X POST localhost:3000/v1/produk/impor \
+  -H 'authorization: Bearer <token>' -H 'content-type: application/json' \
+  -d '{"url":"http://169.254.169.254/latest/meta-data/"}' | jq '.kode'
+
+# 3. SSRF lewat localhost
+curl -s -X POST localhost:3000/v1/produk/impor \
+  -H 'authorization: Bearer <token>' -H 'content-type: application/json' \
+  -d '{"url":"http://localhost:5432"}' | jq '.kode'
+```
+
+```json
+"URL_TIDAK_VALID"
+"URL_TIDAK_VALID"
+```
+
+```bash
+# 4. Path traversal
+curl -s -o /dev/null -w '%{http_code}\n' \
+  'localhost:3000/v1/berkas/..%2F..%2F..%2Fetc%2Fpasswd' \
+  -H 'authorization: Bearer <token>'
+```
+
+```text
+400
+```
+
+```bash
+# 5. Webhook dengan tanda tangan palsu
+curl -s -o /dev/null -w '%{http_code}\n' -X POST localhost:3000/v1/webhook/pembayaran \
+  -H 'x-signature: sha256=00000000' -d '{"status":"lunas","pesananId":"<id>"}'
+```
+
+```text
+401
+```
+
+```bash
+# 6. Rahasia tidak ikut tercatat di log
+curl -s -X POST localhost:3000/v1/auth/masuk -H 'content-type: application/json' \
+  -d '{"email":"ada@contoh.id","sandi":"rahasia-sekali"}' > /dev/null
+```
+
+Lalu cari di log terminal server:
+
+```bash
+# Tidak boleh ada satu pun hasil
+grep -c 'rahasia-sekali' log-server.txt
+```
+
+```text
+0
+```
+
+Pemeriksaan keenam adalah yang paling sering gagal, dan paling mudah diperbaiki: `redact` pada logger Fastify dari modul 3. Satu baris konfigurasi, dan menghemat satu insiden kebocoran yang tidak bisa ditarik kembali setelah log dikirim ke penyedia pihak ketiga.
+
 ## Latihan
 
 ### Latihan 1: Temukan delapan celah
@@ -379,6 +469,7 @@ Nomor 17 pantas ditekankan: cadangan yang belum pernah diuji pemulihannya bukan 
 Lima handler ini dari layanan yang sudah punya autentikasi dan otorisasi. Temukan delapan celah keamanannya.
 
 ```ts
+// Empat potongan untuk Anda telaah di latihan ini
 // A
 app.patch('/v1/profil', async (req) => {
   pastikanBoleh(req.pelaku, 'profil:ubah');
@@ -413,6 +504,9 @@ app.post('/v1/webhook/pembayaran', async (req) => {
   return { ok: true };
 });
 ```
+
+> [!petunjuk]
+> Jangan mulai dari daftar hal yang dilarang, karena daftar seperti itu selalu ada celahnya. Mulai dari pertanyaan sebaliknya: field apa saja yang **boleh** diubah pemanggil, dan bagaimana cara memastikan field lain tidak ikut terbawa meski seseorang menambahkannya ke body? Zod punya satu method yang mengubah perilaku bawaannya dari "buang diam-diam" jadi "tolak".
 
 > [!jawaban]
 >
@@ -451,6 +545,9 @@ app.post('/v1/webhook/pembayaran', async (req) => {
 ### Latihan 2: Bangun penyaring SSRF yang benar
 
 Terapkan fitur "impor produk dari URL" dengan aman. Lalu uji dengan delapan URL berbahaya dan pastikan semuanya ditolak.
+
+> [!petunjuk]
+> Penyaring yang memeriksa string URL saja akan selalu bisa dilewati. Urutan yang benar punya tiga tahap: periksa protokolnya, terjemahkan nama domain jadi alamat IP, lalu periksa alamat IP itu terhadap daftar rentang privat. Dan ada satu lubang yang tersisa bahkan setelah ketiganya: apa yang terjadi antara saat Anda memeriksa alamat IP dan saat `fetch` benar-benar menyambung? Pikirkan juga pengalihan.
 
 > [!pembahasan]
 >
@@ -528,7 +625,7 @@ Periksa proyek Anda dan jawab delapan pertanyaan berikut dengan bukti, bukan den
 > 1. **Ada `.env` di commit kedua, lalu dihapus di commit keempat.** Isinya masih ada di riwayat, dan siapa pun yang mengkloning repositori memilikinya. Menghapus berkas tidak menghapus riwayat. Yang harus dilakukan: **anggap semua nilai itu bocor dan ganti semuanya**, lalu bersihkan riwayat dengan `git filter-repo` kalau repositorinya privat dan jumlah kloningnya terkendali.
 > 2. **Kredensial produksi ada di laptop dua orang** karena pernah dipakai untuk memperbaiki insiden. Perbaikan: akses produksi lewat jalur yang tercatat, misalnya bastion atau tunnel dari pengelola rahasia, bukan lewat salinan kredensial.
 > 3. **Jawaban nomor 4 adalah "tidak tahu".** Ini temuan paling penting. Kalau memutar kredensial belum pernah dilatih, Anda tidak akan bisa melakukannya di tengah insiden. Latih sekali pada staging, catat langkahnya, dan ukur waktunya.
-> 4. **Aplikasi memakai peran `postgres`**, yaitu superuser. Akibatnya: injeksi SQL atau kompromi aplikasi berarti kendali penuh atas basis data, dan RLS dari modul 11 bisa dilewati. Perbaikan: peran khusus dengan hak minimum.
+> 4. **Aplikasi memakai peran `postgres`**, yaitu superuser. Akibatnya: injeksi SQL atau kompromi aplikasi berarti kendali penuh atas basis data, dan RLS dari modul 12 bisa dilewati. Perbaikan: peran khusus dengan hak minimum.
 > 5. **Nomor 8 tidak punya jawaban.** Tulis satu halaman: siapa yang dihubungi, urutan langkahnya, dan siapa yang berwenang mematikan layanan. Satu halaman yang ditulis sebelum insiden bernilai lebih daripada sepuluh rapat sesudahnya.
 
 ### Latihan 4: Verifikasi webhook dan uji serangannya
@@ -583,7 +680,7 @@ Terapkan verifikasi webhook lengkap, lalu uji dengan lima serangan dan pastikan 
 >
 > Empat hal yang membuat penanganan ini layak produksi:
 >
-> 1. **Peristiwa disimpan sebelum diproses**, dengan `ON CONFLICT DO NOTHING` sebagai penjaga idempotensi, dalam transaksi yang sama dengan pekerjaannya. Pola modul 8.
+> 1. **Peristiwa disimpan sebelum diproses**, dengan `ON CONFLICT DO NOTHING` sebagai penjaga idempotensi, dalam transaksi yang sama dengan pekerjaannya. Pola modul 9.
 > 2. **Muatan asli disimpan.** Saat ada selisih dengan penyedia pembayaran nanti, muatan asli adalah bukti yang menyelesaikan perdebatan.
 > 3. **Perubahan status bersyarat.** Webhook bisa datang setelah pesanan dibatalkan, dan itu bukan error sistem melainkan keadaan yang perlu dicatat lalu ditangani manusia.
 > 4. **Selalu menjawab 2xx untuk permintaan yang sah.** Menjawab 500 karena pesanan tidak cocok akan membuat penyedia mengirim ulang terus, dan log Anda penuh tanpa manfaat. Yang perlu diselidiki manusia dicatat sebagai audit, bukan dikembalikan sebagai error.
@@ -594,7 +691,7 @@ Keamanan yang dikerjakan dengan baik tetap punya tiga batas.
 
 **Daftar periksa bukan jaminan.** Celah baru muncul dari fitur baru, dan dari dependensi yang berubah. Yang bisa dilakukan tim adalah menjadikan pemeriksaan ini bagian dari telaah kode dan pipeline, bukan acara tahunan.
 
-**Anda tidak bisa mendeteksi apa yang tidak Anda ukur.** Serangan yang berhasil biasanya terlihat di log sebagai pola yang aneh beberapa hari sebelumnya. Tanpa pemantauan, Anda mengetahuinya dari pihak lain. Itu modul 18.
+**Anda tidak bisa mendeteksi apa yang tidak Anda ukur.** Serangan yang berhasil biasanya terlihat di log sebagai pola yang aneh beberapa hari sebelumnya. Tanpa pemantauan, Anda mengetahuinya dari pihak lain. Itu modul 19.
 
 **Sebagian serangan tidak menyentuh kode.** Rekayasa sosial terhadap tim Anda, laptop yang disusupi, dan kredensial yang dibagikan lewat pesan adalah celah yang tidak bisa ditutup backend.
 

@@ -1,7 +1,7 @@
 ---
 title: 'Modul 3: Server HTTP, Routing, dan Validasi'
 description: Dari tiga `if` di node:http jadi layanan dengan rute, middleware, validasi skema, dan penanganan error yang terpusat. Plus satu aturan yang tidak boleh dilanggar: masukan dari luar tidak pernah dipercaya.
-date: 2026-12-04
+date: 2026-12-05
 slug: modul-3-http-routing-validasi
 tags: tutorial backend
 series: Tutorial Backend
@@ -11,6 +11,7 @@ status: draft
 Server di akhir modul 2 bekerja, dan bentuknya tidak bertahan:
 
 ```ts
+// Bentuk dari akhir modul 2, untuk dibandingkan
 const server = createServer(async (req, res) => {
   if (req.url === '/sehat') { /* ... */ }
   if (req.url === '/menunggu') { /* ... */ }
@@ -64,12 +65,24 @@ Lima pilihan yang akan Anda temui, beserta kapan masing-masing masuk akal:
 | **NestJS** | Struktur baku, dependency injection, cocok untuk tim besar | Banyak lapisan, kurva belajar | Tim besar yang butuh keseragaman |
 | **`node:http` mentah** | Nol dependensi | Semua ditulis tangan | Belajar, atau layanan satu endpoint |
 
-Seri ini memakai **Fastify**, dengan tiga alasan yang terkait langsung ke materi: validasi berbasis skema sudah jadi bagian dari kerangkanya, sistem plugin memaksa batas yang jelas antar bagian, dan ia tidak menyembunyikan HTTP sehingga apa yang Anda pelajari tetap berlaku di tempat lain.
+Seri ini memakai **Fastify**, dengan tiga alasan yang terkait langsung ke materi: validasi berbasis skema sudah jadi bagian dari kerangkanya, sistem plugin memaksa batas yang jelas antar bagian, dan Fastify tidak menyembunyikan HTTP sehingga apa yang Anda pelajari tetap berlaku di tempat lain.
 
 ```bash
 pnpm add fastify
 pnpm add fastify-type-provider-zod zod
 pnpm add @fastify/helmet @fastify/cors @fastify/rate-limit @fastify/under-pressure
+```
+
+Modul ini juga menambah dua baris ke `src/config.ts` dari modul 2, keduanya dipakai di potongan kode berikutnya:
+
+```ts
+// src/config.ts, tambahkan ke dalam z.object({ ... })
+BEHIND_PROXY: z.coerce.boolean().default(false),
+// Daftar asal yang boleh memanggil API ini, dipisah koma
+ALLOWED_ORIGINS: z
+  .string()
+  .default('http://localhost:5173')
+  .transform((v) => v.split(',').map((x) => x.trim())),
 ```
 
 ## Bentuk dasar yang layak dipakai
@@ -130,7 +143,7 @@ try {
 }
 
 // Matikan dengan rapi: berhenti menerima permintaan baru,
-// selesaikan yang sedang berjalan, baru keluar. Rinciannya di modul 21.
+// selesaikan yang sedang berjalan, baru keluar. Rinciannya di modul 22.
 for (const sinyal of ['SIGTERM', 'SIGINT'] as const) {
   process.on(sinyal, async () => {
     app.log.info({ sinyal }, 'mematikan server');
@@ -144,7 +157,7 @@ Lima keputusan di potongan itu yang pantas ditiru:
 
 **`host: '0.0.0.0'`.** Bawaan Node hanya mendengarkan localhost, dan di dalam container itu berarti tidak ada yang bisa menghubunginya. Ini penyebab "jalan di laptop, tidak jalan di Docker" yang paling sering terjadi.
 
-**Id permintaan dari header kalau ada.** Dengan begitu id yang dibuat gateway atau layanan pemanggil ikut terbawa, dan satu permintaan bisa dilacak melintasi beberapa layanan. Modul 18 memakainya.
+**Id permintaan dari header kalau ada.** Dengan begitu id yang dibuat gateway atau layanan pemanggil ikut terbawa, dan satu permintaan bisa dilacak melintasi beberapa layanan. Modul 19 memakainya.
 
 **`redact` pada logger.** Mencatat seluruh header berarti mencatat token. Daftar ini ditulis sekali, dan menghemat satu insiden kebocoran.
 
@@ -195,6 +208,7 @@ export const pesananResponse = z.object({
 
 ```ts
 // src/fitur/pesanan/rute.ts
+import { z } from 'zod';
 import type { FastifyPluginAsyncZod } from 'fastify-type-provider-zod';
 import { bodyBuatPesanan, kueriDaftar, paramsPesanan, pesananResponse } from './skema.js';
 import { layananPesanan } from './layanan.js';
@@ -233,7 +247,7 @@ export const rutePesanan: FastifyPluginAsyncZod = async (app) => {
 
 Tiga hal yang didapat dari skema di tempat itu, dan ketiganya bukan sekadar kenyamanan:
 
-**Tipe tanpa penegasan.** `req.body.item[0].jumlah` bertipe `number` karena memang sudah diperiksa, bukan karena Anda menulis `as`. Lubang yang dibahas di seri frontend modul 7 tertutup di sini.
+**Tipe tanpa penegasan.** `req.body.item[0].jumlah` bertipe `number` karena memang sudah diperiksa, bukan karena Anda menulis `as`. Lubang yang dibahas di seri frontend modul 8 tertutup di sini.
 
 **Dokumentasi otomatis.** Skema yang sama bisa diubah jadi OpenAPI, dan itu pekerjaan Proyek 1.
 
@@ -260,7 +274,7 @@ export const layananPesanan = {
 };
 ```
 
-Keuntungannya terasa di modul 14 dan 20: fungsi `buat` yang sama bisa dipanggil dari worker queue dan dari test, tanpa menyalakan server HTTP.
+Keuntungannya terasa di modul 15 dan 21: fungsi `buat` yang sama bisa dipanggil dari worker queue dan dari test, tanpa menyalakan server HTTP.
 
 ## Penanganan error yang terpusat
 
@@ -297,9 +311,20 @@ export class ErrorTidakBerhak extends ErrorAplikasi {
     super(pesan, 403, 'TIDAK_BERHAK');
   }
 }
+
+// Pelanggaran aturan bisnis: bentuk permintaannya benar, isinya melanggar aturan.
+// Kodenya ditentukan pemanggil, karena tiap aturan punya kode sendiri.
+export class ErrorAturanBisnis extends ErrorAplikasi {
+  constructor(pesan: string, kode: string, detail?: unknown) {
+    super(pesan, 422, kode, detail);
+  }
+}
 ```
 
+Empat kelas pertama menutupi kegagalan yang bentuknya selalu sama. Yang kelima berbeda: `ErrorAturanBisnis` dipakai untuk pelanggaran aturan yang khas bagi domain Anda, misalnya "stok tidak cukup" atau "anggota sudah meminjam tiga buku", dan karena itu kodenya ikut sebagai parameter. Kelas inilah yang paling sering dilempar di lapisan service sepanjang sisa seri ini.
+
 ```ts
+// src/http/error.ts, lanjutan
 export function pasangPenangananError(app: FastifyInstance) {
   app.setNotFoundHandler((req, res) => {
     res.status(404).send({
@@ -363,6 +388,7 @@ Soal bentuk respons error, ada standar yang bisa dipakai: RFC 9457 dengan `appli
 Empat plugin yang pantas ada di hampir semua layanan:
 
 ```ts
+// src/app.ts, di dalam buatApp() sebelum rute didaftarkan
 // Urutannya mengikuti prinsip di modul 1: tolak sedini mungkin
 await app.register(import('@fastify/helmet'));          // header keamanan
 await app.register(import('@fastify/cors'), {
@@ -383,9 +409,60 @@ await app.register(import('@fastify/under-pressure'), {
 });
 ```
 
-Plugin terakhir adalah penerapan langsung dari modul 2: ia membaca lag event loop, dan saat proses sudah tidak sanggup, ia menolak permintaan baru dengan 503 daripada menerima semuanya lalu melambat untuk semua orang. Pola itu disebut load shedding, dan modul 19 membahasnya lebih jauh.
+Plugin terakhir adalah penerapan langsung dari modul 2: plugin itu membaca lag event loop, lalu menolak permintaan baru dengan 503 saat proses sudah tidak sanggup daripada menerima semuanya lalu melambat untuk semua orang. Pola itu disebut load shedding, dan modul 20 membahasnya lebih jauh.
 
 Satu catatan tentang CORS: `origin: true` berarti "izinkan semua asal", dan itu sering dipasang saat mengejar tenggat lalu tertinggal selamanya. Daftar asal yang diizinkan datang dari konfigurasi, dan berbeda antara pengembangan dan produksi.
+
+## Buktikan jalan
+
+Empat perintah yang membuktikan seluruh isi modul ini terpasang dengan benar. Jalankan `pnpm dev` di terminal pertama, lalu dari terminal kedua:
+
+```bash
+# 1. Rute sehat
+curl -s localhost:3000/sehat | jq
+
+# 2. Rute yang tidak ada: bentuk error harus sama seperti error lain
+curl -s localhost:3000/tidak-ada | jq
+
+# 3. Body yang melanggar skema
+curl -s -X POST localhost:3000/v1/pesanan \
+  -H 'content-type: application/json' \
+  -d '{"item": []}' | jq
+
+# 4. Body yang melebihi batas ukuran
+head -c 2000000 /dev/zero | tr '\0' 'a' > /tmp/besar.txt
+curl -s -o /dev/null -w '%{http_code}\n' -X POST localhost:3000/v1/pesanan \
+  -H 'content-type: application/json' --data-binary @/tmp/besar.txt
+```
+
+Yang Anda harapkan:
+
+```json
+{ "status": "ok" }
+```
+
+```json
+{
+  "kode": "RUTE_TIDAK_ADA",
+  "pesan": "Tidak ada GET /tidak-ada",
+  "requestId": "req-1"
+}
+```
+
+```json
+{
+  "kode": "VALIDASI_GAGAL",
+  "pesan": "Sebagian isian tidak valid",
+  "perKolom": { "item": ["pesanan harus punya minimal satu item"] },
+  "requestId": "req-2"
+}
+```
+
+```text
+413
+```
+
+Periksa empat hal dari hasil itu, karena keempatnya adalah inti modul ini. Bentuk error nomor 2 dan 3 **identik strukturnya** meski penyebabnya berbeda. Keduanya membawa `requestId` yang bisa Anda cari di log terminal pertama. Nomor 3 menyebutkan kolom mana yang salah, bukan hanya "bad request". Dan nomor 4 ditolak dengan 413 **sebelum** body-nya di-parse, yang berarti batas ukuran Anda bekerja.
 
 ## Latihan
 
@@ -451,6 +528,7 @@ Catat tiga hal: jumlah baris masing-masing, berapa lama Anda mengerjakannya, dan
 Endpoint ini menerima apa saja. Tulis skema Zod untuk params, query, body, dan respons, lalu sebutkan setiap batas yang Anda pasang beserta alasannya.
 
 ```ts
+// Endpoint yang harus Anda perbaiki di latihan ini
 // POST /v1/toko/:tokoId/produk?draf=true
 app.post('/v1/toko/:tokoId/produk', async (req, res) => {
   const { tokoId } = req.params as any;
@@ -526,7 +604,7 @@ app.post('/v1/toko/:tokoId/produk', async (req, res) => {
 > 2. **Setiap angka punya batas atas.** Tanpa `max`, seseorang bisa mengirim stok `9e15`, dan kerusakannya baru terlihat di laporan.
 > 3. **Setiap array punya `max`.** `varian` tanpa batas berarti satu permintaan bisa membuat 100 ribu baris di basis data. Ini bukan soal validasi data, melainkan soal batas beban kerja seperti di modul 2.
 > 4. **`draf` tidak diterima sebagai boolean langsung.** Parameter kueri selalu string, dan `Boolean("false")` bernilai `true`. Ini bug klasik yang membuat semua produk tersimpan sebagai draf.
-> 5. **`tokoId` dari params tidak cukup divalidasi bentuknya.** Memastikan pemanggil benar-benar berhak atas toko itu adalah pekerjaan otorisasi, dan tidak bisa dikerjakan skema. Modul 11 membahasnya.
+> 5. **`tokoId` dari params tidak cukup divalidasi bentuknya.** Memastikan pemanggil benar-benar berhak atas toko itu adalah pekerjaan otorisasi, dan tidak bisa dikerjakan skema. Modul 12 membahasnya.
 > 6. **Respons punya skema sendiri yang lebih sempit.** Kolom seperti `catatanInternal`, `biayaModal`, atau `skorRisiko` tidak akan pernah terkirim meski ada di baris basis data.
 
 ### Latihan 3: Rancang penanganan error untuk satu layanan
@@ -543,6 +621,9 @@ Sebuah layanan punya tujuh kegagalan yang mungkin terjadi. Untuk masing-masing, 
 | 6 | Layanan pembayaran tidak menjawab dalam 3 detik |
 | 7 | Kunci idempotency sama dengan permintaan yang masih diproses |
 
+> [!petunjuk]
+> Untuk tiap kegagalan, pisahkan dua pertanyaan yang sering tercampur: apakah **bentuk** permintaannya salah, atau bentuknya benar tapi **keadaannya** tidak mengizinkan? Jawaban itu memisahkan 4xx dari 4xx yang lain. Lalu untuk kolom "boleh ulang", tanyakan apakah mengulang bisa memperbaiki keadaan tanpa campur tangan pemanggil. Nomor 6 adalah yang paling sulit, dan petunjuknya: Anda tidak tahu apakah operasinya terjadi atau tidak.
+
 > [!pembahasan]
 >
 > | # | Status | Boleh ulang | Level log | Pesan ke klien |
@@ -557,11 +638,11 @@ Sebuah layanan punya tujuh kegagalan yang mungkin terjadi. Untuk masing-masing, 
 >
 > Lima penjelasan yang jadi inti latihan ini:
 >
-> **Nomor 4 memakai 404, bukan 403.** Membalas 403 untuk toko milik orang lain memberi tahu penyerang bahwa toko itu ada. Dengan menyamakan jawaban "tidak ada" dan "bukan milik Anda", id tidak bisa dipetakan. Pola ini dipakai sepanjang seri, dan modul 11 menerapkannya secara menyeluruh.
+> **Nomor 4 memakai 404, bukan 403.** Membalas 403 untuk toko milik orang lain memberi tahu penyerang bahwa toko itu ada. Dengan menyamakan jawaban "tidak ada" dan "bukan milik Anda", id tidak bisa dipetakan. Pola ini dipakai sepanjang seri, dan modul 12 menerapkannya secara menyeluruh.
 >
 > **Nomor 5 adalah 503, bukan 500.** Perbedaannya penting bagi pemanggil: 500 berarti "ada yang salah di kode mereka, mengulang tidak akan membantu", 503 berarti "coba lagi nanti". Sertakan `Retry-After` supaya pemanggil tidak membanjiri Anda saat baru pulih.
 >
-> **Nomor 6 adalah yang paling berbahaya di seluruh tabel.** Batas waktu pada pembayaran berarti Anda **tidak tahu** apakah pembayarannya terjadi. Jangan pernah membalas dengan pesan yang membuat klien mengulang tanpa kunci idempotency, karena akibatnya pelanggan terdebet dua kali. Pola yang benar: catat permintaan sebagai "belum pasti", periksa statusnya ke penyedia secara terpisah, dan modul 15 membahas pola rekonsiliasinya.
+> **Nomor 6 adalah yang paling berbahaya di seluruh tabel.** Batas waktu pada pembayaran berarti Anda **tidak tahu** apakah pembayarannya terjadi. Jangan pernah membalas dengan pesan yang membuat klien mengulang tanpa kunci idempotency, karena akibatnya pelanggan terdebet dua kali. Pola yang benar: catat permintaan sebagai "belum pasti", periksa statusnya ke penyedia secara terpisah, dan modul 16 membahas pola rekonsiliasinya.
 >
 > **Nomor 2 memakai 422, bukan 404.** Produk yang tidak ada bukan berarti endpoint-nya tidak ada. 404 untuk isi body akan membingungkan klien yang menyimpulkan URL-nya salah.
 >
@@ -572,6 +653,7 @@ Sebuah layanan punya tujuh kegagalan yang mungkin terjadi. Untuk masing-masing, 
 Handler ini lolos telaah kode di banyak tim. Temukan enam masalahnya.
 
 ```ts
+// Handler yang harus Anda telaah. Temukan enam masalahnya.
 app.post('/v1/transfer', async (req, res) => {
   const { dariRekening, keRekening, jumlah } = req.body as any;
 
@@ -596,14 +678,14 @@ app.post('/v1/transfer', async (req, res) => {
 > | --- | --- | --- |
 > | 1 | Tidak ada autentikasi dan otorisasi | Siapa pun bisa memindahkan uang dari rekening mana pun. Ini masalah terbesarnya |
 > | 2 | `as any` tanpa validasi | `jumlah` bisa negatif (transfer terbalik), berupa string, atau `1e308` |
-> | 3 | Dua operasi tanpa transaksi | Kalau proses mati setelah `kurangi`, uang hilang. Modul 8 |
-> | 4 | Pola baca lalu tulis | Dua permintaan bersamaan sama-sama lolos pemeriksaan saldo. Modul 8 |
+> | 3 | Dua operasi tanpa transaksi | Kalau proses mati setelah `kurangi`, uang hilang. Modul 9 |
+> | 4 | Pola baca lalu tulis | Dua permintaan bersamaan sama-sama lolos pemeriksaan saldo. Modul 9 |
 > | 5 | Tidak idempoten | Klik ganda atau percobaan ulang klien berarti transfer dobel. Modul 4 |
 > | 6 | `console.log(req.body)` | Mencatat data keuangan ke log tanpa penyaringan, dan tanpa id permintaan |
 >
 > Dua masalah tambahan yang pantas disebut: status 400 untuk saldo tidak cukup sebaiknya 409 atau 422 karena bentuk permintaannya benar, dan `saldoBaru` yang dihitung di aplikasi bisa tidak sama dengan saldo sebenarnya kalau ada transaksi lain yang masuk bersamaan. Kembalikan nilai yang dibaca ulang dari basis data setelah transaksi, atau jangan kembalikan sama sekali.
 >
-> Bentuk yang benar, dengan bagian yang akan dibangun di modul 8:
+> Bentuk yang benar, dengan bagian yang akan dibangun di modul 9:
 >
 > ```ts
 > app.post(
@@ -618,7 +700,7 @@ app.post('/v1/transfer', async (req, res) => {
 >     await pastikanPemilikRekening(req.user.id, req.body.dariRekening);
 >
 >     // Satu transaksi, dengan pengurangan bersyarat di dalam basis data,
->     // dan kunci idempotency yang disimpan. Modul 8.
+>     // dan kunci idempotency yang disimpan. Modul 9.
 >     return layananTransfer.jalankan({
 >       penggunaId: req.user.id,
 >       ...req.body,

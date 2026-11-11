@@ -1,8 +1,8 @@
 ---
-title: 'Modul 7: Akses Basis Data dari Node'
+title: 'Modul 8: Akses Basis Data dari Node'
 description: Pool sambungan dan kenapa menambahnya justru memperlambat, pilihan antara SQL langsung dan ORM, pemetaan error Postgres jadi error domain, dan masalah N+1 yang paling sering menjatuhkan performa.
-date: 2026-12-09
-slug: modul-7-akses-basis-data
+date: 2026-12-11
+slug: modul-8-akses-basis-data
 tags: tutorial backend
 series: Tutorial Backend
 status: draft
@@ -19,6 +19,28 @@ Kueri Anda sudah benar dan masih dijalankan dari terminal. Memanggilnya dari Nod
 
 Keempatnya dibahas di modul ini, dan yang terakhir adalah yang paling berlawanan dengan dugaan.
 
+## Analogi: loket bank, bukan pintu yang terus dibuka
+
+Bayangkan gudang arsip dari modul 6 sekarang punya aturan masuk. Siapa pun yang ingin mengambil berkas harus melewati **loket**, dan setiap loket dijaga satu petugas yang hanya melayani satu orang pada satu waktu.
+
+Membuka sambungan baru untuk setiap permintaan sama dengan **membangun loket baru setiap kali ada tamu**, lalu membongkarnya setelah tamu itu pergi. Mahal, lambat, dan gedungnya punya batas berapa loket yang muat.
+
+Yang dilakukan pool: loketnya dibangun sekali di awal, lalu dipakai bergantian. Tamu yang datang saat semua loket sibuk **menunggu dalam antrean**, bukan ditolak, dan itu perilaku yang benar.
+
+Lalu bagian yang paling sering salah dimengerti. Kalau antrean memanjang, naluri semua orang adalah menambah loket. Masalahnya, petugas di gedung ini **berbagi satu lift menuju rak arsip**, dan liftnya tidak ikut bertambah. Dua puluh petugas dengan satu lift tidak melayani lebih banyak orang daripada empat petugas, mereka hanya saling menunggu di depan lift, dan sekarang **semua** orang dilayani lebih lambat.
+
+| Dunia loket | Dunia backend |
+| --- | --- |
+| Loket yang dibangun sekali lalu dipakai bergantian | Pool sambungan |
+| Jumlah loket | `max` pada pool |
+| Antrean tamu di depan loket | Permintaan yang menunggu sambungan |
+| Lift menuju rak | Prosesor dan disk mesin basis data |
+| Petugas yang pergi makan siang tanpa menutup loketnya | Transaksi yang lupa ditutup |
+| Batas waktu melayani satu tamu | `statement_timeout` |
+| Tamu yang bolak-balik seratus kali untuk seratus berkas | Masalah N+1 |
+
+Batas analoginya: petugas bank bisa melihat antreannya sendiri memanjang dan memanggil bantuan, sedangkan pool sambungan tidak memberi tahu siapa pun. Permintaan yang menunggu sambungan terlihat persis seperti permintaan yang lambat karena sebab lain, dan membedakan keduanya butuh satu angka yang akan dipasang di akhir modul ini: berapa lama permintaan menunggu sebelum mendapat sambungan.
+
 ## Pool sambungan
 
 Membuka sambungan ke Postgres mahal: ada perjalanan jaringan, autentikasi, dan di sisi server satu **proses** baru dibuat untuk setiap sambungan. Karena itu sambungan dibuat sekali lalu dipakai ulang.
@@ -31,7 +53,7 @@ import { config } from '../config.js';
 export const pool = new Pool({
   connectionString: config.DATABASE_URL,
 
-  max: config.DB_POOL_MAX,          // jumlah sambungan maksimum
+  max: config.DB_POOL_MAX,          // jumlah sambungan maksimum, lihat tabel config di modul 2
   idleTimeoutMillis: 30_000,        // tutup sambungan yang menganggur
   connectionTimeoutMillis: 5_000,   // jangan menunggu pool selamanya
 
@@ -70,6 +92,7 @@ Dua keadaan yang butuh penanganan khusus:
 ## Parameter, bukan penyambungan string
 
 ```ts
+// Jangan disalin: ini bentuk yang harus dihindari
 // Berbahaya: injeksi SQL. Masukan "'; DROP TABLE buku; --" menghancurkan data.
 const hasil = await pool.query(`SELECT * FROM buku WHERE judul = '${judul}'`);
 
@@ -77,11 +100,12 @@ const hasil = await pool.query(`SELECT * FROM buku WHERE judul = '${judul}'`);
 const hasil = await pool.query('SELECT * FROM buku WHERE judul = $1', [judul]);
 ```
 
-Yang perlu dipahami: parameter **bukan** sekadar pelolosan tanda kutip. Pernyataan dan datanya dikirim terpisah ke server, sehingga isi parameter tidak pernah ditafsirkan sebagai bagian dari perintah. Itu sebabnya ia aman secara mutlak, bukan aman karena kebetulan.
+Yang perlu dipahami: parameter **bukan** sekadar pelolosan tanda kutip. Pernyataan dan datanya dikirim terpisah ke server, sehingga isi parameter tidak pernah ditafsirkan sebagai bagian dari perintah. Itu sebabnya parameter aman secara mutlak, bukan aman karena kebetulan.
 
 Satu hal yang **tidak** bisa diparameterkan: nama tabel, nama kolom, dan arah pengurutan. Jadi pengurutan dinamis dari masukan pengguna harus lewat daftar putih:
 
 ```ts
+// src/db/urutan.ts
 // Pengurutan dinamis yang aman
 const KOLOM_URUT = {
   judul: 'b.judul',
@@ -132,6 +156,7 @@ export const peminjaman = pgTable('peminjaman', {
 Perhatikan bahwa nama kolom di basis data memakai `snake_case` dan nama field di TypeScript memakai `camelCase`. Pemetaan itu ditulis satu kali di sini, dan sisa aplikasi tidak pernah melihat `snake_case` lagi.
 
 ```ts
+// src/fitur/peminjaman/repo.pg.ts, dengan Drizzle
 // Kueri bertipe, dan SQL yang dihasilkan masih bisa dibaca
 const hasil = await db
   .select({ id: buku.id, judul: buku.judul, penulis: buku.penulis })
@@ -205,13 +230,14 @@ Tiga catatan praktis yang akan menghemat waktu Anda:
 
 **`bigint` dari Postgres datang sebagai string di driver `pg`.** Alasannya `bigint` bisa melebihi batas bilangan yang aman di JavaScript. Untuk kolom uang rupiah, konversi ke `number` aman sampai sekitar sembilan kuadriliun, dan itu cukup. Untuk nilai yang benar-benar bisa melampauinya, pakai `BigInt` dan jangan lupa cara men-serialisasinya ke JSON.
 
-**Hasil kueri mentah tidak bertipe.** Validasi dengan Zod pada batas ini layak dilakukan untuk kueri SQL langsung, dan modul 12 seri frontend menjelaskan pola yang sama.
+**Hasil kueri mentah tidak bertipe.** Validasi dengan Zod pada batas ini layak dilakukan untuk kueri SQL langsung, dan modul 13 seri frontend menjelaskan pola yang sama.
 
 ## N+1: pembunuh performa yang tidak terlihat
 
 Kode ini terbaca wajar dan merupakan penyebab performa buruk nomor satu di aplikasi yang memakai basis data:
 
 ```ts
+// Bentuk N+1. Jangan disalin.
 // 1 kueri untuk daftar
 const daftar = await repoPeminjaman.daftar({ limit: 50 });
 
@@ -227,6 +253,7 @@ Pada basis data lokal, 101 kueri yang masing-masing 1 ms terasa cepat. Pada prod
 Tiga cara memperbaikinya:
 
 ```ts
+// src/fitur/peminjaman/repo.pg.ts, tiga cara menghindari N+1
 // A. Satu join, kalau bentuk hasilnya memang datar
 const daftar = await db
   .select({
@@ -278,6 +305,7 @@ Mana yang dipilih: **A kalau hasilnya datar, B kalau butuh bersarang dan datanya
 Cara mendeteksinya sebelum produksi:
 
 ```ts
+// src/db/hitung-kueri.ts
 // Hitung kueri per permintaan, dan peringatkan kalau melewati batas wajar
 export function pasangPenghitungKueri(app: FastifyInstance) {
   app.addHook('onRequest', async (req) => {
@@ -295,7 +323,7 @@ export function pasangPenghitungKueri(app: FastifyInstance) {
 }
 ```
 
-Lima belas baris itu menemukan lebih banyak masalah performa daripada alat apa pun, karena ia memberi tahu Anda saat masalahnya **baru dibuat**, bukan enam bulan kemudian.
+Lima belas baris itu menemukan lebih banyak masalah performa daripada alat apa pun, karena catatan itu memberi tahu Anda saat masalahnya **baru dibuat**, bukan enam bulan kemudian.
 
 ## Error Postgres jadi error domain
 
@@ -337,7 +365,7 @@ export function terjemahkanErrorDb(error: unknown): never {
 
     case KODE.SERIALIZATION:
     case KODE.DEADLOCK:
-      // Layak dicoba ulang, dan itu dikerjakan pemanggil. Modul 8.
+      // Layak dicoba ulang, dan itu dikerjakan pemanggil. Modul 9.
       throw new ErrorDapatDiulang('Terjadi bentrok, permintaan dapat diulang');
 
     case KODE.STATEMENT_TIMEOUT:
@@ -377,11 +405,11 @@ Satu peringatan: jangan pernah mengirim pesan error Postgres mentah ke klien. Pe
 }
 ```
 
-Dua hal yang pantas disiapkan sekarang, meski test dibahas lengkap di modul 20:
+Dua hal yang pantas disiapkan sekarang, meski test dibahas lengkap di modul 21:
 
 **Basis data terpisah untuk test**, dengan skema yang dimigrasikan dari nol di setiap jalannya. Menguji terhadap Postgres sungguhan dengan Testcontainers memberi keyakinan yang tidak bisa diberikan basis data tiruan, karena yang Anda uji termasuk batasan, tipe, dan perilaku transaksinya.
 
-**Data benih yang masuk akal.** Seed yang berisi tiga baris tidak akan pernah memunculkan masalah N+1 maupun kueri yang lambat. Buat seed yang menghasilkan puluhan ribu baris, dan modul 9 akan memakainya untuk membuktikan dampak indeks.
+**Data benih yang masuk akal.** Seed yang berisi tiga baris tidak akan pernah memunculkan masalah N+1 maupun kueri yang lambat. Buat seed yang menghasilkan puluhan ribu baris, dan modul 10 akan memakainya untuk membuktikan dampak indeks.
 
 Terakhir, nyalakan pencatatan kueri lambat sejak sekarang:
 
@@ -392,6 +420,79 @@ ALTER DATABASE perpustakaan SET log_min_duration_statement = 200;
 -- Statistik kueri agregat, alat terbaik untuk menemukan yang perlu diperbaiki
 CREATE EXTENSION IF NOT EXISTS pg_stat_statements;
 ```
+
+Dan satu angka yang dijanjikan di awal modul: **berapa lama permintaan menunggu sebelum mendapat sambungan.** Tanpa angka ini, pool yang penuh terlihat persis seperti kueri yang lambat, dan dua masalah itu punya perbaikan yang berlawanan.
+
+```ts
+// src/db/pool.ts, lanjutan
+export async function denganSambungan<T>(kerjakan: (c: PoolClient) => Promise<T>): Promise<T> {
+  const mulai = performance.now();
+  const sambungan = await pool.connect();
+  const tungguMs = performance.now() - mulai;
+
+  // Menunggu lebih dari 50 ms berarti pool sedang jadi titik sempit
+  if (tungguMs > 50) {
+    logger.warn({ tunggu_pool_ms: Math.round(tungguMs), total: pool.totalCount, idle: pool.idleCount }, 'menunggu sambungan');
+  }
+
+  try {
+    return await kerjakan(sambungan);
+  } finally {
+    sambungan.release();
+  }
+}
+```
+
+Cara membacanya, dan ini akan menghemat berjam-jam saat produksi melambat:
+
+| Tunggu pool | Kueri lambat | Artinya | Yang diperbaiki |
+| --- | --- | --- | --- |
+| Rendah | Ya | Kuerinya memang lambat | Indeks dan bentuk kueri, modul 10 |
+| **Tinggi** | Tidak | Sambungan habis dipegang orang lain | Transaksi yang terlalu panjang, atau N+1 |
+| Tinggi | Ya | Kueri lambat menahan sambungan, lalu antre | Perbaiki kuerinya dulu, bukan naikkan `max` |
+
+Baris tengah adalah yang paling sering salah didiagnosis. Semua kueri terlihat cepat di `pg_stat_statements`, latensi endpoint tetap tinggi, dan jawabannya bukan di basis data sama sekali.
+
+## Buktikan jalan
+
+Setelah pool dan repository terpasang, tiga pemeriksaan yang membuktikan semuanya tersambung.
+
+```bash
+# 1. Aplikasi benar-benar menyambung ke Postgres
+curl -s localhost:3000/siap | jq
+```
+
+```json
+{ "status": "ok", "basisData": "tersambung" }
+```
+
+```bash
+# 2. Berapa sambungan yang benar-benar dibuka aplikasi Anda?
+docker compose exec -it db psql -U postgres -d perpustakaan \
+  -c "SELECT count(*), state FROM pg_stat_activity WHERE datname = 'perpustakaan' GROUP BY state;"
+```
+
+```text
+ count |        state
+-------+---------------------
+     3 | idle
+     1 | active
+```
+
+Angka itu harus **sekitar `DB_POOL_MAX`**, bukan jumlah permintaan yang pernah masuk. Kalau angkanya terus naik setiap kali Anda memanggil endpoint, berarti ada sambungan yang tidak dikembalikan ke pool, dan penyebabnya hampir selalu `release()` yang terlewat di jalur error.
+
+```bash
+# 3. Berapa kueri per permintaan?
+curl -s localhost:3000/v1/peminjaman?limit=20 > /dev/null
+```
+
+Lihat terminal server. Pencatat dari bagian sebelumnya akan menuliskan satu baris:
+
+```text
+{"level":"info","msg":"permintaan selesai","jumlah_kueri":2,"durasi_ms":14}
+```
+
+**Dua kueri untuk dua puluh baris adalah angka yang sehat. Dua puluh satu kueri berarti N+1.** Angka inilah yang membuat masalah N+1 terlihat saat baru dibuat, bukan enam bulan kemudian saat produksi melambat.
 
 ## Latihan
 
@@ -426,6 +527,9 @@ Sebuah layanan punya keadaan berikut. Hitung `max` pool per instance, lalu jelas
 | Target throughput | 600 permintaan per detik |
 | Kueri per permintaan | 3 |
 
+> [!petunjuk]
+> Angka target throughput dan waktu kueri sudah cukup untuk menghitung berapa kueri bersamaan yang benar-benar dibutuhkan: 600 permintaan per detik dikali 3 kueri, masing-masing 8 ms. Bandingkan hasilnya dengan rumus di bagian "Pool sambungan", lalu periksa dua batas atas: `max_connections` Postgres saat 10 instance menyala bersamaan, dan jumlah inti basis data.
+
 > [!jawaban]
 >
 > **Perhitungan kapasitas yang sebenarnya:**
@@ -454,6 +558,7 @@ Sebuah layanan punya keadaan berikut. Hitung `max` pool per instance, lalu jelas
 Endpoint ini butuh 1,2 detik untuk 50 baris. Temukan semua kueri yang terjadi, hitung jumlahnya, lalu perbaiki agar jumlah kueri tidak bergantung pada jumlah baris.
 
 ```ts
+// Handler yang harus Anda perbaiki di latihan ini
 app.get('/v1/peminjaman', async (req) => {
   const daftar = await repoPeminjaman.daftar({ limit: 50 });
 
@@ -548,11 +653,11 @@ Untuk tujuh kegagalan Postgres berikut, tentukan status HTTP, pesan untuk penggu
 >
 > **Nomor 4 adalah 500, bukan 422, dan ini yang paling sering salah.** Pelanggaran `CHECK` berarti kode Anda mengirim nilai yang tidak mungkin sah. Itu bug di aplikasi, bukan kesalahan pengguna. Validasi skema di modul 3 seharusnya sudah menolaknya lebih dulu, jadi batasan basis data di sini berperan sebagai jaring terakhir. Mencatatnya sebagai `error` memastikan Anda mengetahuinya dan memperbaikinya.
 >
-> **Nomor 5 layak dicoba ulang otomatis, dan hanya itu bersama `40001`.** Deadlock dan kegagalan serialisasi adalah kegagalan sementara yang hampir selalu berhasil pada percobaan kedua. Tapi ada satu syarat mutlak: **operasinya harus idempoten**, atau percobaan ulang justru mengerjakannya dua kali. Modul 8 membangun pola percobaan ulangnya.
+> **Nomor 5 layak dicoba ulang otomatis, dan hanya itu bersama `40001`.** Deadlock dan kegagalan serialisasi adalah kegagalan sementara yang hampir selalu berhasil pada percobaan kedua. Tapi ada satu syarat mutlak: **operasinya harus idempoten**, atau percobaan ulang justru mengerjakannya dua kali. Modul 9 membangun pola percobaan ulangnya.
 >
 > **Nomor 1 dan 2 memakai kode 409 yang sama dengan pesan berbeda**, dan itu alasan tabel `PESAN_UNIK` ada. Tanpa pemetaan nama batasan, Anda akan tergoda mengirim pesan generik "data sudah ada", yang tidak membantu pengguna sama sekali.
 >
-> **Nomor 6 jangan dicoba ulang otomatis.** Kueri yang melewati batas waktu biasanya akan melewatinya lagi, dan mengulanginya hanya menambah beban saat basis data sudah kesulitan. Yang perlu dilakukan: catat kuerinya, lalu perbaiki dengan indeks di modul 9.
+> **Nomor 6 jangan dicoba ulang otomatis.** Kueri yang melewati batas waktu biasanya akan melewatinya lagi, dan mengulanginya hanya menambah beban saat basis data sudah kesulitan. Yang perlu dilakukan: catat kuerinya, lalu perbaiki dengan indeks di modul 10.
 
 ## Batasnya
 

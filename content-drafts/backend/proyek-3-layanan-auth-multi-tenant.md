@@ -1,7 +1,7 @@
 ---
 title: 'Proyek 3: Layanan Autentikasi Multi-tenant'
 description: Satu layanan yang dipakai beberapa aplikasi: undangan anggota, peran kustom per tenant, kunci API, jejak audit, isolasi yang dijamin Row Level Security, dan uji serangan yang semuanya harus ditolak.
-date: 2026-12-16
+date: 2026-12-18
 slug: proyek-3-layanan-auth-multi-tenant
 tags: tutorial backend
 series: Tutorial Backend
@@ -12,9 +12,9 @@ Tiga modul terakhir membahas identitas, izin, dan pertahanan. Proyek ini menyatu
 
 | Dari modul | Yang dipakai |
 | --- | --- |
-| 10 | Argon2id, sesi tersimpan, rotasi refresh token dengan deteksi pemakaian ulang |
-| 11 | Peran dan izin sebagai data, cakupan, Row Level Security, impersonasi |
-| 12 | Skema ketat, batas sumber daya, pengelolaan rahasia, verifikasi tanda tangan |
+| 11 | Argon2id, sesi tersimpan, rotasi refresh token dengan deteksi pemakaian ulang |
+| 12 | Peran dan izin sebagai data, cakupan, Row Level Security, impersonasi |
+| 13 | Skema ketat, batas sumber daya, pengelolaan rahasia, verifikasi tanda tangan |
 
 Yang membedakannya dari tutorial autentikasi biasa: **proyek ini dinilai dari serangan yang berhasil ditolak, bukan dari fitur yang berhasil jalan.** Bagian checklist berisi dua belas percobaan serangan, dan semuanya harus gagal.
 
@@ -80,6 +80,26 @@ Satu keputusan di awal menentukan seluruh bentuknya: **pengguna bersifat global,
 26. Impersonasi untuk staf platform: wajib alasan tertulis, berumur 30 menit, tercatat audit, dan tidak boleh mengubah sandi maupun menghapus tenant.
 27. Semua skema masukan `.strict()`, dan `peran` tidak pernah bisa dikirim lewat endpoint pendaftaran atau pembaruan profil.
 28. Pesan dan waktu respons login seragam untuk email terdaftar dan tidak.
+
+## Langkah pengerjaan bertahap
+
+Urutan di sini ditentukan satu hal: **isolasi tenant dipasang sebelum ada fitur yang bisa membocorkannya.** Menambahkan Row Level Security ke layanan yang sudah punya dua puluh endpoint berarti memeriksa dua puluh endpoint satu per satu.
+
+**Hari 1: tenant dan isolasi.** Tabel tenant, kolom `tenant_id` di semua tabel miliknya, RLS dengan `USING` dan `WITH CHECK`, dan cara menyetel konteks tenant pada setiap sambungan. Belum ada satu pun endpoint. Selesai kalau Anda bisa membuktikan di `psql` bahwa sesi dengan tenant A tidak bisa membaca maupun menulis baris milik tenant B.
+
+**Hari 2: identitas dan sesi.** Argon2id, sesi tersimpan yang bisa dicabut, rotasi refresh token beserta deteksi pemakaian ulang, dan pesan login yang seragam.
+
+**Hari 3: peran dan izin.** Peran sebagai data bukan sebagai `enum` di kode, satu fungsi otorisasi terpusat, dan test matriks yang merah saat ada endpoint baru tanpa keputusan akses.
+
+**Hari 4: undangan anggota dan kunci API.** Dua jalur masuk yang berbeda sifatnya, dan keduanya pintu yang sering lupa dijaga.
+
+**Hari 5: jejak audit dan impersonasi.** Audit ditulis dalam transaksi yang sama dengan perubahannya, dan impersonasi dengan alasan wajib serta umur terbatas.
+
+**Hari 6: dua belas serangan.** Checklist penilaian di bawah adalah daftar serangan, bukan daftar fitur. Jalankan semuanya, dan **setiap satu harus ditolak**. Satu saja yang lolos berarti proyek ini belum selesai.
+
+**Hari 7: perbaiki temuan**, lalu tulis ulang satu kalimat untuk tiap serangan yang lolos tentang kenapa pertahanannya gagal.
+
+Peringatan yang pantas diulang: **jangan membuat sendiri penyimpanan sandi, rotasi token, atau pembuatan JWT kalau ini untuk produksi.** Proyek ini membangunnya supaya Anda paham cara kerjanya dan tahu apa yang ditawarkan penyedia identitas saat Anda menilainya nanti.
 
 ## Skema inti
 
@@ -181,6 +201,7 @@ Tiga keputusan yang pantas diperhatikan:
 Alur ini punya lebih banyak celah daripada yang terlihat, dan pantas dikerjakan dengan teliti.
 
 ```ts
+// src/fitur/undangan/layanan.ts
 export async function undangAnggota(
   pelaku: Pelaku,
   masukan: { email: string; peranId: string }
@@ -244,13 +265,14 @@ Enam langkah, dan empat di antaranya menutup celah yang nyata:
 
 **Langkah 2 mencegah eskalasi hak.** Tanpa itu, seorang admin bisa mengundang orang dengan peran pemilik, lalu masuk dengan akun itu. Aturannya: seseorang hanya boleh memberikan peran yang izinnya merupakan bagian dari izinnya sendiri.
 
-**Langkah 5 memakai pola yang akan dibahas lengkap di modul 15.** Menyimpan pekerjaan email di dalam transaksi yang sama dengan undangannya memastikan tidak ada undangan tanpa email, dan tidak ada email untuk undangan yang gagal disimpan.
+**Langkah 5 memakai pola yang akan dibahas lengkap di modul 16.** Menyimpan pekerjaan email di dalam transaksi yang sama dengan undangannya memastikan tidak ada undangan tanpa email, dan tidak ada email untuk undangan yang gagal disimpan.
 
 **Langkah 6 penting dan sering salah.** Mengembalikan token undangan ke pengundang berarti dia bisa menerima undangan itu sendiri dengan email berbeda, atau membagikannya ke orang lain. Token hanya ada di email penerima.
 
 Dan sisi penerimaannya:
 
 ```ts
+// src/fitur/undangan/layanan.ts, lanjutan
 export async function terimaUndangan(token: string, penggunaId: string) {
   return dalamTransaksi(db, async (tx) => {
     // Sekali pakai, atomik
@@ -318,7 +340,7 @@ app.decorate('autentikasi', async (req: FastifyRequest) => {
   }
 
   // Izin dibaca dari sumbernya, bukan dari token, supaya pencabutan langsung berlaku.
-  // Di-cache 60 detik, lihat modul 13 untuk pertukarannya.
+  // Di-cache 60 detik, lihat modul 14 untuk pertukarannya.
   const izin = await cacheIzin.ambil(klaim.sub, klaim.tid);
 
   req.pelaku = {
@@ -332,7 +354,7 @@ app.decorate('autentikasi', async (req: FastifyRequest) => {
 });
 ```
 
-Keputusan di baris komentar itu adalah inti pertukaran dari modul 10: **peran ada di token untuk kecepatan, izin dibaca dari sumbernya untuk kebenaran.** Dengan cache 60 detik, pencabutan izin berlaku paling lama satu menit, dan itu bisa dipercepat dengan pembatalan cache saat peran diubah.
+Keputusan di baris komentar itu adalah inti pertukaran dari modul 11: **peran ada di token untuk kecepatan, izin dibaca dari sumbernya untuk kebenaran.** Dengan cache 60 detik, pencabutan izin berlaku paling lama satu menit, dan itu bisa dipercepat dengan pembatalan cache saat peran diubah.
 
 ## Yang harus Anda kerjakan sendiri
 
@@ -363,6 +385,7 @@ Proyek ini dinilai dari sini. Setiap baris harus gagal untuk penyerang.
 Nomor 3 cara mengujinya:
 
 ```ts
+// test/isolasi-tenant.test.ts
 it('RLS menolak kebocoran meski kueri lupa menyaring', async () => {
   await denganTenant(TENANT_A, (tx) => buatAnggota(tx, { email: 'a@contoh.com' }));
 
@@ -405,7 +428,7 @@ done | awk '{s+=$1} END {printf "tidak ada: %.3f\n", s/NR}'
 - Peran boleh ada di token untuk kecepatan, izin dibaca dari sumbernya untuk kebenaran.
 - Row Level Security adalah lapisan yang membuat kelupaan tidak berakibat, dan diuji dengan kueri yang sengaja lupa menyaring.
 - Impersonasi wajib punya alasan tertulis, masa berlaku pendek, audit, dan daftar aksi yang dilarang.
-- Audit bukan fitur tambahan. Untuk layanan identitas, ia bagian dari produk.
+- Audit bukan fitur tambahan. Untuk layanan identitas, audit adalah bagian dari produk.
 - Layanan autentikasi dinilai dari serangan yang ditolak, bukan dari fitur yang jalan. Tulis uji serangannya sebagai test otomatis.
 
 ## Masalah terbuka
