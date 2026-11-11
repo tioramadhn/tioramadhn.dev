@@ -1,8 +1,8 @@
 ---
-title: 'Modul 16: Testing Frontend: Unit, Komponen, dan End-to-End'
+title: 'Modul 17: Testing Frontend: Unit, Komponen, dan End-to-End'
 description: Bukan mengejar angka cakupan, tapi menulis sedikit test yang benar-benar menangkap kerusakan. Vitest, Testing Library, Playwright, dan cara memutuskan apa yang tidak perlu diuji.
-date: 2026-11-26
-slug: modul-16-testing-frontend
+date: 2026-11-28
+slug: modul-17-testing-frontend
 tags: tutorial frontend
 series: Tutorial Frontend
 status: draft
@@ -111,7 +111,7 @@ describe('hitungTotal', () => {
     expect(hitungTotal([{ harga: 22000, jumlah: 1 }])).toBe(22000);
   });
 
-  // Nilai nol adalah nilai yang sah, dan ini pernah jadi bug nyata di modul 4
+  // Nilai nol adalah nilai yang sah, dan ini pernah jadi bug nyata di modul 5
   it('memperlakukan diskon nol sebagai nol, bukan sebagai tidak ada', () => {
     expect(hitungTotal([{ harga: 22000, jumlah: 1, diskon: 0 }])).toBe(22000);
   });
@@ -122,7 +122,7 @@ describe('hitungTotal', () => {
 });
 ```
 
-Skema Zod dari modul 12 juga layak diuji, dan test-nya menjelaskan aturan bisnis lebih jelas daripada dokumentasi mana pun:
+Skema Zod dari modul 13 juga layak diuji, dan test-nya menjelaskan aturan bisnis lebih jelas daripada dokumentasi mana pun:
 
 ```ts
 describe('skemaPendaftaran', () => {
@@ -189,7 +189,7 @@ Perhatikan cara elemen dicari. Urutan yang disarankan, dari yang paling baik:
 | `getByTestId` | `getByTestId('baris-produk')` | Pilihan terakhir, saat tidak ada cara lain |
 | Selektor kelas CSS | `container.querySelector('.btn')` | Jangan. Pecah setiap kali gaya diubah |
 
-Ada efek samping yang menyenangkan dari aturan ini: **test yang ditulis dengan `getByRole` otomatis menguji aksesibilitas.** Tombol tanpa nama yang bisa diakses tidak akan ditemukan, dan test-nya gagal. Modul 15 ikut dijaga tanpa usaha tambahan.
+Ada efek samping yang menyenangkan dari aturan ini: **test yang ditulis dengan `getByRole` otomatis menguji aksesibilitas.** Tombol tanpa nama yang bisa diakses tidak akan ditemukan, dan test-nya gagal. Modul 16 ikut dijaga tanpa usaha tambahan.
 
 Dan satu hal yang tidak boleh diuji:
 
@@ -447,7 +447,7 @@ it('alur lengkap', async () => {
 
 Ambil tiga bug yang pernah Anda temui di proyek-proyek seri ini, lalu tulis satu test untuk masing-masing yang akan merah sebelum perbaikan dan hijau sesudahnya.
 
-Saran bug yang bisa dipakai: indeks sebagai `key` yang membuat isian berpindah (modul 8), `||` yang menyembunyikan nilai nol (modul 4), dan filter yang tidak mengembalikan halaman ke 1 (Proyek 3).
+Saran bug yang bisa dipakai: indeks sebagai `key` yang membuat isian berpindah (modul 9), `||` yang menyembunyikan nilai nol (modul 5), dan filter yang tidak mengembalikan halaman ke 1 (Proyek 3).
 
 > [!pembahasan]
 >

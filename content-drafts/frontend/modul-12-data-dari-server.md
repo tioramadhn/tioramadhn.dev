@@ -1,14 +1,14 @@
 ---
-title: 'Modul 11: Data dari Server: Fetching, Cache, dan Status UI'
+title: 'Modul 12: Data dari Server: Fetching, Cache, dan Status UI'
 description: Data server bukan state biasa. Ia dimiliki orang lain, bisa basi tanpa memberi kabar, dan dibutuhkan banyak komponen sekaligus. Itu sebabnya useState dan useEffect tidak cukup.
-date: 2026-11-19
-slug: modul-11-data-dari-server
+date: 2026-11-21
+slug: modul-12-data-dari-server
 tags: tutorial frontend
 series: Tutorial Frontend
 status: draft
 ---
 
-Lima keluhan dari Proyek 2 dan modul 10:
+Lima keluhan dari Proyek 2 dan modul 11:
 
 1. Hook pengambil data punya kode yang hampir sama di setiap fitur.
 2. Menekan tombol kembali memuat ulang data yang baru saja dilihat.
@@ -116,7 +116,7 @@ function useHasilCari(kataKunci: string) {
 }
 ```
 
-Bandingkan dengan versi tulisan tangan di modul 9. Tujuh pekerjaan di atas sudah tertangani, termasuk `signal` untuk pembatalan yang diberikan langsung oleh library.
+Bandingkan dengan versi tulisan tangan di modul 10. Tujuh pekerjaan di atas sudah tertangani, termasuk `signal` untuk pembatalan yang diberikan langsung oleh library.
 
 Pemakaiannya di komponen:
 
@@ -285,9 +285,9 @@ Dua catatan yang sering jadi masalah nyata:
 | **SWR** | Kebutuhan sederhana | Lebih kecil, fiturnya lebih sedikit |
 | **RTK Query** | Proyek yang sudah memakai Redux Toolkit | Masuk akal kalau Redux memang sudah ada |
 | **Apollo Client** | Backend GraphQL | Cache berbasis normalisasi entitas |
-| **Bawaan framework** | Next.js App Router | Pengambilan data di server dengan cache sendiri, lihat modul 13 |
+| **Bawaan framework** | Next.js App Router | Pengambilan data di server dengan cache sendiri, lihat modul 14 |
 
-Catatan penting untuk baris terakhir: di Next.js App Router, sebagian pekerjaan modul ini pindah ke server, dan tidak semua aplikasi masih butuh library data di klien. Tetap butuh untuk data yang sering berubah, polling, pembaruan optimistis, dan gulir tanpa akhir. Modul 13 membahas pembagiannya.
+Catatan penting untuk baris terakhir: di Next.js App Router, sebagian pekerjaan modul ini pindah ke server, dan tidak semua aplikasi masih butuh library data di klien. Tetap butuh untuk data yang sering berubah, polling, pembaruan optimistis, dan gulir tanpa akhir. Modul 14 membahas pembagiannya.
 
 ## Latihan
 
@@ -324,7 +324,7 @@ Pasang TanStack Query di katalog Anda, lalu ganti `useHasilCari`, `useDetail`, d
 > 1. **`staleTime` adalah keputusan per data, bukan satu angka global.** Detail judul boleh lima menit, daftar notifikasi mungkin nol, saldo rekening mungkin juga nol. Angka ini menyatakan seberapa lama data lama masih boleh dipercaya, dan itu pertanyaan produk, bukan pertanyaan teknis.
 > 2. **Favorit yang sumbernya `localStorage` tetap pantas masuk Query.** Dengan begitu, jumlah di navigasi dan tombol di kartu membaca satu sumber yang sama, dan keluhan "angka berselisih dengan daftar" tidak bisa terjadi lagi.
 > 3. **Hook jadi pendek sekali**, dan semua pekerjaan berpindah ke konfigurasi. Itu tanda Anda sudah berhenti menulis ulang hal yang sudah diselesaikan orang lain.
-> 4. **Komponen hampir tidak berubah**, karena bentuk keadaannya tetap. Itu buah dari discriminated union di modul 7: Anda cukup memetakan `isPending`, `isError`, dan `data` ke tampilan yang sudah ada.
+> 4. **Komponen hampir tidak berubah**, karena bentuk keadaannya tetap. Itu buah dari discriminated union di modul 8: Anda cukup memetakan `isPending`, `isError`, dan `data` ke tampilan yang sudah ada.
 
 ### Latihan 2: Rancang kunci cache
 
@@ -445,11 +445,11 @@ Tiga laporan bug dari aplikasi yang sudah memakai TanStack Query. Untuk masing-m
 
 Lapisan data menyelesaikan pembacaan dan perubahan data server. Tiga hal tetap di luar jangkauannya.
 
-**Validasi bentuk data.** TanStack Query mengembalikan apa pun yang dikirim server tanpa memeriksanya. Tipe yang Anda tulis untuk respons itu masih janji sepihak, persis seperti catatan di akhir modul 7.
+**Validasi bentuk data.** TanStack Query mengembalikan apa pun yang dikirim server tanpa memeriksanya. Tipe yang Anda tulis untuk respons itu masih janji sepihak, persis seperti catatan di akhir modul 8.
 
 **Form yang serius.** Mutation mengurus pengiriman, bukan pengisian. Form dengan dua puluh isian, validasi bersyarat, dan pesan error per kolom tetap pekerjaan terpisah.
 
-**Pengambilan pertama yang cepat.** Semua yang dibahas di modul ini berjalan di browser, jadi urutannya tetap: unduh HTML, unduh JavaScript, jalankan, baru minta data. Pengguna menunggu tiga langkah sebelum melihat isi. Itu masalah yang dijawab render di server pada modul 13.
+**Pengambilan pertama yang cepat.** Semua yang dibahas di modul ini berjalan di browser, jadi urutannya tetap: unduh HTML, unduh JavaScript, jalankan, baru minta data. Pengguna menunggu tiga langkah sebelum melihat isi. Itu masalah yang dijawab render di server pada modul 14.
 
 ## Rangkuman
 
@@ -468,6 +468,6 @@ Pembacaan dan perubahan data sudah beres. Sekarang buka form pendaftaran di apli
 
 Form nyata punya tuntutan yang tidak terbayang dari contoh "input nama dan email": validasi yang berbeda per kolom, aturan yang bergantung pada kolom lain ("nomor NPWP wajib kalau jenis akun perusahaan"), pesan error yang hanya muncul setelah pengguna selesai mengisi, kolom yang bertambah dan berkurang, pengiriman yang bisa gagal dengan error per kolom dari server, dan draf yang tidak boleh hilang saat tab tertutup.
 
-Dikerjakan dengan `useState` per kolom, itu lima belas state dan satu fungsi validasi raksasa. Dan di balik semuanya ada pertanyaan dari modul 7 yang belum dijawab: siapa yang memastikan data yang masuk benar-benar berbentuk seperti yang dijanjikan tipenya?
+Dikerjakan dengan `useState` per kolom, itu lima belas state dan satu fungsi validasi raksasa. Dan di balik semuanya ada pertanyaan dari modul 8 yang belum dijawab: siapa yang memastikan data yang masuk benar-benar berbentuk seperti yang dijanjikan tipenya?
 
 Itu isi modul berikutnya: form, validasi berlapis dengan skema, dan pengalaman input yang tidak menyiksa.

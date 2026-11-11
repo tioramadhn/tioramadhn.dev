@@ -1,8 +1,8 @@
 ---
-title: 'Modul 17: Performance dan Core Web Vitals'
+title: 'Modul 18: Performance dan Core Web Vitals'
 description: Mengukur dengan jujur sebelum memperbaiki, lalu memperbaiki yang benar-benar berdampak. LCP, INP, CLS, biaya gambar dan font, dan kenapa skrip pihak ketiga sering jadi tersangka utama.
-date: 2026-11-27
-slug: modul-17-performance-web-vitals
+date: 2026-11-29
+slug: modul-18-performance-web-vitals
 tags: tutorial frontend
 series: Tutorial Frontend
 status: draft
@@ -88,7 +88,7 @@ Setelah tahu elemennya, urutkan penyebabnya:
 | Sumber daya yang memblokir render | CSS kritis lebih awal, skrip dengan `defer`, hapus font yang tidak dipakai |
 | Gambar terlalu besar | Format modern, ukuran yang tepat, kompresi |
 | Gambar ditemukan terlambat | `fetchpriority="high"`, hindari gambar hero yang dimuat lewat JavaScript |
-| Isi baru digambar setelah JavaScript jalan | Render di server, seperti modul 13 |
+| Isi baru digambar setelah JavaScript jalan | Render di server, seperti modul 14 |
 
 Gambar hampir selalu jadi penyebab terbesar, dan perbaikannya paling cepat:
 
@@ -146,15 +146,15 @@ Baris terakhir sering terlewat: kerangka pemuatan setinggi 60 piksel yang digant
 
 ## INP: kapan halaman terasa menanggapi
 
-INP mengukur jeda antara pengguna berbuat dan halaman memberi tanggapan terlihat. Penyebabnya hampir selalu main thread yang sibuk, dan itu kembali ke analogi koki tunggal di modul 4.
+INP mengukur jeda antara pengguna berbuat dan halaman memberi tanggapan terlihat. Penyebabnya hampir selalu main thread yang sibuk, dan itu kembali ke analogi koki tunggal di modul 5.
 
 | Penyebab | Perbaikan |
 | --- | --- |
 | Pekerjaan berat di penanganan event | Pecah, tunda, atau pindahkan ke Web Worker |
 | Daftar sangat panjang yang digambar ulang | Virtualisasi, atau tunda dengan `useDeferredValue` |
 | Perhitungan mahal di setiap render | Hitung sekali, atau pindahkan ke server |
-| Hidrasi yang berat | Kurangi Client Component, seperti modul 13 |
-| Context yang sering berubah | Pisahkan context, seperti modul 9 |
+| Hidrasi yang berat | Kurangi Client Component, seperti modul 14 |
+| Context yang sering berubah | Pisahkan context, seperti modul 10 |
 | Skrip pihak ketiga | Muat setelah interaktif, atau buang |
 
 Dua alat React yang khusus untuk ini:
@@ -444,6 +444,6 @@ Anda sekarang bisa membangun aplikasi yang benar, aman, terjaga test, bisa diaks
 
 Sekarang bayangkan keadaan yang akan Anda temui di perusahaan yang sedang tumbuh: lima produk, empat tim, satu merek. Tombol yang sama dibuat ulang di tiga tempat dengan perbedaan kecil yang tidak disengaja. Perbaikan di satu produk tidak sampai ke produk lain. Setiap tim punya cara rilis sendiri, dan tidak ada yang tahu versi mana yang sedang tayang di mana. Insiden baru ketahuan dari keluhan pengguna di media sosial.
 
-Tidak satu pun dari tujuh belas modul sebelumnya menjawab itu, karena masalahnya bukan tentang kode satu halaman, melainkan tentang bagaimana banyak orang mengerjakan banyak halaman tanpa saling menabrak.
+Tidak satu pun dari delapan belas modul sebelumnya menjawab itu, karena masalahnya bukan tentang kode satu halaman, melainkan tentang bagaimana banyak orang mengerjakan banyak halaman tanpa saling menabrak.
 
 Itu isi modul terakhir: design system, monorepo, jalur rilis, dan hal-hal yang membuat frontend layak disebut siap produksi.

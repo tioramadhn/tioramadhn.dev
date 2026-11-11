@@ -1,14 +1,14 @@
 ---
-title: 'Modul 18: Design System, Monorepo, dan Jalur Rilis'
+title: 'Modul 19: Design System, Monorepo, dan Jalur Rilis'
 description: Modul terakhir, dan satu-satunya yang masalahnya bukan tentang kode melainkan tentang orang. Berbagi komponen antar tim, merilis tanpa menahan napas, dan mengetahui ada yang rusak sebelum pengguna mengeluh.
-date: 2026-11-28
-slug: modul-18-design-system-dan-rilis
+date: 2026-11-30
+slug: modul-19-design-system-dan-rilis
 tags: tutorial frontend
 series: Tutorial Frontend
 status: draft
 ---
 
-Tujuh belas modul sebelumnya mengajarkan cara membangun aplikasi yang benar, aman, cepat, dan bisa diakses. Semuanya mengasumsikan satu hal yang tidak pernah disebut: Anda, atau tim kecil Anda, mengerjakan satu produk.
+Delapan belas modul sebelumnya mengajarkan cara membangun aplikasi yang benar, aman, cepat, dan bisa diakses. Semuanya mengasumsikan satu hal yang tidak pernah disebut: Anda, atau tim kecil Anda, mengerjakan satu produk.
 
 Modul ini tentang apa yang berubah saat asumsi itu gugur:
 
@@ -46,7 +46,7 @@ Kesalahan paling umum: menaruh komponen bersama di satu folder, menyebutnya desi
 
 Design system yang bekerja punya lima hal:
 
-**1. Token yang dipublikasikan.** Lapis primitif dan semantik dari modul 10, diterbitkan sebagai paket yang bisa dipasang, bukan disalin.
+**1. Token yang dipublikasikan.** Lapis primitif dan semantik dari modul 11, diterbitkan sebagai paket yang bisa dipasang, bukan disalin.
 
 **2. Komponen dengan kontrak yang jelas.** Props yang stabil, perilaku yang sudah benar secara aksesibilitas, dan tidak ada asumsi tentang produk tertentu.
 
@@ -243,7 +243,7 @@ Tiga hal yang sering terlewat dan menentukan berguna atau tidaknya pemantauan An
 
 ### Latihan 1: Terbitkan token Anda sebagai paket
 
-Ambil sistem token dari modul 10, ubah jadi paket di monorepo, lalu pakai dari dua aplikasi (Proyek 3 dan Proyek 4).
+Ambil sistem token dari modul 11, ubah jadi paket di monorepo, lalu pakai dari dua aplikasi (Proyek 3 dan Proyek 4).
 
 Syaratnya: token didefinisikan satu kali dalam format yang netral, lalu dihasilkan jadi CSS dan konstanta TypeScript, dan mengubah satu nilai cukup satu commit.
 
@@ -415,7 +415,7 @@ Modul ini menyentuh wilayah yang bukan sepenuhnya milik frontend, dan jujur soal
 
 ## Masalah terbuka
 
-Delapan belas modul dan empat proyek. Anda sudah membangun aplikasi tanpa framework, dengan React, dengan Next.js, dan dengan pengguna sungguhan. Sudah mengamankannya, mengujinya, membuatnya bisa diakses, dan membuatnya cepat.
+Sembilan belas modul dan empat proyek. Anda sudah membangun aplikasi tanpa framework, dengan React, dengan Next.js, dan dengan pengguna sungguhan. Sudah mengamankannya, mengujinya, membuatnya bisa diakses, dan membuatnya cepat.
 
 Satu hal yang belum pernah diminta sepanjang seri ini: **mempertanggungjawabkan setiap keputusannya.**
 

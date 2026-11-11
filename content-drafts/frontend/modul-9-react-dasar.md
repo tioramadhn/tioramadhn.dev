@@ -1,8 +1,8 @@
 ---
-title: 'Modul 8: React: Komponen, State, dan Model Render'
+title: 'Modul 9: React: Komponen, State, dan Model Render'
 description: Berhenti memerintahkan perubahan satu per satu, mulai mendeklarasikan tampilan sebagai hasil dari data. Satu pergeseran cara berpikir yang menjawab empat keluhan dari proyek pertama.
-date: 2026-11-15
-slug: modul-8-react-dasar
+date: 2026-11-17
+slug: modul-9-react-dasar
 tags: tutorial frontend
 series: Tutorial Frontend
 status: draft
@@ -25,7 +25,7 @@ Anda tidak lagi menulis "hapus baris ini, ubah angka itu, nonaktifkan tombol san
 
 ## Cara kerjanya: tiga tahap setiap pembaruan
 
-Pola di modul 5 menggambar ulang seluruh daftar dengan `replaceChildren`, dan karenanya fokus serta seleksi teks hilang. React tidak begitu. Setiap kali state berubah, tiga hal terjadi:
+Pola di modul 6 menggambar ulang seluruh daftar dengan `replaceChildren`, dan karenanya fokus serta seleksi teks hilang. React tidak begitu. Setiap kali state berubah, tiga hal terjadi:
 
 **1. Render.** React menjalankan fungsi komponen Anda dan mendapat deskripsi tampilan yang diinginkan. Deskripsi ini objek JavaScript biasa, bukan elemen DOM.
 
@@ -35,7 +35,7 @@ Pola di modul 5 menggambar ulang seluruh daftar dengan `replaceChildren`, dan ka
 
 Tahap pertama yang paling sering disalahpahami: **fungsi komponen Anda dijalankan ulang berkali-kali**, dan itu normal. Karena itu komponen tidak boleh mengerjakan hal di luar menggambar, misalnya mengirim permintaan atau mengubah variabel di luar dirinya. Fungsi yang murni dapat dijalankan ulang tanpa akibat, dan kemurnian itu syarat kerja React, bukan saran gaya.
 
-Analogi petugas papan tulis dari modul 5 masih berlaku, dengan satu tambahan: petugas sekarang menggambar versi barunya di kertas kalkir, menumpuknya di atas gambar lama, lalu hanya menebalkan bagian yang berbeda. Itu rekonsiliasi.
+Analogi petugas papan tulis dari modul 6 masih berlaku, dengan satu tambahan: petugas sekarang menggambar versi barunya di kertas kalkir, menumpuknya di atas gambar lama, lalu hanya menebalkan bagian yang berbeda. Itu rekonsiliasi.
 
 ## Komponen dan JSX
 
@@ -112,7 +112,7 @@ function tambahTigaBenar() {
 
 Pada satu kali penanganan event, `jumlah` adalah nilai tetap seperti foto. Kalau nilai baru dihitung dari nilai lama, pakai bentuk fungsi.
 
-**Kedua, state harus diganti, bukan diubah.** Kebiasaan dari modul 4 terpakai di sini:
+**Kedua, state harus diganti, bukan diubah.** Kebiasaan dari modul 5 terpakai di sini:
 
 ```tsx
 // Salah: React tidak tahu ada yang berubah
@@ -213,7 +213,7 @@ Patokan yang menyelamatkan banyak proyek: **kalau sebuah komponen sudah punya de
 
 ## Apa yang layak jadi state
 
-Ini keputusan yang paling menentukan kualitas kode React Anda, dan aturannya sama dengan modul 5:
+Ini keputusan yang paling menentukan kualitas kode React Anda, dan aturannya sama dengan modul 6:
 
 | Jenis nilai | Tempatnya | Contoh |
 | --- | --- | --- |
@@ -236,7 +236,7 @@ const [tugas, setTugas] = useState<Tugas[]>([]);
 const jumlahSelesai = tugas.filter((t) => t.selesai).length;
 ```
 
-Versi kedua tidak mungkin berselisih, dan tidak ada satu pun fungsi yang perlu ingat memperbarui dua tempat. Ini persis Latihan 2 di modul 5, sekarang dengan alat yang membuat jawaban benarnya lebih singkat daripada jawaban salahnya.
+Versi kedua tidak mungkin berselisih, dan tidak ada satu pun fungsi yang perlu ingat memperbarui dua tempat. Ini persis Latihan 2 di modul 6, sekarang dengan alat yang membuat jawaban benarnya lebih singkat daripada jawaban salahnya.
 
 ## Soal memo dan performa
 
@@ -245,7 +245,7 @@ Dulu kode React penuh `useMemo` dan `useCallback` untuk mencegah gambar ulang ya
 Dua hal yang perlu Anda lakukan, dan keduanya bukan menghafal API:
 
 1. **Tulis komponen yang murni.** Jangan mengubah props, jangan mengubah variabel di luar komponen, jangan memanggil hook secara bersyarat. Pengoptimalan otomatis hanya bisa bekerja pada kode yang bisa diprediksi.
-2. **Jangan mengoptimalkan sebelum mengukur.** Pasang React DevTools, nyalakan "Highlight updates", dan lihat apa yang benar-benar digambar ulang. Modul 17 membahas cara mengukurnya dengan serius.
+2. **Jangan mengoptimalkan sebelum mengukur.** Pasang React DevTools, nyalakan "Highlight updates", dan lihat apa yang benar-benar digambar ulang. Modul 18 membahas cara mengukurnya dengan serius.
 
 Yang masih perlu ditangani tangan: perhitungan yang benar-benar berat (misalnya mengolah sepuluh ribu baris), dan itu kasus yang jarang. Kalau Anda sedang menambahkan `useMemo` karena merasa "biar lebih cepat", hampir pasti Anda sedang menambah kerumitan tanpa hasil.
 
@@ -265,7 +265,7 @@ src/
 │   ├── KartuCuaca.tsx
 │   └── Prakiraan.tsx
 └── lib/
-    ├── cuaca.ts    (dipakai apa adanya dari modul 7)
+    ├── cuaca.ts    (dipakai apa adanya dari modul 8)
     └── format.ts
 ```
 
@@ -338,7 +338,7 @@ Syaratnya: `lib/cuaca.ts` tidak diubah sama sekali, tidak ada satu pun pemanggil
 > 3. **`useState(() => bacaDariPenyimpanan())`** memakai bentuk fungsi, supaya `localStorage` hanya dibaca satu kali, bukan setiap render.
 > 4. **`setCuaca((s) => ...)`** memakai bentuk fungsi karena nilai barunya dihitung dari nilai lama, dan beberapa pembaruan bisa terjadi berdekatan saat banyak kota dimuat bersamaan.
 >
-> Satu hal yang sengaja belum rapi: pemanggilan `ambilCuaca` di dalam handler masih terasa canggung, terutama saat Anda perlu membatalkannya. Itu bahan modul 9 dan modul 11.
+> Satu hal yang sengaja belum rapi: pemanggilan `ambilCuaca` di dalam handler masih terasa canggung, terutama saat Anda perlu membatalkannya. Itu bahan modul 10 dan modul 12.
 
 ### Latihan 2: Bug `key`
 
@@ -428,7 +428,7 @@ Kerjakan tanpa menambah satu pun state baru selain pilihan filternya.
 > 2. **State filter tinggal di `App`** karena dua komponen bersaudara membutuhkannya. Ini "menaikkan state", dan dinaikkan hanya sampai induk terdekat yang melayani keduanya, tidak lebih tinggi.
 > 3. **Hasil filter tidak disimpan.** Begitu Anda menyimpan `kotaTerlihat` di state, Anda harus mengingat memperbaruinya setiap kali `kota`, `cuaca`, atau `filter` berubah. Tiga kewajiban mengingat yang bisa dihapus hanya dengan menghitungnya.
 >
-> Bonus yang pantas dicoba: pindahkan nilai filter ke URL dengan `useSearchParams` saat Anda masuk ke routing, supaya tampilan yang disaring bisa dibagikan. Modul 13 mengerjakan ini dengan dukungan framework.
+> Bonus yang pantas dicoba: pindahkan nilai filter ke URL dengan `useSearchParams` saat Anda masuk ke routing, supaya tampilan yang disaring bisa dibagikan. Modul 14 mengerjakan ini dengan dukungan framework.
 
 ### Latihan 4: Temukan state yang tidak seharusnya ada
 
@@ -485,15 +485,15 @@ export function RingkasanKeranjang({ item }: { item: Item[] }) {
 
 React menjawab empat keluhan Proyek 1, dan dengan sengaja tidak mengurus hal lain. Lima pekerjaan yang masih kosong:
 
-**Berbicara dengan dunia luar.** Mengambil data, memasang listener di `window`, mengatur judul dokumen, dan menghubungkan diri ke WebSocket adalah hal di luar menggambar. Itu wilayah `useEffect`, dan modul 9 membahas aturan pemakaiannya.
+**Berbicara dengan dunia luar.** Mengambil data, memasang listener di `window`, mengatur judul dokumen, dan menghubungkan diri ke WebSocket adalah hal di luar menggambar. Itu wilayah `useEffect`, dan modul 10 membahas aturan pemakaiannya.
 
 **Berbagi nilai ke seluruh pohon komponen.** Tema dan data pengguna yang login dibutuhkan hampir semua komponen. Mengirimnya lewat props berlapis tujuh tidak masuk akal.
 
 **Berbagi logika antar komponen.** Debounce, pembacaan `localStorage`, dan deteksi ukuran layar akan dipakai di banyak tempat. Itu tugas custom hook.
 
-**Cache data server.** React tidak punya pendapat soal ini. Dua komponen yang memanggil data yang sama akan memanggilnya dua kali, dan data yang sudah diambil hilang begitu komponen dilepas. Modul 11 menjawabnya.
+**Cache data server.** React tidak punya pendapat soal ini. Dua komponen yang memanggil data yang sama akan memanggilnya dua kali, dan data yang sudah diambil hilang begitu komponen dilepas. Modul 12 menjawabnya.
 
-**Styling.** `className` di contoh-contoh modul ini masih menunjuk ke CSS yang belum disusun. Modul 10 membahas penataannya untuk skala aplikasi.
+**Styling.** `className` di contoh-contoh modul ini masih menunjuk ke CSS yang belum disusun. Modul 11 membahas penataannya untuk skala aplikasi.
 
 ## Rangkuman
 

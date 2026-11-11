@@ -1,8 +1,8 @@
 ---
-title: 'Modul 15: Aksesibilitas yang Benar-benar Dipakai'
+title: 'Modul 16: Aksesibilitas yang Benar-benar Dipakai'
 description: Bukan daftar atribut ARIA yang dihafal, tapi cara menguji dengan keyboard dan pembaca layar, pola komponen yang benar, dan alasan kenapa sebagian besar perbaikannya justru menghapus kode.
-date: 2026-11-25
-slug: modul-15-aksesibilitas
+date: 2026-11-27
+slug: modul-16-aksesibilitas
 tags: tutorial frontend
 series: Tutorial Frontend
 status: draft

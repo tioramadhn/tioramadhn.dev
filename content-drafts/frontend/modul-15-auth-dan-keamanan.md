@@ -1,8 +1,8 @@
 ---
-title: 'Modul 14: Autentikasi, Sesi, dan Keamanan Frontend'
+title: 'Modul 15: Autentikasi, Sesi, dan Keamanan Frontend'
 description: Menyembunyikan tombol bukan pengamanan. Modul ini membahas tempat token yang benar, serangan yang wajib dikenali, dan batas tanggung jawab frontend yang sebenarnya.
-date: 2026-11-23
-slug: modul-14-auth-dan-keamanan
+date: 2026-11-25
+slug: modul-15-auth-dan-keamanan
 tags: tutorial frontend
 series: Tutorial Frontend
 status: draft
@@ -215,7 +215,7 @@ Hal lain yang masuk tanggung jawab frontend, dan sering terlewat:
 
 **`target="_blank"` pada tautan luar.** Browser modern sudah aman secara bawaan, tapi `rel="noopener noreferrer"` tetap layak ditulis untuk dukungan yang lebih luas.
 
-**Data sensitif di log dan alat analitik.** Token, nomor kartu, dan isi form tidak boleh masuk ke `console.log` yang tertinggal di produksi, apalagi ke pelacak error pihak ketiga. Modul 18 membahas penyaringannya.
+**Data sensitif di log dan alat analitik.** Token, nomor kartu, dan isi form tidak boleh masuk ke `console.log` yang tertinggal di produksi, apalagi ke pelacak error pihak ketiga. Modul 19 membahas penyaringannya.
 
 **Dependensi.** Satu paket berbahaya di `node_modules` berjalan dengan hak penuh. Lockfile wajib di-commit, `pnpm audit` dijalankan berkala, dan kenaikan versi ditelaah, bukan diterima otomatis.
 
@@ -340,7 +340,7 @@ Tentukan atribut cookie untuk tiga kebutuhan ini, lalu jelaskan pilihan Anda.
 > `strict` dipilih, bukan `lax`, karena untuk aplikasi keuangan masuk akal menuntut pengguna memulai dari dalam aplikasi, bukan dari tautan di situs lain. Konsekuensinya: pengguna yang mengklik tautan dari email akan terlihat belum login, dan itu memang kompromi yang diterima di sektor ini. Tambahan yang wajar: perpanjang masa berlaku setiap kali ada aktivitas, dan tampilkan peringatan sebelum sesi berakhir.
 >
 > **B: tanpa `httpOnly`, `secure`, `sameSite: 'lax'`, umur panjang.**
-> Tema bukan rahasia, dan JavaScript di klien justru perlu membacanya. Di sini `httpOnly` tidak memberi manfaat. Kalau Anda memakai pendekatan dari modul 10 (skrip kecil sebelum first paint), cookie ini sekaligus memungkinkan server merender tema yang benar, sehingga tidak ada kedipan sama sekali.
+> Tema bukan rahasia, dan JavaScript di klien justru perlu membacanya. Di sini `httpOnly` tidak memberi manfaat. Kalau Anda memakai pendekatan dari modul 11 (skrip kecil sebelum first paint), cookie ini sekaligus memungkinkan server merender tema yang benar, sehingga tidak ada kedipan sama sekali.
 >
 > **C: `domain: '.contoh.com'`, `httpOnly`, `secure`, `sameSite: 'lax'`.**
 > Dengan `domain` di tingkat induk, cookie terkirim ke semua subdomain. Dua catatan penting: pertama, semua subdomain jadi ikut dipercaya, sehingga satu subdomain yang diretas membahayakan sesi di semua subdomain lain. Kedua, karena subdomain dianggap situs yang sama oleh `SameSite`, perlindungan CSRF antar subdomain hilang, jadi pemeriksaan `Origin` jadi wajib. Kalau salah satu subdomain dipakai untuk konten buatan pengguna, jangan lakukan ini sama sekali.
@@ -409,7 +409,7 @@ export async function ubahPeran(data: FormData) {
 > Empat lubangnya:
 >
 > 1. **Tidak ada pemeriksaan sesi dan peran.** Server Action punya URL dan bisa dipanggil langsung dengan `curl`. Tanpa pemeriksaan ini, siapa pun di internet bisa menjadikan dirinya admin.
-> 2. **`as string` bukan validasi.** Itu janji sepihak dari modul 7. `peran` bisa berisi nilai apa saja, termasuk yang tidak dikenal sistem Anda.
+> 2. **`as string` bukan validasi.** Itu janji sepihak dari modul 8. `peran` bisa berisi nilai apa saja, termasuk yang tidak dikenal sistem Anda.
 > 3. **Tidak ada aturan domain.** Admin yang menurunkan perannya sendiri bisa membuat sistem tanpa admin sama sekali.
 > 4. **Tidak ada jejak audit.** Untuk aksi yang mengubah hak akses, catatan siapa mengubah apa dan kapan hampir selalu jadi syarat, dan selalu dibutuhkan saat ada insiden.
 
@@ -464,7 +464,7 @@ Frontend bisa melakukan banyak hal benar dan tetap tidak menentukan. Tiga hal ya
 
 **Keputusan akhir selalu di server.** Semua pekerjaan di modul ini mengurangi risiko dan memperbaiki pengalaman, tapi yang menolak permintaan tidak sah tetap server.
 
-**Keamanan bukan daftar periksa sekali jalan.** Dependensi berubah, fitur bertambah, dan celah muncul di tempat yang dulu aman. Yang bisa dilakukan tim adalah menjadikannya bagian dari telaah kode dan pipeline, dan itu modul 18.
+**Keamanan bukan daftar periksa sekali jalan.** Dependensi berubah, fitur bertambah, dan celah muncul di tempat yang dulu aman. Yang bisa dilakukan tim adalah menjadikannya bagian dari telaah kode dan pipeline, dan itu modul 19.
 
 **Beberapa serangan tidak menyentuh kode sama sekali.** Phishing, rekayasa sosial, dan perangkat pengguna yang sudah disusupi berada di luar jangkauan aplikasi Anda. Yang bisa Anda lakukan: dukung passkey, jangan meminta pengguna mematikan perlindungan, dan jangan pernah meminta password lewat saluran lain.
 

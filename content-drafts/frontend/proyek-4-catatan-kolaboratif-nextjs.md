@@ -1,7 +1,7 @@
 ---
 title: 'Proyek 4: Aplikasi Catatan Kolaboratif dengan Next.js'
 description: Aplikasi pertama yang benar-benar punya pengguna lain. Server Component, Server Action, sesi yang aman, berbagi catatan, pembaruan optimistis, dan deploy ke alamat yang bisa dibuka siapa saja.
-date: 2026-11-24
+date: 2026-11-26
 slug: proyek-4-catatan-kolaboratif-nextjs
 tags: tutorial frontend
 series: Tutorial Frontend
@@ -14,10 +14,10 @@ Proyek ini berbeda dalam satu hal yang mengubah hampir semua keputusan: **ada pe
 
 | Dari modul | Yang dipakai |
 | --- | --- |
-| 11 | Pembaruan optimistis untuk aksi ringan, cache di klien untuk bagian yang hidup |
-| 12 | Skema Zod sebagai sumber tipe dan validasi di klien maupun server |
-| 13 | Server Component, Server Action, `Suspense`, cache berbasis tag |
-| 14 | Cookie sesi `httpOnly`, otorisasi per aksi, pembatasan pengalihan, pencegahan kebocoran props |
+| 12 | Pembaruan optimistis untuk aksi ringan, cache di klien untuk bagian yang hidup |
+| 13 | Skema Zod sebagai sumber tipe dan validasi di klien maupun server |
+| 14 | Server Component, Server Action, `Suspense`, cache berbasis tag |
+| 15 | Cookie sesi `httpOnly`, otorisasi per aksi, pembatasan pengalihan, pencegahan kebocoran props |
 
 ## Yang dibangun
 
@@ -90,7 +90,7 @@ model Sesi {
 }
 ```
 
-Perhatikan tabel `Sesi`. Modul 14 menjelaskan alasannya: dengan sesi yang tersimpan di server, logout benar-benar mencabut akses dan pencabutan hak langsung berlaku.
+Perhatikan tabel `Sesi`. Modul 15 menjelaskan alasannya: dengan sesi yang tersimpan di server, logout benar-benar mencabut akses dan pencabutan hak langsung berlaku.
 
 ## Spesifikasi wajib
 
@@ -134,6 +134,16 @@ Perhatikan tabel `Sesi`. Modul 14 menjelaskan alasannya: dengan sesi yang tersim
 24. `pnpm build` bersih, tanpa `any`, dan `pnpm lint` tanpa peringatan.
 
 Syarat nomor 22 layak dicoba sungguhan: matikan JavaScript di DevTools, lalu buat catatan baru. Dengan Server Action pada `form`, itu tetap bekerja, dan pengalaman melihatnya sendiri mengubah cara Anda memandang form selamanya.
+
+### Garis finis
+
+| Tingkat | Syarat | Artinya |
+| --- | --- | --- |
+| **Inti** | 1 sampai 8, plus 16, 17, 18, 20 | Akun, sesi aman, catatan yang bisa dibuat dan diubah, dan otorisasi yang benar-benar menolak |
+| **Lengkap** | Seluruh 1 sampai 24 | Aplikasi yang pantas dibuka orang lain |
+| **Bonus** | Bagian "Tantangan bonus" | Opsional sepenuhnya |
+
+Perhatikan bahwa seluruh bagian D (keamanan) masuk Inti, dan itu satu-satunya bagian yang tidak boleh ditunda di proyek ini. Fitur berbagi yang belum selesai hanya berarti fiturnya belum ada. Otorisasi yang belum selesai berarti catatan orang lain bisa dibaca siapa pun, dan itu bukan proyek yang setengah jadi, melainkan proyek yang rusak.
 
 ## Lapisan otorisasi
 

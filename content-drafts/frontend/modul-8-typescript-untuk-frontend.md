@@ -1,8 +1,8 @@
 ---
-title: 'Modul 7: TypeScript untuk Frontend'
+title: 'Modul 8: TypeScript untuk Frontend'
 description: Menuliskan bentuk data supaya mesin yang memeriksanya, bukan pengguna Anda. Dari tipe dasar sampai discriminated union, generics yang benar-benar dipakai, dan batas yang tidak bisa dijaga TypeScript.
-date: 2026-11-14
-slug: modul-7-typescript-untuk-frontend
+date: 2026-11-16
+slug: modul-8-typescript-untuk-frontend
 tags: tutorial frontend
 series: Tutorial Frontend
 status: draft
@@ -149,7 +149,7 @@ function renderKartu(keadaan: StatusCuaca): string {
 
 Perhatikan apa yang dilakukan bentuk ini: **keadaan yang mustahil jadi tidak bisa ditulis**. Tidak ada cara membuat objek dengan `status: 'memuat'` yang punya `data` lengkap, dan tidak ada cara membaca `keadaan.data.suhu` saat statusnya masih `memuat`. Kalau Anda membentuknya sebagai satu objek berisi `sedangMemuat`, `data`, dan `pesanGagal` yang semuanya opsional, Anda punya delapan kombinasi yang separuhnya tidak masuk akal, dan separuh itulah sumber bug.
 
-Modul 11 akan memakai pola ini lagi, karena itu bentuk yang dipakai library data modern.
+Modul 12 akan memakai pola ini lagi, karena itu bentuk yang dipakai library data modern.
 
 ## Generics yang benar-benar dipakai
 
@@ -493,7 +493,7 @@ elemen.value = 'Tio';
 >
 > Perhatikan apa yang dikerjakan `satisfies` di situ: begitu ada peran baru ditambahkan ke union, `LABEL_PERAN` langsung ditandai tidak lengkap. Daftar yang wajib mencakup semua kemungkinan dijaga mesin, bukan ingatan.
 >
-> Fungsi `bacaPengguna` sengaja belum ditulis isinya. Membuatnya dengan tangan untuk setiap bentuk data melelahkan, dan modul 12 akan memperkenalkan cara yang jauh lebih ringkas memakai Zod, satu skema yang sekaligus menghasilkan tipenya.
+> Fungsi `bacaPengguna` sengaja belum ditulis isinya. Membuatnya dengan tangan untuk setiap bentuk data melelahkan, dan modul 13 akan memperkenalkan cara yang jauh lebih ringkas memakai Zod, satu skema yang sekaligus menghasilkan tipenya.
 
 ## Batasnya
 
@@ -503,7 +503,7 @@ TypeScript hilang saat kode dijalankan, dan itu bukan kekurangan kecil. Tiga aki
 
 **`as` dan `any` adalah pintu belakang yang selalu tersedia.** Pemeriksaan tipe hanya sekuat kejujuran kode Anda. Satu `as` yang ditulis karena sedang dikejar waktu akan tetap di sana setahun kemudian.
 
-**Tipe tidak menangkap kesalahan logika.** Fungsi yang menghitung diskon dengan rumus salah punya tipe yang sempurna. Untuk yang itu, Anda butuh test, dan itu modul 16.
+**Tipe tidak menangkap kesalahan logika.** Fungsi yang menghitung diskon dengan rumus salah punya tipe yang sempurna. Untuk yang itu, Anda butuh test, dan itu modul 17.
 
 Satu lagi yang jarang disebut: tipe yang terlalu pintar bisa jadi beban. Tipe yang butuh lima menit untuk dipahami rekan tim, atau yang membuat pesan errornya tiga puluh baris, biasanya tanda bahwa Anda sedang memaksakan sesuatu. Kode yang lebih sederhana dengan tipe yang lebih sederhana hampir selalu pilihan yang lebih baik.
 

@@ -1,7 +1,7 @@
 ---
 title: 'Proyek 2: Katalog Serial dan Film dengan React dan TypeScript'
 description: Pencarian yang bisa dibagikan lewat tautan, halaman detail dengan routing, daftar favorit yang bertahan, dan tipe yang diturunkan dari respons API. Empat modul terakhir dipakai sekaligus.
-date: 2026-11-17
+date: 2026-11-19
 slug: proyek-2-katalog-film-react
 tags: tutorial frontend
 series: Tutorial Frontend
@@ -12,10 +12,10 @@ Empat modul terakhir memberi perkakas, bahasa, dan cara berpikir. Proyek ini mem
 
 | Dari modul | Yang dipakai di proyek ini |
 | --- | --- |
-| 6 | Vite, pnpm, ESLint, Prettier, `pnpm check` yang jalan di CI |
-| 7 | Tipe respons API dipisah dari tipe aplikasi, discriminated union untuk keadaan |
-| 8 | Komponen, komposisi, `key` yang benar, nilai turunan yang dihitung bukan disimpan |
-| 9 | Custom hook, `useEffect` dengan pembatalan, Context untuk tema, `useReducer` untuk filter |
+| 7 | Vite, pnpm, ESLint, Prettier, Git, `pnpm check` yang jalan di CI |
+| 8 | Tipe respons API dipisah dari tipe aplikasi, discriminated union untuk keadaan |
+| 9 | Komponen, komposisi, `key` yang benar, nilai turunan yang dihitung bukan disimpan |
+| 10 | Custom hook, `useEffect` dengan pembatalan, Context untuk tema, `useReducer` untuk filter, dan routing dengan URL sebagai sumber kebenaran |
 
 Hasil akhirnya aplikasi dengan tiga halaman: daftar hasil pencarian, halaman detail, dan halaman favorit. Yang membedakannya dari tutorial katalog biasa ada di tiga syarat: pencarian harus bisa dibagikan lewat tautan, halaman detail harus bisa dibuka langsung tanpa melewati halaman daftar, dan semua keadaan gagal harus punya tampilan sendiri.
 
@@ -36,7 +36,7 @@ https://api.tvmaze.com/shows?page=0
 
 Buka ketiganya sekarang dan perhatikan tiga hal yang akan jadi pekerjaan Anda: `summary` berisi HTML (bukan teks biasa), `image` bisa bernilai `null`, dan `rating.average` juga bisa `null`. Data nyata selalu berlubang, dan menangani lubangnya adalah bagian dari pekerjaan.
 
-Soal kunci API, karena ini pertanyaan yang pasti muncul: layanan populer seperti TMDB butuh kunci, dan kunci itu akan terlihat siapa pun yang membuka DevTools kalau ditaruh di kode frontend. Modul 6 sudah menegaskannya. Untuk proyek ini kunci dihindari sama sekali, dan Proyek 4 nanti menunjukkan tempat yang benar untuk kunci rahasia, yaitu di server.
+Soal kunci API, karena ini pertanyaan yang pasti muncul: layanan populer seperti TMDB butuh kunci, dan kunci itu akan terlihat siapa pun yang membuka DevTools kalau ditaruh di kode frontend. Modul 7 sudah menegaskannya. Untuk proyek ini kunci dihindari sama sekali, dan Proyek 4 nanti menunjukkan tempat yang benar untuk kunci rahasia, yaitu di server.
 
 ## Spesifikasi wajib
 
@@ -82,6 +82,16 @@ Poin terakhir itu yang paling sering dilewati, dan penyebab CLS yang Anda temui 
 15. Perubahan jumlah hasil diumumkan lewat `aria-live`.
 16. Mode gelap mengikuti pengaturan sistem, dan bisa diubah manual lewat Context.
 17. Responsif dari 360px tanpa gulir horizontal.
+
+### Garis finis
+
+| Tingkat | Syarat | Artinya |
+| --- | --- | --- |
+| **Inti** | 1 sampai 8, plus keadaan memuat, kosong, dan gagal | Tiga halaman jalan, pencarian bisa dibagikan, kegagalan ditangani |
+| **Lengkap** | Seluruh 1 sampai 17, plus ketujuh keadaan | Pekerjaan yang pantas ditaruh di portofolio |
+| **Bonus** | Bagian "Tantangan bonus" | Opsional sepenuhnya |
+
+Syarat 13 (`tsc --noEmit` bersih tanpa `any`) termasuk Inti meski nomornya di belakang. Membiarkan `any` menumpuk di proyek ini membuat Proyek 3 jauh lebih menyakitkan.
 
 ## Struktur folder
 
@@ -238,29 +248,9 @@ Tiga keputusan yang layak diperhatikan, karena ketiganya pertanyaan wawancara ya
 
 ## Routing dan state di URL
 
-```bash
-pnpm add react-router
-```
+Routing-nya sudah Anda pasang di Latihan 5 Modul 10, termasuk daftar rute, `Layout` dengan `Outlet`, dan halaman 404. Pakai kerangka itu apa adanya dengan tiga rute proyek ini: `/`, `/judul/:id`, dan `/favorit`.
 
-```tsx
-// router.tsx
-import { createBrowserRouter } from 'react-router';
-
-export const router = createBrowserRouter([
-  {
-    path: '/',
-    Component: Layout,
-    children: [
-      { index: true, Component: HalamanDaftar },
-      { path: 'judul/:id', Component: HalamanDetail },
-      { path: 'favorit', Component: HalamanFavorit },
-      { path: '*', Component: Halaman404 },
-    ],
-  },
-]);
-```
-
-Bagian terpenting proyek ini, dan yang paling sering dikerjakan setengah jalan: kata kunci tinggal di URL, bukan di `useState`.
+Yang jadi pekerjaan baru di sini satu hal, dan ini bagian yang paling sering dikerjakan setengah jalan: **tiga keadaan sekaligus** (kata kunci, genre, dan urutan) tinggal di URL, bukan di `useState`, dan ketiganya harus bisa berubah tanpa saling menghapus.
 
 ```tsx
 // fitur/pencarian/HalamanDaftar.tsx
@@ -303,12 +293,25 @@ export function HalamanDaftar() {
 
 ## Yang harus Anda kerjakan sendiri
 
-1. **`useHasilCari` dan `useDetail`.** Pakai `useNilaiTertunda` dan pola pembatalan dari modul 9. `useDetail` harus membedakan `TidakDitemukan` dari kegagalan lain.
+1. **`useHasilCari` dan `useDetail`.** Pakai `useNilaiTertunda` dan pola pembatalan dari modul 10. `useDetail` harus membedakan `TidakDitemukan` dari kegagalan lain.
 2. **`useFavorit`.** Satu hook yang menyimpan ke `localStorage`, dengan Context supaya jumlah di navigasi dan tombol di kartu melihat data yang sama. Jumlahnya dihitung, tidak disimpan.
 3. **Komponen keadaan.** `Kerangka`, `KeadaanKosong`, `KeadaanGagal`. Satu pola yang dipakai ketiga halaman.
 4. **`KartuJudul` yang tangguh.** Tangani poster `null` dan rating `null`, pesan ruang gambar dengan `aspect-ratio`, dan pastikan seluruh kartu bisa dijangkau keyboard tanpa membuat tombol favorit terjebak di dalam tautan.
 
 Poin keempat itu latihan desain yang nyata: kartu yang seluruhnya bisa diklik sekaligus punya tombol favorit di dalamnya adalah tautan di dalam tautan, yang tidak sah dalam HTML. Pola yang benar: judulnya saja yang jadi tautan, lalu seluruh kartu dibuat terasa bisa diklik dengan `::after` yang menutupi kartu, dan tombol favorit diberi `position: relative` supaya tetap berada di atasnya.
+
+> [!petunjuk]
+> Urutan pengerjaan yang paling sedikit menyakitkan, dan alasan tiap langkahnya.
+>
+> **Mulai dari nomor 3, bukan nomor 1.** `Kerangka`, `KeadaanKosong`, dan `KeadaanGagal` adalah komponen tanpa logika yang bisa Anda lihat langsung di layar. Membuatnya lebih dulu berarti saat `useHasilCari` selesai, Anda sudah punya tempat untuk menampilkan setiap keadaannya.
+>
+> **Nomor 1 dikerjakan satu hook pada satu waktu.** `useDetail` lebih dulu karena tidak punya penundaan maupun kata kunci yang berubah. Setelah itu `useHasilCari`, yang hanya menambahkan `useNilaiTertunda` di depannya.
+>
+> **Untuk membedakan `TidakDitemukan`**, periksa dengan `instanceof`, jangan dengan membaca teks pesan errornya. Pesan error adalah antarmuka yang suatu hari akan diubah seseorang, dan kode yang bergantung pada isinya akan rusak tanpa ada yang menyadari.
+>
+> **Nomor 2 punya satu jebakan.** Jumlah favorit di navigasi dan keadaan tombol di kartu harus membaca satu sumber yang sama. Kalau navigasi menyimpan angkanya sendiri, Anda membuat ulang Latihan 2 Modul 6 dengan tangan sendiri.
+>
+> **Nomor 4 diuji dengan keyboard, bukan dengan mata.** Tekan Tab sampai masuk ke kartu dan perhatikan ada berapa perhentian. Kalau satu kartu butuh tiga kali Tab padahal hanya ada dua hal yang bisa diklik, ada elemen yang tidak seharusnya bisa difokus.
 
 ## Checklist penilaian
 
@@ -349,4 +352,4 @@ Aplikasi ini jalan, dan dua hal mulai terasa sesak.
 
 **Kedua, soal data.** `useHasilCari` dan `useDetail` punya kode yang hampir sama, dan keduanya memulai dari nol setiap kali. Pengguna yang membuka detail lalu menekan kembali akan menunggu pencarian yang sama dimuat ulang. Dua komponen yang butuh data sama memanggilnya dua kali. Dan tidak ada satu pun cara menyegarkan data di latar belakang tanpa membuat tampilan berkedip.
 
-Yang pertama dijawab modul berikutnya: styling untuk skala aplikasi, design token, dan kenapa pilihan antara utility class dan CSS Modules bukan soal selera. Yang kedua dijawab modul 11.
+Yang pertama dijawab modul berikutnya: styling untuk skala aplikasi, design token, dan kenapa pilihan antara utility class dan CSS Modules bukan soal selera. Yang kedua dijawab modul 12.

@@ -1,7 +1,7 @@
 ---
 title: 'Modul 3: CSS Modern, Layout, dan Responsif'
 description: Anda menulis instruksi tata letak untuk ruangan yang ukurannya belum diketahui. Cascade, box model, flexbox, grid, dan container query adalah cara menulis instruksi itu tanpa menebak.
-date: 2026-11-09
+date: 2026-11-10
 slug: modul-3-css-modern-layout
 tags: tutorial frontend
 series: Tutorial Frontend
@@ -19,6 +19,12 @@ Masalahnya, Anda tidak tahu tiga hal yang paling menentukan hasilnya:
 | Pengaturan pengguna | Teks diperbesar ke 200%, mode gelap, animasi dikurangi |
 
 CSS sering dikeluhkan karena terasa tidak bisa diduga. Sebagian besar keluhan itu sebenarnya berasal dari satu kesalahpahaman: CSS diperlakukan seperti alat menggambar, padahal fungsinya memberi instruksi. Yang menggambar adalah browser, di ruangan yang ukurannya baru diketahui saat halaman dibuka.
+
+> **Modul ini yang paling padat di antara modul pemula**, karena CSS memang punya banyak bagian yang saling berkaitan. Kalau ini pertemuan pertama Anda dengan CSS, baca dua kali dengan pembagian berikut, dan jangan memaksakan sekali duduk.
+>
+> **Bacaan pertama**, dan ini yang dibutuhkan untuk mengerjakan latihan: box model dan satuan, flexbox, grid, serta responsif yang dimulai dari konten. Empat bagian itu sudah cukup untuk membangun hampir semua tata letak.
+>
+> **Bacaan kedua**, setelah Anda pernah merasakan CSS yang tidak mau menurut: cascade, spesifisitas, cascade layer, dan container query. Keempatnya menjelaskan *kenapa* sesuatu tidak jalan, dan penjelasan itu jauh lebih menempel setelah Anda sendiri mengalaminya. Semuanya kembali dengan konteks yang lebih lengkap di Modul 11.
 
 ## Analogi: instruksi untuk penata ruang yang belum melihat ruangannya
 
@@ -272,7 +278,7 @@ Lalu `color-scheme: light dark` pada `:root`, supaya kontrol bawaan browser sepe
 }
 ```
 
-Soal kontras, patokan WCAG: teks biasa minimal 4.5:1 terhadap latarnya, teks besar minimal 3:1. Angka ini bisa dicek di DevTools saat memilih warna, dan akan kembali di modul 15.
+Soal kontras, patokan WCAG: teks biasa minimal 4.5:1 terhadap latarnya, teks besar minimal 3:1. Angka ini bisa dicek di DevTools saat memilih warna, dan akan kembali di modul 16.
 
 ## Opsi pendekatan styling
 
@@ -283,7 +289,7 @@ Soal kontras, patokan WCAG: teks biasa minimal 4.5:1 terhadap latarnya, teks bes
 | Utility class | Kelas kecil sekali guna | Tailwind | Tim yang butuh konsistensi cepat |
 | CSS-in-JS | Gaya ditulis di dalam JavaScript | styled-components | Proyek lama, makin jarang dipilih |
 
-Modul 10 membahas pilihan ini dengan serius, termasuk kenapa CSS-in-JS yang menghitung gaya saat runtime kehilangan tempat di era server rendering. Untuk sekarang cukup tahu bahwa semuanya menghasilkan CSS yang sama, dan yang Anda pelajari di modul ini berlaku pada semuanya.
+Modul 11 membahas pilihan ini dengan serius, termasuk kenapa CSS-in-JS yang menghitung gaya saat runtime kehilangan tempat di era server rendering. Untuk sekarang cukup tahu bahwa semuanya menghasilkan CSS yang sama, dan yang Anda pelajari di modul ini berlaku pada semuanya.
 
 ## Latihan
 
@@ -438,6 +444,31 @@ Ambil satu komponen yang sudah Anda buat, lalu uji lima keadaan berikut dan cata
 
 **Pertanyaannya:** berapa dari lima keadaan itu yang rusak? Pada proyek nyata, hampir selalu minimal dua. Kelima pengujian ini butuh waktu kurang dari tiga menit, dan jauh lebih murah daripada menerima laporan bug seminggu kemudian.
 
+## Kalau CSS Anda tidak jalan
+
+Keluhan "CSS saya tidak jalan" hampir selalu salah satu dari delapan hal, dan tujuh di antaranya bisa Anda pastikan dalam waktu kurang dari satu menit. Periksa dengan urutan ini, dari yang paling sering.
+
+Buka DevTools, pilih tab **Elements**, lalu klik elemen yang bermasalah. Panel **Styles** di sebelahnya adalah alat diagnosis terpenting di modul ini, karena menampilkan tiga hal sekaligus: aturan apa saja yang mengenai elemen itu, mana yang menang, dan mana yang dicoret karena kalah.
+
+| # | Gejala | Penyebab yang paling sering | Cara memastikan |
+| --- | --- | --- | --- |
+| 1 | Aturannya tidak muncul sama sekali di panel Styles | Selektornya tidak cocok dengan elemen mana pun | Salah ketik nama kelas, atau lupa titik di depannya |
+| 2 | Aturannya muncul tapi dicoret | Kalah oleh aturan lain | Lihat aturan di atasnya yang memenangkan properti itu |
+| 3 | Aturannya benar, tampilannya tidak berubah | Properti itu tidak berlaku untuk elemen itu | `width` pada elemen `inline` seperti `span` tidak berpengaruh |
+| 4 | Ukuran tidak sesuai angka yang Anda tulis | `box-sizing` belum disetel | Lihat diagram box model di bagian bawah panel Styles |
+| 5 | Jarak muncul dari tempat yang tidak Anda tulis | Margin bawaan browser, atau margin yang bertumpuk | Panel Styles menampilkan `user agent stylesheet` |
+| 6 | Perubahan tidak terlihat sama sekali, bahkan setelah disimpan | Berkas CSS-nya tidak termuat | Tab Network: ada baris untuk berkas CSS Anda, statusnya 200? |
+| 7 | Hanya berlaku di sebagian ukuran layar | Media query yang syaratnya tidak terpenuhi | Panel Styles mengelompokkan aturan per media query |
+| 8 | Benar di browser Anda, salah di browser lain | Dukungan properti yang berbeda | Cari propertinya di MDN, lihat tabel dukungannya |
+
+Tiga kebiasaan yang mencegah sebagian besar daftar ini terjadi sejak awal:
+
+**Jangan menduga pemenangnya, baca panel Styles.** Semua yang dibahas di bagian cascade dan spesifisitas bisa Anda lihat langsung di situ, lengkap dengan coretan pada yang kalah. Membaca panel itu selama lima detik mengalahkan menghitung spesifisitas di kepala selama lima menit.
+
+**Ubah dulu di DevTools, baru tulis di berkas.** Panel Styles bisa diedit langsung, dan perubahannya hilang saat dimuat ulang. Jadi tempat paling murah untuk bereksperimen adalah di sana, bukan di berkas Anda.
+
+**Saat benar-benar mentok, beri latar warna mencolok.** `outline: 2px solid red` pada elemen yang Anda curigai akan langsung menunjukkan apakah elemennya memang ada, di mana posisinya, dan seberapa besar ukurannya. Tiga pertanyaan itu yang biasanya jadi akar masalahnya, dan `outline` dipilih daripada `border` karena tidak menambah ukuran elemen.
+
 ## Batasnya
 
 CSS mengurus tampilan dan menolak mengurus logika, dan batas itu sehat. Ada tiga hal yang akan mendorong Anda keluar dari CSS.
@@ -468,4 +499,6 @@ Tombol "Tambah ke keranjang" tidak menambah apa pun. Form pencarian hanya bisa m
 
 Supaya halaman bisa bereaksi, mengambil data, dan mengubah dirinya sendiri, Anda butuh bahasa pemrograman yang berjalan di browser.
 
-Itu isi modul berikutnya: JavaScript, mulai dari bagian bahasa yang benar-benar dipakai setiap hari sampai cara menangani pekerjaan yang butuh waktu seperti permintaan jaringan.
+Dan sebelum bisa menyuruh halaman melakukan sesuatu, Anda perlu bisa memberi instruksi sama sekali. Dua modul terakhir isinya mendeskripsikan: ini judul, ini tiga kolom. Tidak ada satu pun keputusan di dalamnya. Tidak ada "kalau harganya nol, tulis Gratis", tidak ada "ulangi kartu ini untuk setiap produk", tidak ada "jumlahkan semuanya".
+
+Itu isi modul berikutnya: dasar pemrograman dengan JavaScript, dilatih seluruhnya di console browser. Nilai, tipe, variabel, kondisi, perulangan, dan fungsi, tanpa menyentuh halaman sama sekali supaya satu hal baru tidak dicampur dengan hal baru yang lain.

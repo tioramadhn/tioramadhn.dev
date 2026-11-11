@@ -1,14 +1,14 @@
 ---
 title: 'Proyek Akhir: Platform Kursus Mini Siap Produksi'
 description: Rancang, bangun, uji, amankan, percepat, dan rilis satu platform utuh, lalu pertanggungjawabkan setiap keputusan arsitekturnya dengan angka.
-date: 2026-11-29
+date: 2026-12-01
 slug: proyek-akhir-platform-kursus
 tags: tutorial frontend
 series: Tutorial Frontend
 status: draft
 ---
 
-Delapan belas modul dan empat proyek. Setiap kali, pilihannya sudah disediakan beserta alasannya. Proyek ini mencabut kemudahan itu.
+Sembilan belas modul dan empat proyek. Setiap kali, pilihannya sudah disediakan beserta alasannya. Proyek ini mencabut kemudahan itu.
 
 Yang diminta bukan hanya aplikasi yang berfungsi, tapi aplikasi yang bisa Anda pertahankan dalam percakapan: kenapa bagian ini dirender di server, kenapa data itu di-cache selama lima menit, kenapa komponen ini memakai library dan yang itu dibuat sendiri, dan apa yang sengaja tidak dikerjakan.
 
@@ -18,23 +18,25 @@ Kemampuan itulah yang membedakan engineer dari orang yang bisa mengikuti tutoria
 
 | Modul | Yang dipakai di proyek ini |
 | --- | --- |
+| 0 | Terminal, editor, dan kebiasaan membaca pesan error sampai habis |
 | 1 | Keputusan rendering per halaman, dan kemampuan membaca dari mana lambatnya berasal |
 | 2 | Struktur dokumen, form, dan semantik yang jadi dasar aksesibilitas |
 | 3 | Layout responsif, container query, mode gelap |
-| 4 | Pengolahan data, asinkron, pembatalan |
-| 5 | Satu sumber kebenaran, dan pembagian state antara URL, penyimpanan, dan memori |
-| 6 | Tooling, lint, format, pemeriksaan di CI |
-| 7 | TypeScript ketat, discriminated union untuk keadaan |
-| 8, 9 | Komponen, komposisi, hook, Context yang dipisah per laju perubahan |
-| 10 | Design token tiga lapis, tema, komponen dasar yang konsisten |
-| 11 | Cache, kunci query, invalidasi, pembaruan optimistis |
-| 12 | Skema sebagai sumber tipe dan validasi, pesan error untuk manusia |
-| 13 | Server Component, Server Action, streaming, cache berbasis tag |
-| 14 | Sesi `httpOnly`, otorisasi per aksi, pencegahan kebocoran rahasia |
-| 15 | Keyboard, pembaca layar, kontras, wilayah live |
-| 16 | Unit, komponen, dan lima E2E yang dipilih |
-| 17 | Anggaran ukuran, Core Web Vitals yang diukur di perangkat nyata |
-| 18 | Jalur rilis, feature flag, pemantauan dengan penyaringan data pribadi |
+| 4 | Kondisi, perulangan, fungsi, dan kehati-hatian terhadap tipe serta nilai nol |
+| 5 | Pengolahan data, asinkron, pembatalan |
+| 6 | Satu sumber kebenaran, dan pembagian state antara URL, penyimpanan, dan memori |
+| 7 | Tooling, lint, format, Git, pemeriksaan di CI |
+| 8 | TypeScript ketat, discriminated union untuk keadaan |
+| 9, 10 | Komponen, komposisi, hook, Context yang dipisah per laju perubahan, routing |
+| 11 | Design token tiga lapis, tema, komponen dasar yang konsisten |
+| 12 | Cache, kunci query, invalidasi, pembaruan optimistis |
+| 13 | Skema sebagai sumber tipe dan validasi, pesan error untuk manusia |
+| 14 | Server Component, Server Action, streaming, cache berbasis tag |
+| 15 | Sesi `httpOnly`, otorisasi per aksi, pencegahan kebocoran rahasia |
+| 16 | Keyboard, pembaca layar, kontras, wilayah live |
+| 17 | Unit, komponen, dan lima E2E yang dipilih |
+| 18 | Anggaran ukuran, Core Web Vitals yang diukur di perangkat nyata |
+| 19 | Jalur rilis, feature flag, pemantauan dengan penyaringan data pribadi |
 
 ## Cerita proyek
 
@@ -81,7 +83,7 @@ Ini satu susunan yang bekerja. Anda tidak wajib mengikutinya, tapi kalau menyimp
 | Penanda progres | Client Component kecil + Server Action | Pembaruan optimistis |
 | Dasbor pengajar | Server Component + tabel dari Proyek 3 | Filter di URL |
 | Form pendaftaran | Server Action + skema Zod | Bekerja tanpa JavaScript |
-| Komponen dasar | Paket token dan UI dari modul 10 dan 18 | Satu sumber |
+| Komponen dasar | Paket token dan UI dari modul 11 dan 19 | Satu sumber |
 | Notifikasi dan dialog | Library headless | Jangan buat sendiri |
 
 ### Keputusan yang harus Anda ambil sendiri
@@ -105,7 +107,7 @@ Tujuh pertanyaan berikut tidak punya satu jawaban benar, dan setiap jawaban Anda
 | ORM | Prisma, Drizzle | Drizzle lebih ringan, Prisma lebih mapan |
 | Autentikasi | Auth.js, Clerk | Jangan buat sendiri |
 | Penyimpanan berkas | Cloudflare R2, S3 | Unggahan langsung dari klien dengan URL bertanda tangan |
-| Styling | Tailwind dengan token sendiri | Konsisten dengan modul 10 |
+| Styling | Tailwind dengan token sendiri | Konsisten dengan modul 11 |
 | Validasi | Zod | Satu skema, tiga pemakai |
 | Test | Vitest, Testing Library, Playwright | Lima E2E, tidak lima puluh |
 | Pemantauan | Sentry, `web-vitals` | Dengan penyaringan data pribadi |
@@ -196,6 +198,20 @@ Dokumen ini bukan formalitas. Dokumen inilah yang akan menghemat satu minggu pen
 
 Nomor 48 sering dianggap kelemahan. Sebaliknya: daftar itu bukti Anda membuat keputusan, bukan sekadar mengerjakan apa yang terpikir lebih dulu.
 
+### Garis finis
+
+Empat puluh delapan syarat adalah daftar lengkapnya, dan daftar lengkap bukan syarat kelulusan. Yang menentukan proyek ini berhasil atau tidak ada di bobot penilaian di bawah, dan "semua fitur jalan" hanya mewakili sebagian kecilnya.
+
+| Tingkat | Yang wajib ada | Alasan |
+| --- | --- | --- |
+| **Inti** | Bagian A seluruhnya, alur peserta (9 sampai 14), alur pengajar (16 sampai 19), bagian C seluruhnya, dan syarat 37, 38, 44, 46, 48 | Satu alur utuh dari dua sisi, aman, tayang, dan bisa dipertanggungjawabkan |
+| **Lengkap** | Seluruh 1 sampai 48 | Setara dengan pekerjaan yang dinilai di wawancara senior |
+| **Dikurangi dengan sengaja** | Apa pun yang Anda putuskan tidak dikerjakan, **asalkan masuk daftar nomor 48** | Ini bukan kekurangan, dan dinilai |
+
+Perhatikan baris ketiga. Memotong fitur dengan alasan yang tertulis adalah keputusan engineering, dan nilainya lebih tinggi daripada mengerjakan semuanya dengan setengah hati. Yang tidak dinilai hanya satu: fitur yang hilang tanpa ada yang tahu kenapa.
+
+Bagian A (empat dokumen rancangan) dan bagian C (kualitas serta keamanan) tidak punya versi ringan. Keduanya murah dikerjakan sejak awal dan sangat mahal ditambal di akhir, dan itu seluruh pelajaran dari Modul 16 sampai 19.
+
 ## Langkah pengerjaan bertahap
 
 ### Minggu 1: rancang, lalu bangun kerangka
@@ -222,7 +238,7 @@ Nomor 48 sering dianggap kelemahan. Sebaliknya: daftar itu bukti Anda membuat ke
 
 **Hari 15 sampai 16: aksesibilitas.** Audit keyboard untuk semua alur, perbaiki, lalu uji dengan pembaca layar. Jalankan axe pada lima halaman utama.
 
-**Hari 17 sampai 18: performance.** Ukur di HP sungguhan dengan data seluler, catat angka awal, perbaiki dengan urutan dari modul 17, lalu ukur lagi. Pasang anggaran ukuran di CI.
+**Hari 17 sampai 18: performance.** Ukur di HP sungguhan dengan data seluler, catat angka awal, perbaiki dengan urutan dari modul 18, lalu ukur lagi. Pasang anggaran ukuran di CI.
 
 **Hari 19: operasional.** Pelacakan error dengan penyaringan, pengiriman vitals, satu feature flag, dan prosedur mundur yang benar-benar Anda coba sekali.
 

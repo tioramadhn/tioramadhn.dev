@@ -1,8 +1,8 @@
 ---
-title: 'Modul 13: Next.js App Router dan Server Component'
+title: 'Modul 14: Next.js App Router dan Server Component'
 description: Pertanyaannya bergeser dari "bagaimana mengambil data" jadi "kode ini sebaiknya berjalan di mana". Server Component, Server Action, caching, dan streaming, beserta kapan jawabannya tetap di klien.
-date: 2026-11-22
-slug: modul-13-nextjs-app-router
+date: 2026-11-24
+slug: modul-14-nextjs-app-router
 tags: tutorial frontend
 series: Tutorial Frontend
 status: draft
@@ -10,7 +10,7 @@ status: draft
 
 Tiga batas yang Anda temukan di Proyek 3: muat pertama yang lambat, air terjun permintaan, dan tidak adanya tempat yang aman untuk rahasia.
 
-Ketiganya berasal dari satu keputusan arsitektur yang diambil diam-diam sejak modul 8: **seluruh aplikasi berjalan di browser pengguna.** Modul ini mencabut asumsi itu.
+Ketiganya berasal dari satu keputusan arsitektur yang diambil diam-diam sejak modul 9: **seluruh aplikasi berjalan di browser pengguna.** Modul ini mencabut asumsi itu.
 
 Bandingkan urutan kejadiannya:
 
@@ -26,7 +26,7 @@ Pada kolom kanan, pengguna melihat isi di langkah ketiga, dan sebagian besar hal
 
 ## Analogi: dapur restoran dan dapur rumah
 
-Modul 11 memakai analogi kulkas untuk cache. Sekarang pertanyaannya bukan di mana bahan disimpan, tapi **di mana masaknya**.
+Modul 12 memakai analogi kulkas untuk cache. Sekarang pertanyaannya bukan di mana bahan disimpan, tapi **di mana masaknya**.
 
 **Semua dimasak di rumah pelanggan.** Restoran mengirim bahan mentah, resep, dan seluruh peralatan ke rumah pelanggan, lalu pelanggan memasaknya sendiri. Kelebihannya: setelah peralatan sampai, pelanggan bisa memasak ulang kapan saja tanpa menghubungi restoran. Kekurangannya: kiriman pertama besar dan lama, dan kompor di rumah pelanggan bisa jauh lebih lemah daripada dapur restoran.
 
@@ -271,7 +271,7 @@ Tiga hal yang membuat pola ini berharga:
 
 **Dua, tidak perlu membuat endpoint API.** Fungsi yang dipanggil klien itu dijalankan di server, dengan `fetch` yang diurus framework.
 
-**Tiga, dan ini yang paling sering dilupakan: Server Action adalah endpoint publik.** Siapa pun bisa memanggilnya langsung tanpa melewati antarmuka Anda. Pemeriksaan hak akses dan validasi di dalamnya bukan tambahan, melainkan syarat. Modul 14 membahasnya lebih dalam.
+**Tiga, dan ini yang paling sering dilupakan: Server Action adalah endpoint publik.** Siapa pun bisa memanggilnya langsung tanpa melewati antarmuka Anda. Pemeriksaan hak akses dan validasi di dalamnya bukan tambahan, melainkan syarat. Modul 15 membahasnya lebih dalam.
 
 ## Cache: bagian yang paling sering membingungkan
 

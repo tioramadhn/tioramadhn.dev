@@ -1,8 +1,8 @@
 ---
-title: 'Modul 9: React Lanjutan: Hook, Context, dan Komposisi'
-description: useEffect punya reputasi buruk karena dipakai untuk hal yang bukan tugasnya. Modul ini membereskan itu, lalu membangun custom hook, Context, dan useReducer yang benar-benar dipakai di aplikasi nyata.
-date: 2026-11-16
-slug: modul-9-react-lanjutan
+title: 'Modul 10: React Lanjutan: Hook, Context, dan Routing'
+description: useEffect punya reputasi buruk karena dipakai untuk hal yang bukan tugasnya. Modul ini membereskan itu, lalu membangun custom hook, useReducer, Context, dan routing dengan URL sebagai sumber kebenaran.
+date: 2026-11-18
+slug: modul-10-react-lanjutan
 tags: tutorial frontend
 series: Tutorial Frontend
 status: draft
@@ -11,6 +11,8 @@ status: draft
 Modul sebelumnya menutup dengan tiga pertanyaan praktis: bagaimana memuat data begitu komponen muncul, bagaimana membatalkan permintaan saat pengguna berpindah halaman, dan di mana menaruh listener `online` dan `offline`.
 
 Ketiganya tentang satu hal: menghubungkan komponen dengan dunia di luar React. Alatnya `useEffect`, dan modul ini dimulai dengan membatasi pemakaiannya, bukan memperluasnya.
+
+Di bagian akhir modul ada satu sistem luar lagi yang belum pernah disentuh sama sekali, padahal pengguna memakainya setiap hari: bilah alamat browser. Aplikasi Anda sampai sekarang hanya punya satu layar, dan tidak punya cara membagikan apa pun lewat tautan.
 
 ## `useEffect` adalah untuk sinkronisasi, bukan untuk reaksi
 
@@ -25,7 +27,7 @@ Satu kalimat yang mengubah cara banyak orang menulis React: `useEffect` dipakai 
 | Memberi tahu induk bahwa sesuatu terjadi | Tidak | Panggil callback di penanganan event |
 | Memasang listener di `window` | Ya | `useEffect` dengan cleanup |
 | Menghubungkan ke WebSocket | Ya | `useEffect` dengan cleanup |
-| Memuat data saat komponen muncul | Ya, dengan catatan | `useEffect`, atau library data di modul 11 |
+| Memuat data saat komponen muncul | Ya, dengan catatan | `useEffect`, atau library data di modul 12 |
 | Mengatur `document.title` | Ya | `useEffect` |
 | Mengukur elemen DOM setelah tampil | Ya | `useEffect` atau `useLayoutEffect` |
 
@@ -84,7 +86,7 @@ function useCuaca(kota: Kota | null) {
 
 `return () => kendali.abort()` itu jawaban untuk pertanyaan "bagaimana membatalkan permintaan saat pengguna berpindah halaman". Tanpanya, permintaan untuk kota lama bisa datang setelah pengguna memilih kota baru, lalu menimpa data yang benar.
 
-Tetap ada lima hal yang belum tertangani: data tidak dibagikan antar komponen, hilang saat komponen dilepas, tidak ada cache, tidak ada pembaruan latar, dan tidak ada pencegahan permintaan ganda. Modul 11 menyelesaikan kelimanya, dan sampai ke sana penting dulu memahami bentuk manualnya.
+Tetap ada lima hal yang belum tertangani: data tidak dibagikan antar komponen, hilang saat komponen dilepas, tidak ada cache, tidak ada pembaruan latar, dan tidak ada pencegahan permintaan ganda. Modul 12 menyelesaikan kelimanya, dan sampai ke sana penting dulu memahami bentuk manualnya.
 
 ## `useRef`: nilai yang tidak memicu gambar ulang
 
@@ -112,7 +114,7 @@ Bedanya dengan state, dan ini pembedaan yang menentukan: mengubah `ref.current` 
 
 ## `useReducer` untuk state yang punya aturan
 
-Begitu satu state punya banyak cara berubah yang saling terkait, `useReducer` lebih jelas daripada lima `useState`. Dan di sini discriminated union dari modul 7 membayar dirinya sendiri.
+Begitu satu state punya banyak cara berubah yang saling terkait, `useReducer` lebih jelas daripada lima `useState`. Dan di sini discriminated union dari modul 8 membayar dirinya sendiri.
 
 ```tsx
 type AksiFilter =
@@ -218,7 +220,7 @@ function Pencarian() {
 }
 ```
 
-Dua aturan hook yang tidak bisa dilanggar: hook hanya dipanggil di tingkat teratas komponen atau hook lain (tidak di dalam `if`, loop, atau fungsi bersarang), dan hanya dari komponen atau hook lain. ESLint dengan aturan React akan menegakkannya, dan itu satu alasan lagi memasang linter di modul 6.
+Dua aturan hook yang tidak bisa dilanggar: hook hanya dipanggil di tingkat teratas komponen atau hook lain (tidak di dalam `if`, loop, atau fungsi bersarang), dan hanya dari komponen atau hook lain. ESLint dengan aturan React akan menegakkannya, dan itu satu alasan lagi memasang linter di modul 7.
 
 Satu patokan tentang kapan membuat custom hook: buat saat logika yang sama muncul di tempat kedua, atau saat satu komponen jadi sulit dibaca karena mencampur dua urusan. Membuat hook untuk logika yang hanya dipakai satu kali dan hanya satu baris biasanya menambah lapisan tanpa manfaat.
 
@@ -268,7 +270,153 @@ Tiga hal yang perlu diketahui sebelum memakai Context terlalu banyak:
 
 **Setiap perubahan nilai context menggambar ulang semua yang memakainya.** Jadi jangan menaruh nilai yang sering berubah bersama nilai yang hampir tidak pernah berubah dalam satu context. Pisahkan: tema di satu context, data pengguna di context lain, isi keranjang di context lain lagi.
 
-**Data dari server sebaiknya tidak lewat Context.** Itu pekerjaan library data di modul 11, yang sudah menangani cache, pembaruan latar, dan deduplikasi permintaan.
+**Data dari server sebaiknya tidak lewat Context.** Itu pekerjaan library data di modul 12, yang sudah menangani cache, pembaruan latar, dan deduplikasi permintaan.
+
+## Routing: URL sebagai sumber kebenaran
+
+Sampai sini setiap aplikasi yang Anda bangun hanya punya satu layar. Aplikasi sungguhan punya beberapa, dan pengguna berpindah antar layar dengan cara yang sudah mereka kuasai sejak sebelum mengenal aplikasi Anda: mengklik tautan, menekan tombol kembali, menyalin alamat, dan membukanya di tab baru.
+
+URL adalah satu lagi sistem di luar React, dan perlakuannya sama dengan `window` atau WebSocket: React tidak memilikinya, jadi Anda harus menyinkronkannya.
+
+Masalah yang diselesaikannya terasa paling jelas lewat satu contoh. Pengguna mencari "kopi", menyaring kategori minuman, membuka halaman ketiga, lalu mengirim tautannya ke rekan. Kalau semua keadaan itu tinggal di `useState`, rekannya membuka halaman kosong. Dan kalau pengguna menekan tombol kembali, dia keluar dari aplikasi sama sekali, bukan kembali ke hasil pencarian sebelumnya.
+
+Jadi pertanyaannya bukan "perlu routing atau tidak", tapi **keadaan mana yang pantas tinggal di URL.** Jawabannya sudah Anda susun di Modul 6:
+
+| Jenis keadaan | Tempatnya | Contoh |
+| --- | --- | --- |
+| Menentukan layar mana yang tampil | Path URL | `/judul/169`, `/favorit` |
+| Perlu bisa dibagikan atau di-bookmark | Query string | `?q=kopi&kategori=minuman&halaman=3` |
+| Hanya berarti selama layar terbuka | `useState` | Dialog terbuka, teks yang sedang diketik |
+| Perlu bertahan antar kunjungan | `localStorage` | Preferensi tema |
+
+### React Router
+
+React tidak punya routing bawaan. Pilihan paling umum untuk aplikasi React tanpa framework adalah React Router, dan itu yang dipakai di Proyek 2 dan 3.
+
+```bash
+pnpm add react-router
+```
+
+```tsx
+// router.tsx
+import { createBrowserRouter } from 'react-router';
+
+export const router = createBrowserRouter([
+  {
+    path: '/',
+    Component: Layout,
+    children: [
+      { index: true, Component: HalamanDaftar },
+      { path: 'judul/:id', Component: HalamanDetail },
+      { path: 'favorit', Component: HalamanFavorit },
+      { path: '*', Component: Halaman404 },
+    ],
+  },
+]);
+```
+
+```tsx
+// main.tsx
+import { RouterProvider } from 'react-router';
+
+createRoot(document.getElementById('root')!).render(
+  <RouterProvider router={router} />
+);
+```
+
+Empat hal yang perlu dibaca dari potongan itu:
+
+**`children` bersarang di bawah satu `Layout`.** Kerangka yang sama (header, navigasi, footer) ditulis sekali, dan isi halaman muncul di tempat `Outlet` dipasang.
+
+```tsx
+import { Outlet, NavLink } from 'react-router';
+
+function Layout() {
+  return (
+    <>
+      <header>
+        <nav aria-label="Utama">
+          {/* NavLink otomatis menandai tautan yang sedang aktif */}
+          <NavLink to="/">Katalog</NavLink>
+          <NavLink to="/favorit">Favorit</NavLink>
+        </nav>
+      </header>
+
+      <main>
+        <Outlet /> {/* halaman yang cocok dengan URL dirender di sini */}
+      </main>
+    </>
+  );
+}
+```
+
+**`:id` adalah bagian yang berubah**, dan dibaca dengan `useParams`.
+
+**`path: '*'` menangkap alamat yang tidak dikenal.** Tanpa baris itu, salah ketik alamat menghasilkan layar kosong tanpa penjelasan.
+
+**`index: true` berarti "halaman ini saat path-nya tepat sama dengan induknya".**
+
+### `Link`, bukan `a`
+
+Satu hal yang wajib benar, dan sering salah:
+
+```tsx
+// Salah: memuat ulang seluruh aplikasi dari nol
+<a href="/favorit">Favorit</a>
+
+// Benar: berpindah tanpa memuat ulang, state aplikasi tetap hidup
+<Link to="/favorit">Favorit</Link>
+```
+
+Keduanya menghasilkan elemen `a` di halaman, jadi semua yang Anda pelajari di Modul 2 tetap berlaku: bisa diklik tengah, bisa dibuka di tab baru, muncul di daftar tautan pembaca layar. Yang ditambahkan `Link` hanya satu, yaitu mencegah muat ulang penuh saat diklik biasa.
+
+Dan aturan Modul 2 tetap tidak berubah: `Link` untuk berpindah tempat, `button` untuk menjalankan aksi. Routing tidak mengubah pembagian itu.
+
+### Membaca dan menulis query string
+
+Di sini pola "URL adalah sumber kebenaran" jadi nyata:
+
+```tsx
+import { useSearchParams } from 'react-router';
+
+function HalamanDaftar() {
+  const [parameter, setParameter] = useSearchParams();
+
+  // Dibaca langsung dari URL. Tidak ada salinan di useState.
+  const q = parameter.get('q') ?? '';
+  const kategori = parameter.get('kategori') ?? 'semua';
+
+  function ubah(kunci: string, nilai: string) {
+    const baru = new URLSearchParams(parameter);
+    // Nilai bawaan tidak ditulis, supaya tautannya tetap pendek
+    if (nilai && nilai !== 'semua') baru.set(kunci, nilai);
+    else baru.delete(kunci);
+
+    // replace: true supaya setiap ketikan tidak menumpuk riwayat
+    setParameter(baru, { replace: true });
+  }
+
+  const hasil = useHasilCari(q); // hook dari Latihan 2 modul ini
+
+  return (
+    <>
+      <FormCari nilai={q} onUbah={(nilai) => ubah('q', nilai)} />
+      <FilterKategori nilai={kategori} onUbah={(nilai) => ubah('kategori', nilai)} />
+      <HasilPencarian keadaan={hasil} />
+    </>
+  );
+}
+```
+
+Tiga detail kecil dengan akibat besar:
+
+**`replace: true` pada perubahan yang sering.** Tanpanya, mengetik "breaking bad" menambah sebelas entri ke riwayat browser, dan tombol kembali jadi tidak berguna karena harus ditekan sebelas kali untuk keluar dari satu pencarian.
+
+**Nilai bawaan tidak ditulis ke URL.** `?kategori=semua` tidak memberi informasi apa pun dan hanya memperpanjang tautan.
+
+**Tidak ada `useState` yang menyalin nilai URL.** Begitu Anda menyimpan salinan, Anda punya dua sumber kebenaran, dan Latihan 2 di Modul 6 sudah menunjukkan akibatnya. Isian form boleh terasa seperti butuh state, dan tidak: nilainya dibaca dari URL, dan `onChange` menulis ke URL.
+
+Satu catatan untuk nanti: semua yang dikerjakan React Router di sini juga ada di Next.js pada Modul 14, dengan dua perbedaan. Rutenya ditentukan struktur folder, bukan daftar konfigurasi, dan `searchParams` bisa dibaca di server sebelum satu baris JavaScript dikirim ke browser. Polanya tetap sama, jadi yang Anda pelajari sekarang tidak terbuang.
 
 ## Latihan
 
@@ -396,7 +544,7 @@ Buat `useHasilCari(kataKunci: string)` yang menggabungkan apa yang sudah Anda pe
 > 3. **Kata kunci minimal dua huruf.** Mengirim permintaan untuk satu huruf menghasilkan beban besar dengan hasil tidak berguna.
 > 4. **`AbortError` tidak pernah jadi pesan error.** Pengguna yang mengetik cepat akan melihat kedipan error di setiap huruf kalau ini dilewatkan.
 >
-> Sekarang bandingkan dengan Latihan 3 modul 5. Logikanya sama, tapi sekarang bisa dipakai di komponen mana pun dengan satu baris, dan pembersihannya dijamin React.
+> Sekarang bandingkan dengan Latihan 3 modul 6. Logikanya sama, tapi sekarang bisa dipakai di komponen mana pun dengan satu baris, dan pembersihannya dijamin React.
 
 ### Latihan 3: Rancang Context untuk aplikasi nyata
 
@@ -424,7 +572,7 @@ Rancang pembagian context-nya, lalu jelaskan keputusan untuk masing-masing.
 >
 > **Kenapa posisi gulir tidak lewat Context.** Nilai yang berubah puluhan kali per detik akan menggambar ulang seluruh pohon di bawah provider. Untuk header yang menyusut saat digulir, jawabannya CSS dengan `position: sticky`, atau satu hook lokal di komponen header itu saja.
 >
-> Satu catatan terakhir: pada aplikasi yang lebih besar, keranjang biasanya tidak tinggal di Context sama sekali, melainkan di library state seperti Zustand, atau jadi data server dengan cache dari modul 11. Context cocok untuk nilai yang benar-benar global dan jarang berubah, dan mulai terasa sesak di luar itu.
+> Satu catatan terakhir: pada aplikasi yang lebih besar, keranjang biasanya tidak tinggal di Context sama sekali, melainkan di library state seperti Zustand, atau jadi data server dengan cache dari modul 12. Context cocok untuk nilai yang benar-benar global dan jarang berubah, dan mulai terasa sesak di luar itu.
 
 ### Latihan 4: Satu komponen, tiga urusan
 
@@ -524,7 +672,42 @@ function PanelNotifikasi() {
 > 4. **`window.matchMedia` pada nilai awal `useState`** mencegah kedipan pada render pertama.
 > 5. **Dua urusan jadi dua hook yang bisa diuji sendiri**, dan keduanya langsung bisa dipakai di komponen lain.
 >
-> Satu catatan yang menghemat waktu nanti: `useMediaQuery` membaca ukuran layar lewat JavaScript, dan itu tidak bekerja saat halaman dirender di server karena `window` tidak ada di sana. Untuk menyembunyikan dan menampilkan berdasarkan ukuran layar, CSS adalah jawaban yang lebih baik. Modul 13 akan kembali ke titik ini.
+> Satu catatan yang menghemat waktu nanti: `useMediaQuery` membaca ukuran layar lewat JavaScript, dan itu tidak bekerja saat halaman dirender di server karena `window` tidak ada di sana. Untuk menyembunyikan dan menampilkan berdasarkan ukuran layar, CSS adalah jawaban yang lebih baik. Modul 14 akan kembali ke titik ini.
+
+### Latihan 5: Tiga halaman, nol salinan state
+
+Bangun kerangka aplikasi tiga halaman dengan React Router: `/` menampilkan daftar, `/item/:id` menampilkan detail, `/favorit` menampilkan favorit, dan alamat tak dikenal menampilkan 404 dengan tautan kembali.
+
+Syaratnya: satu `Layout` dengan navigasi yang menandai halaman aktif, kata kunci pencarian dan filter tersimpan di URL, `/item/:id` bisa dibuka langsung di tab baru tanpa melewati daftar, dan **tidak ada satu pun `useState` yang menyimpan nilai yang sudah ada di URL.**
+
+> [!petunjuk]
+> Mulai dari daftar rutenya di `router.tsx`, lalu buat setiap halaman sebagai komponen kosong berisi satu `h1`. Pastikan keempat alamat bisa dibuka sebelum menambahkan isi apa pun. Untuk syarat terakhir, periksa dengan satu pertanyaan per `useState`: kalau pengguna menyalin alamat ini ke tab baru, apakah nilai ini harus ikut?
+
+> [!pembahasan]
+>
+> ```tsx
+> function HalamanDetail() {
+>   const { id } = useParams();
+>   const navigate = useNavigate();
+>
+>   // id dari URL, bukan dari props atau state
+>   const { data, isPending, isError } = useDetail(id!);
+>
+>   if (isPending) return <Kerangka />;
+>   if (isError) return <KeadaanGagal onKembali={() => navigate('/')} />;
+>
+>   return <Detail item={data} />;
+> }
+> ```
+>
+> Empat hal yang jadi inti latihan ini:
+>
+> 1. **`/item/:id` yang bisa dibuka langsung adalah ujian sesungguhnya.** Kalau halaman detail Anda membaca data dari state yang diisi halaman daftar, membukanya di tab baru menghasilkan layar kosong. Itu bug yang tidak pernah terlihat selama Anda menguji dengan mengklik dari daftar, dan selalu terlihat begitu ada yang membagikan tautan.
+> 2. **`useParams` mengembalikan string, selalu.** Tidak ada nomor, tidak ada jaminan isinya masuk akal. Perlakukan sebagai masukan dari luar, persis seperti pesan di akhir Modul 8: URL bisa diisi apa saja oleh siapa saja. Proyek 3 akan membacanya dengan skema.
+> 3. **Navigasi setelah aksi memakai `useNavigate`, bukan `window.location`.** Yang kedua memuat ulang seluruh aplikasi dan membuang seluruh cache serta state yang sedang hidup.
+> 4. **Halaman 404 wajib punya jalan keluar.** Halaman yang hanya bertulisan "Tidak ditemukan" memaksa pengguna menekan tombol kembali, dan sebagian pengguna akan menutup tabnya.
+>
+> Satu hal yang sengaja belum rapi, dan jadi bahan Modul 12: setiap kali pengguna berpindah dari daftar ke detail lalu menekan kembali, daftarnya dimuat ulang dari nol. URL-nya sudah benar, datanya yang belum punya ingatan.
 
 ## Batasnya
 
@@ -536,6 +719,8 @@ Dengan hook, Context, dan komposisi, Anda bisa membangun aplikasi React yang ser
 
 **Form yang serius.** Form dengan dua puluh isian, validasi bersyarat, dan pesan error per kolom akan jadi lima belas `useState` kalau dikerjakan dengan cara modul ini.
 
+**Dan satu batas khusus routing di klien:** seluruh aplikasi tetap dikirim sebagai satu berkas HTML kosong yang baru terisi setelah JavaScript jalan. Jadi mesin pencari sulit membacanya, dan pengguna menunggu beberapa langkah sebelum melihat isi. Itu yang dijawab Modul 14.
+
 ## Rangkuman
 
 - `useEffect` untuk menyinkronkan dengan sistem di luar React. Bukan untuk menghitung, bukan untuk bereaksi terhadap perubahan state.
@@ -546,11 +731,15 @@ Dengan hook, Context, dan komposisi, Anda bisa membangun aplikasi React yang ser
 - `useReducer` begitu ada aturan antar-field, atau tiga setter yang selalu dipanggil bersamaan.
 - Custom hook adalah fungsi biasa yang bisa memanggil hook. Buat saat logika muncul di tempat kedua.
 - Context adalah alat pengiriman, bukan manajemen state. Pisahkan per laju perubahan, dan jangan taruh data server di dalamnya.
+- URL adalah sistem di luar React, sama seperti `window`. Keadaan yang menentukan layar tinggal di path, keadaan yang perlu dibagikan tinggal di query string.
+- `Link` menggantikan `a` untuk navigasi internal, dan aturan Modul 2 tetap berlaku: `Link` berpindah tempat, `button` menjalankan aksi.
+- Jangan menyalin nilai URL ke `useState`. URL yang jadi sumber kebenaran berarti tautannya bisa dibagikan dan tombol kembali bekerja.
+- `replace: true` untuk perubahan yang sering, supaya riwayat browser tidak penuh oleh setiap ketikan.
 
 ## Masalah terbuka
 
 Anda sekarang punya React dengan pondasi yang benar: komponen murni, state di tempat yang tepat, effect yang hanya dipakai untuk urusannya, dan logika yang bisa dipakai ulang.
 
-Saatnya membuktikan itu pada aplikasi yang lebih besar daripada dasbor cuaca, dengan routing, pencarian yang tersimpan di URL, halaman detail, dan data yang jumlahnya tidak bisa dimuat sekaligus.
+Saatnya membuktikan itu pada aplikasi yang lebih besar daripada dasbor cuaca: beberapa halaman dengan routing, pencarian yang tersimpan di URL, halaman detail yang bisa dibuka langsung, dan data yang jumlahnya tidak bisa dimuat sekaligus.
 
 Bagian berikutnya adalah Proyek 2: katalog film dengan React dan TypeScript, lengkap dengan pencarian yang bisa dibagikan lewat tautan, dan daftar favorit yang bertahan setelah tab ditutup.

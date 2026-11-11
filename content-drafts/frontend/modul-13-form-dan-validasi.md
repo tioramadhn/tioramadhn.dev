@@ -1,8 +1,8 @@
 ---
-title: 'Modul 12: Form, Validasi, dan Pengalaman Input'
+title: 'Modul 13: Form, Validasi, dan Pengalaman Input'
 description: Form adalah tempat pengguna paling sering gagal dan tempat data kotor paling sering masuk. Satu skema jadi sumber tipe dan validasi sekaligus, dan pesan errornya ditulis untuk manusia.
-date: 2026-11-20
-slug: modul-12-form-dan-validasi
+date: 2026-11-22
+slug: modul-13-form-dan-validasi
 tags: tutorial frontend
 series: Tutorial Frontend
 status: draft
@@ -20,7 +20,7 @@ Form terlihat mudah sampai Anda menulis yang sungguhan. Bandingkan dua daftar ke
 | Kolomnya tetap | Kolom yang bisa ditambah dan dihapus pengguna |
 | Data hilang kalau tab tertutup | Draf yang bertahan |
 
-Dikerjakan dengan `useState` per kolom, daftar kanan jadi lima belas state dan satu fungsi validasi raksasa yang tidak ada yang mau menyentuhnya. Modul ini tentang cara yang bertahan, dan sekaligus menutup lubang yang ditinggalkan modul 7: siapa yang memastikan data benar-benar berbentuk seperti janji tipenya.
+Dikerjakan dengan `useState` per kolom, daftar kanan jadi lima belas state dan satu fungsi validasi raksasa yang tidak ada yang mau menyentuhnya. Modul ini tentang cara yang bertahan, dan sekaligus menutup lubang yang ditinggalkan modul 8: siapa yang memastikan data benar-benar berbentuk seperti janji tipenya.
 
 ## Analogi: formulir di kantor kelurahan
 
@@ -83,9 +83,9 @@ export const skemaPendaftaran = z
 
     catatan: z.string().trim().max(300, 'Catatan maksimal 300 huruf').optional(),
 
-    setuju: z.literal(true, {
-      errorMap: () => ({ message: 'Anda perlu menyetujui syarat dan ketentuan' }),
-    }),
+    setuju: z
+      .boolean()
+      .refine((v) => v === true, 'Anda perlu menyetujui syarat dan ketentuan'),
   })
   .superRefine((nilai, konteks) => {
     if (nilai.jenisAkun === 'perusahaan' && !nilai.npwp) {
@@ -111,7 +111,9 @@ Empat hal yang layak diperhatikan:
 
 **`superRefine` untuk aturan antar-kolom.** Inilah yang menjawab "NPWP wajib kalau jenis akun perusahaan" tanpa `if` bertumpuk di komponen.
 
-Skema yang sama lalu dipakai di tiga tempat: validasi form di klien, validasi permintaan di server, dan pemeriksaan respons API dari modul 11. Satu berkas, tiga pemakai, nol kemungkinan berselisih.
+> Satu catatan versi yang menghemat waktu Anda: Zod mengubah beberapa nama antar versi mayor. Pada versi terbaru, validator seperti email tersedia sebagai fungsi tingkat atas (`z.email()`) dan bentuk `z.string().email()` ditandai usang, sedangkan cara menyesuaikan pesan error juga berganti nama. Periksa dokumentasi versi yang benar-benar terpasang di `package.json` Anda, dan jangan menyalin konfigurasi dari artikel lama. Bentuk `.refine()` yang dipakai untuk `setuju` di atas sengaja dipilih karena berlaku di semua versi.
+
+Skema yang sama lalu dipakai di tiga tempat: validasi form di klien, validasi permintaan di server, dan pemeriksaan respons API dari modul 12. Satu berkas, tiga pemakai, nol kemungkinan berselisih.
 
 ## Form dengan React Hook Form
 
@@ -292,7 +294,7 @@ const { fields, append, remove } = useFieldArray({ control, name: 'peserta' });
 ))}
 ```
 
-`key={kolom.id}` di situ penting, dan alasannya persis Latihan 2 di modul 8: memakai indeks membuat nilai berpindah baris saat satu peserta dihapus.
+`key={kolom.id}` di situ penting, dan alasannya persis Latihan 2 di modul 9: memakai indeks membuat nilai berpindah baris saat satu peserta dihapus.
 
 Untuk draf, jangan simpan setiap ketikan ke `localStorage`. Simpan dengan penundaan, dan jangan pernah menyimpan kolom sensitif:
 
@@ -316,7 +318,7 @@ useEffect(() => {
 | Skema dan validasi | Zod, Valibot, ArkType | Zod paling luas dukungannya. Valibot jauh lebih kecil ukurannya |
 | Pengelola form | React Hook Form, TanStack Form | RHF standar de facto, TanStack Form lebih baru dengan tipe yang lebih ketat |
 | Form sederhana | Tanpa library | Satu sampai tiga kolom tanpa aturan rumit cukup dengan state biasa atau `FormData` |
-| Form di Next.js | Server Action dengan validasi skema | Lihat modul 13, bisa bekerja tanpa JavaScript di klien |
+| Form di Next.js | Server Action dengan validasi skema | Lihat modul 14, bisa bekerja tanpa JavaScript di klien |
 
 Baris ketiga perlu ditegaskan: form pencarian satu kolom tidak butuh React Hook Form. Memasang library untuk setiap form adalah kebiasaan yang membuat bundel membesar tanpa manfaat.
 
@@ -329,7 +331,7 @@ Bangun form dengan syarat: nama, email, telepon, jenis akun (pribadi atau perusa
 Validasi dengan Zod, pesan error dalam bahasa Indonesia yang bisa ditindaklanjuti, dan error per kolom dari server dipetakan ke kolomnya.
 
 > [!petunjuk]
-> Tulis skemanya lebih dulu, sebelum satu baris JSX. Kalau skemanya benar, komponennya hampir menulis dirinya sendiri. Untuk total biaya, ingat aturan modul 8: nilai yang bisa dihitung tidak disimpan.
+> Tulis skemanya lebih dulu, sebelum satu baris JSX. Kalau skemanya benar, komponennya hampir menulis dirinya sendiri. Untuk total biaya, ingat aturan modul 9: nilai yang bisa dihitung tidak disimpan.
 
 > [!jawaban]
 >
@@ -350,9 +352,9 @@ Validasi dengan Zod, pesan error dalam bahasa Indonesia yang bisa ditindaklanjut
 >       .array(skemaPeserta)
 >       .min(1, 'Minimal satu peserta')
 >       .max(4, 'Maksimal empat peserta per pendaftaran'),
->     setuju: z.literal(true, {
->       errorMap: () => ({ message: 'Anda perlu menyetujui syarat dan ketentuan' }),
->     }),
+>     setuju: z
+>       .boolean()
+>       .refine((v) => v === true, 'Anda perlu menyetujui syarat dan ketentuan'),
 >   })
 >   .superRefine((nilai, konteks) => {
 >     if (nilai.jenisAkun === 'perusahaan') {
@@ -410,7 +412,7 @@ Ambil skema dari Latihan 1 dan pakai di tiga tempat: validasi form di klien, val
 >   return Response.json({ ok: true }, { status: 201 });
 > }
 >
-> // 3. Membaca respons API: menutup lubang dari modul 7
+> // 3. Membaca respons API: menutup lubang dari modul 8
 > const skemaDaftar = z.object({
 >   data: z.array(skemaPendaftaranTersimpan),
 >   meta: z.object({ halaman: z.number(), total: z.number() }),
@@ -502,11 +504,11 @@ Form ini bekerja secara teknis dan membuat pengguna frustrasi. Temukan sembilan 
 
 Form dan validasi beres, dan tiga hal masih di luar jangkauan.
 
-**Validasi di klien tidak pernah jadi pengamanan.** Siapa pun bisa mengirim permintaan langsung ke API Anda tanpa melewati form. Itu sebabnya skema yang sama dijalankan di server, dan modul 14 membahas lapisan pengamanan lainnya.
+**Validasi di klien tidak pernah jadi pengamanan.** Siapa pun bisa mengirim permintaan langsung ke API Anda tanpa melewati form. Itu sebabnya skema yang sama dijalankan di server, dan modul 15 membahas lapisan pengamanan lainnya.
 
 **Aturan bisnis yang butuh data server.** "Email ini sudah terdaftar" dan "kuota acara habis" tidak bisa dijawab di klien. Jawabannya datang sebagai error per kolom dari server, dan itu sebabnya pemetaan `setError` penting.
 
-**Form yang bekerja tanpa JavaScript.** Semua yang dibangun di modul ini bergantung pada JavaScript di klien. Form HTML biasa bisa bekerja tanpanya, dan di modul 13 Anda akan melihat cara mendapatkan keduanya sekaligus dengan Server Action.
+**Form yang bekerja tanpa JavaScript.** Semua yang dibangun di modul ini bergantung pada JavaScript di klien. Form HTML biasa bisa bekerja tanpanya, dan di modul 14 Anda akan melihat cara mendapatkan keduanya sekaligus dengan Server Action.
 
 ## Rangkuman
 

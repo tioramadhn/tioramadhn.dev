@@ -1,8 +1,8 @@
 ---
-title: 'Modul 10: Styling Skala Aplikasi dan Design Token'
+title: 'Modul 11: Styling Skala Aplikasi dan Design Token'
 description: Warna yang disalin di empat puluh tempat, jarak yang ditebak per komponen, dan mode gelap yang jadi pekerjaan dua minggu. Semuanya satu masalah: nilai desain tidak punya satu sumber.
-date: 2026-11-18
-slug: modul-10-styling-dan-design-token
+date: 2026-11-20
+slug: modul-11-styling-dan-design-token
 tags: tutorial frontend
 series: Tutorial Frontend
 status: draft
@@ -21,7 +21,7 @@ Modul 3 sudah mengajarkan cara menulis CSS. Modul ini tentang masalah yang baru 
 | CSS mati | Tidak ada yang berani menghapus, karena tidak tahu masih dipakai atau tidak |
 | Tampilan berbeda antar halaman | Lima orang membuat lima tombol yang mirip tapi tidak sama |
 
-Keenamnya satu akar: **nilai desain dan keputusan desain tidak punya satu sumber kebenaran.** Pola yang sama dengan masalah state di modul 5, hanya pindah wilayah.
+Keenamnya satu akar: **nilai desain dan keputusan desain tidak punya satu sumber kebenaran.** Pola yang sama dengan masalah state di modul 6, hanya pindah wilayah.
 
 ## Analogi: dapur dengan takaran standar
 
@@ -130,7 +130,7 @@ Soal `z-index`, satu catatan dari pengalaman: perang `z-index: 9999` selalu bera
 | **CSS-in-JS runtime** (styled-components) | Gaya dihitung saat aplikasi jalan | Gaya dinamis berbasis props terasa mulus | Biaya runtime, bermasalah dengan Server Component |
 | **CSS-in-JS nol runtime** (vanilla-extract) | Gaya ditulis di TypeScript, dikompilasi jadi CSS | Tipe pada token, nol runtime | Ekosistem lebih kecil, butuh konfigurasi build |
 
-Rekomendasi yang jujur untuk tahun ini: **Tailwind untuk aplikasi baru, CSS Modules kalau tim Anda tidak nyaman dengan utility class.** Hindari CSS-in-JS yang menghitung gaya saat runtime untuk proyek baru, karena model Server Component di modul 13 menjalankan komponen di server tempat gaya itu tidak bisa dihitung, dan hampir semua library kategori itu sedang berpindah ke pendekatan nol runtime.
+Rekomendasi yang jujur untuk tahun ini: **Tailwind untuk aplikasi baru, CSS Modules kalau tim Anda tidak nyaman dengan utility class.** Hindari CSS-in-JS yang menghitung gaya saat runtime untuk proyek baru, karena model Server Component di modul 14 menjalankan komponen di server tempat gaya itu tidak bisa dihitung, dan hampir semua library kategori itu sedang berpindah ke pendekatan nol runtime.
 
 Tailwind versi modern mendefinisikan token langsung di CSS, dan setiap token otomatis jadi utility:
 
@@ -440,7 +440,7 @@ Sistem token dan pendekatan styling menyelesaikan konsistensi tampilan, dan tida
 
 **Tidak membuat desain Anda bagus.** Token menjamin keseragaman. Pilihan warna, hierarki, dan ritme tetap keputusan desain.
 
-**Tidak menjamin aksesibilitas.** Token warna bisa seragam dan sekaligus gagal kontras di semua tempat. Modul 15 mengukurnya.
+**Tidak menjamin aksesibilitas.** Token warna bisa seragam dan sekaligus gagal kontras di semua tempat. Modul 16 mengukurnya.
 
 **Tidak mengurus data.** Kartu yang sekarang rapi masih memuat datanya sendiri dari nol setiap kali muncul, dan itu keluhan kedua dari Proyek 2 yang belum terjawab.
 

@@ -1,8 +1,8 @@
 ---
-title: 'Modul 6: Tooling dan Build Modern'
+title: 'Modul 7: Tooling dan Build Modern'
 description: Dari tiga file tanpa dependensi jadi proyek sungguhan: package manager, Vite, bundler, linter, dan formatter. Perkakas yang membuat kode Anda bisa dirawat banyak orang.
-date: 2026-11-13
-slug: modul-6-tooling-dan-build
+date: 2026-11-15
+slug: modul-7-tooling-dan-build
 tags: tutorial frontend
 series: Tutorial Frontend
 status: draft
@@ -17,8 +17,9 @@ Proyek 1 selesai dengan tiga file dan nol dependensi. Itu keadaan yang menyenang
 | "Jangan kirim komentar dan spasi ke pengguna" | Minifikasi |
 | "Halaman tidak boleh di-refresh tiap kali saya simpan file" | Dev server dengan pembaruan langsung |
 | "Format kodenya disamakan di semua anggota tim" | Formatter dan linter yang jalan otomatis |
+| "Kembalikan seperti kemarin, yang hari ini malah rusak" | Riwayat perubahan, dan tempat menyimpannya |
 
-Modul ini tentang perkakas yang menjawab lima permintaan itu. Topiknya terasa membosankan dibanding React, dan tetap dikerjakan lebih dulu karena React, TypeScript, dan hampir semua yang menyusul hidup di atasnya.
+Modul ini tentang perkakas yang menjawab enam permintaan itu. Topiknya terasa membosankan dibanding React, dan tetap dikerjakan lebih dulu karena React, TypeScript, dan hampir semua yang menyusul hidup di atasnya.
 
 ## Masalahnya dulu: kenapa browser tidak cukup
 
@@ -60,8 +61,125 @@ Yang dibeli pembaca bukan manuskrip itu. Yang dibeli adalah buku cetak: satu ben
 | Menerjemahkan ke bahasa lain | Transpilasi ke sintaks yang didukung browser lama |
 | Daftar pustaka dengan nomor edisi | `package.json` dan lockfile |
 | Satu cetakan percobaan untuk penulis | Dev server |
+| Arsip setiap revisi manuskrip, lengkap dengan catatan alasannya | Git |
 
 Batas analoginya: buku dicetak sekali lalu selesai, sedangkan proyek Anda dibangun ulang puluhan kali sehari. Karena itu kecepatan build jadi hal yang serius, dan jadi alasan Vite menggeser Webpack.
+
+## Git: riwayat yang bisa Anda andalkan
+
+Permintaan keenam di tabel pembuka ("kembalikan seperti kemarin") adalah satu-satunya yang tidak diselesaikan bundler mana pun. Yang menyelesaikannya Git, dan inilah saatnya, karena mulai modul ini proyek Anda punya lockfile, konfigurasi, dan pagar kualitas yang semuanya tidak ada artinya tanpa tempat menyimpan riwayat.
+
+Cara menyimpan versi yang dipakai orang sebelum mengenal Git, dan mungkin masih Anda lakukan sampai sekarang:
+
+```text
+proyek/
+proyek-backup/
+proyek-backup-fix/
+proyek-FINAL/
+proyek-FINAL-beneran/
+```
+
+Masalahnya bukan namanya yang lucu. Masalahnya tidak ada yang tahu apa bedanya, kenapa diubah, siapa yang mengubah, dan yang mana yang pernah benar-benar jalan.
+
+Git menjawabnya dengan satu ide: **simpan rangkaian potret proyek Anda, masing-masing dengan catatan alasannya.** Setiap potret disebut *commit*, dan dari sana Anda bisa melihat seluruh riwayat, membandingkan dua titik mana pun, dan kembali ke titik mana pun.
+
+Pasang dulu. Di Mac biasanya sudah ada, di Windows unduh dari `git-scm.com`, di Linux lewat pengelola paket distribusi Anda.
+
+```bash
+git --version
+git config --global user.name "Nama Anda"
+git config --global user.email "email@anda.com"
+git config --global init.defaultBranch main
+```
+
+Dua baris tengah itu wajib, karena setiap commit mencatat siapa pembuatnya.
+
+### Tiga wilayah, dan ini satu-satunya konsep yang perlu dipahami
+
+Hampir semua kebingungan Git berasal dari tidak tahu bahwa berkas Anda hidup di tiga tempat sekaligus:
+
+| Wilayah | Isinya | Perintah yang memindahkan ke sini |
+| --- | --- | --- |
+| **Working directory** | Berkas seperti yang Anda lihat di editor sekarang | Mengetik dan menyimpan |
+| **Staging area** | Perubahan yang Anda pilih untuk masuk commit berikutnya | `git add` |
+| **Repositori** | Riwayat commit yang sudah tersimpan permanen | `git commit` |
+
+Staging area terasa berlebihan sampai Anda mengerjakan dua hal sekaligus dan hanya ingin menyimpan salah satunya. Itu gunanya: Anda memilih apa yang masuk ke satu commit, bukan menyerahkan semuanya.
+
+### Alur sehari-hari
+
+Sembilan perintah ini menutup hampir seluruh pekerjaan Git Anda selama bertahun-tahun:
+
+```bash
+# Sekali saja, di folder proyek yang belum punya riwayat
+git init
+
+# Berkali-kali, setiap hari
+git status                  # apa yang berubah, dan ada di wilayah mana
+git diff                    # apa persisnya yang berubah
+git add .                   # pilih semua perubahan untuk commit berikutnya
+git commit -m "Pesan"       # simpan potretnya
+git log --oneline           # lihat riwayatnya
+
+# Saat butuh
+git switch -c nama-cabang   # buat cabang baru dan pindah ke sana
+git switch main             # pindah kembali
+git restore nama-berkas     # buang perubahan yang belum di-add pada satu berkas
+```
+
+Urutan yang akan jadi refleks: `git status`, `git diff`, `git add`, `git commit`. Dua perintah pertama tidak mengubah apa pun dan dijalankan untuk melihat. Biasakan menjalankan keduanya sebelum commit, supaya tidak ada yang ikut tanpa Anda sadari.
+
+Soal pesan commit, satu kebiasaan yang membedakan riwayat yang berguna dari riwayat yang hanya panjang: **tulis apa yang berubah dan kenapa, bukan apa yang Anda lakukan.**
+
+| Buruk | Baik |
+| --- | --- |
+| `update` | `Pindahkan lapisan data ke src/lib/cuaca.js` |
+| `fix bug` | `Perbaiki total yang salah saat diskon bernilai nol` |
+| `wip` | `Tambahkan keadaan gagal pada kartu cuaca` |
+| `perubahan banyak` | (pecah jadi beberapa commit) |
+
+Baris terakhir itu aturannya sendiri: **satu commit, satu perubahan yang bisa dijelaskan dalam satu kalimat.** Commit yang mencampur perbaikan bug, penggantian nama berkas, dan perubahan format hampir tidak bisa ditelaah, dan tidak bisa dibatalkan sebagian.
+
+### `.gitignore`
+
+Tidak semua berkas pantas masuk riwayat. Buat berkas bernama `.gitignore` di akar proyek:
+
+```text
+node_modules/
+dist/
+.env
+.DS_Store
+*.log
+```
+
+Empat baris pertama punya alasan masing-masing, dan ketiga paling penting:
+
+- **`node_modules/`** berisi puluhan ribu berkas yang bisa dibuat ulang dari `package.json` dan lockfile. Menyimpannya membuat repositori raksasa tanpa manfaat.
+- **`dist/`** adalah hasil build, dan hasil build selalu bisa dihasilkan ulang.
+- **`.env`** berisi rahasia. Begitu berkas ini masuk satu commit, rahasianya **harus dianggap bocor selamanya**, karena menghapusnya di commit berikutnya tidak menghapusnya dari riwayat. Tulis `.gitignore` sebelum commit pertama, bukan sesudah.
+
+Perhatikan bahwa `pnpm-lock.yaml` **tidak** ada di daftar itu. Lockfile justru wajib masuk, dan bagian berikutnya menjelaskan kenapa.
+
+### GitHub, dan apa itu pull request
+
+Git bekerja sepenuhnya di komputer Anda. GitHub adalah tempat menyimpan salinannya di internet, supaya ada cadangan, bisa dibuka dari perangkat lain, bisa dikerjakan bersama orang lain, dan bisa dihubungkan ke hosting serta pipeline di modul-modul berikutnya.
+
+```bash
+# Setelah membuat repositori kosong di github.com
+git remote add origin https://github.com/nama-anda/nama-proyek.git
+git push -u origin main
+
+# Selanjutnya cukup
+git push
+```
+
+Dua istilah yang akan muncul terus setelah ini:
+
+**Branch (cabang)** adalah jalur kerja terpisah. Anda membuat cabang, mengerjakan satu fitur di sana, dan `main` tetap utuh selama fitur itu belum selesai. Kebiasaan satu cabang per fitur adalah dasar dari seluruh jalur rilis di Modul 19.
+
+**Pull request** adalah usulan untuk menggabungkan cabang Anda ke `main`, beserta tempat orang lain menelaahnya sebelum digabung. Di situlah pemeriksaan otomatis dijalankan, dan itu alasan bagian `pnpm check` di akhir modul ini penting: pemeriksaan yang mengikat adalah pemeriksaan yang berjalan di pull request, bukan yang bergantung pada ingatan.
+
+Satu catatan jujur: Git punya bagian yang memang rumit, misalnya menyelesaikan konflik penggabungan dan menulis ulang riwayat. Anda tidak membutuhkannya sekarang. Sembilan perintah di atas ditambah `push` sudah cukup untuk seluruh seri ini, dan sisanya lebih mudah dipelajari saat benar-benar dibutuhkan.
 
 ## Package manager dan dependensi
 
@@ -124,7 +242,7 @@ pnpm build
 # dist/assets/index-C8n7xkKt.js   18.40 kB │ gzip:  7.12 kB
 ```
 
-Angka gzip itu yang sebenarnya diunduh pengguna, dan angka itu yang perlu Anda jaga. Modul 17 membahas batas yang wajar dan cara mengukurnya dengan serius.
+Angka gzip itu yang sebenarnya diunduh pengguna, dan angka itu yang perlu Anda jaga. Modul 18 membahas batas yang wajar dan cara mengukurnya dengan serius.
 
 Konfigurasinya singkat:
 
@@ -137,6 +255,8 @@ export default defineConfig({
   resolve: {
     alias: {
       // Supaya import tidak jadi '../../../lib/format'
+      // import.meta.dirname butuh Node 20.11 ke atas. Pada Node yang lebih tua,
+      // pakai: path.dirname(url.fileURLToPath(import.meta.url))
       '@': path.resolve(import.meta.dirname, 'src'),
     },
   },
@@ -154,7 +274,7 @@ VITE_API_URL=https://api.contoh.com
 RAHASIA_DATABASE=jangan-pernah-begini
 ```
 
-Hanya variabel berawalan `VITE_` yang dimasukkan ke kode browser, dan isinya **terlihat siapa pun** yang membuka DevTools. Build step tidak menyembunyikan apa pun. Kunci API yang bersifat rahasia tidak boleh ada di kode frontend, titik. Modul 13 dan 14 membahas tempatnya yang benar.
+Hanya variabel berawalan `VITE_` yang dimasukkan ke kode browser, dan isinya **terlihat siapa pun** yang membuka DevTools. Build step tidak menyembunyikan apa pun. Kunci API yang bersifat rahasia tidak boleh ada di kode frontend, titik. Modul 14 dan 15 membahas tempatnya yang benar.
 
 ## Linter dan formatter
 
@@ -253,6 +373,8 @@ dasbor-cuaca/
 ```
 
 Syaratnya: `index.html` berada di root proyek (bukan di `src/`), CSS diimpor dari JavaScript, alias `@` menunjuk ke `src`, `pnpm lint` bersih, dan `date-fns` dipakai untuk memformat tanggal prakiraan.
+
+Lalu simpan hasilnya dengan benar: `git init`, tulis `.gitignore` **sebelum** commit pertama, dan buat minimal tiga commit yang masing-masing bisa dijelaskan dalam satu kalimat. Dorong ke GitHub setelah selesai.
 
 > [!petunjuk]
 > Di Vite, `index.html` adalah titik masuk, bukan hasil build. Di dalamnya tag script menunjuk langsung ke file sumber: `<script type="module" src="/src/main.js"></script>`. CSS tidak lagi dipanggil lewat `<link>`, tapi lewat `import './style.css'` di JavaScript.
@@ -383,6 +505,8 @@ Ketiganya baru terasa saat dijalankan, dan pada jalur yang jarang dilalui, bisa 
 ## Rangkuman
 
 - Browser tidak mengerti `import 'nama-paket'`, dan dua ratus modul berarti dua ratus permintaan. Dua hal itu alasan dasar adanya build step.
+- Git menyimpan rangkaian potret proyek beserta alasannya. Tiga wilayah (working directory, staging, repositori) adalah satu-satunya konsep yang perlu dipahami, dan sembilan perintah menutup pekerjaan bertahun-tahun.
+- Satu commit berisi satu perubahan yang bisa dijelaskan dalam satu kalimat. `.gitignore` ditulis sebelum commit pertama, karena rahasia yang pernah masuk riwayat harus dianggap bocor selamanya.
 - `package.json` menyatakan maksud, lockfile mencatat kenyataan. Lockfile wajib masuk repositori.
 - Vite memakai ESM asli saat pengembangan untuk kecepatan, dan Rollup saat build untuk hasil yang kecil.
 - Hanya variabel berawalan `VITE_` yang masuk ke kode browser, dan semuanya terlihat pengguna. Build step tidak menyembunyikan rahasia.

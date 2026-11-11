@@ -1,16 +1,18 @@
 ---
-title: 'Modul 4: JavaScript untuk Frontend'
+title: 'Modul 5: JavaScript untuk Frontend'
 description: Bagian JavaScript yang benar-benar dipakai setiap hari, plus satu hal yang paling sering salah dipahami: kenapa satu koki di dapur bisa melayani dua puluh pesanan tanpa menunggu.
-date: 2026-11-10
-slug: modul-4-javascript-untuk-frontend
+date: 2026-11-12
+slug: modul-5-javascript-untuk-frontend
 tags: tutorial frontend
 series: Tutorial Frontend
 status: draft
 ---
 
-Halaman Anda sekarang bermakna dan tampil benar di layar mana pun, tapi tetap diam. Tombol tidak menambah apa pun, pencarian harus memuat ulang seluruh halaman, dan daftar produk masih ditulis tangan di HTML padahal datanya berubah tiap jam.
+Modul sebelumnya ditutup dengan dua keluhan tentang kode Anda sendiri: pola "siapkan penampung, telusuri daftar, tambahkan" butuh lima baris setiap kali, dan belum ada cara menangani data yang berlubang maupun pekerjaan yang butuh waktu.
 
-JavaScript yang mengisi celah itu, dan posisinya istimewa: sampai hari ini, hanya JavaScript yang dijalankan browser secara bawaan. Bahasa lain, termasuk TypeScript yang Anda pelajari di modul 7, ujungnya diterjemahkan jadi JavaScript.
+Modul ini menutup ketiganya. Isinya bukan bahasa dari awal lagi, melainkan bagian JavaScript yang benar-benar dipakai frontend setiap hari: cara menulis lima baris itu jadi satu, cara membaca data yang tidak lengkap tanpa meledak, dan cara meminta sesuatu dari server tanpa membuat halaman berhenti bekerja.
+
+Posisi JavaScript sendiri istimewa: sampai hari ini, hanya JavaScript yang dijalankan browser secara bawaan. Bahasa lain, termasuk TypeScript yang Anda pelajari di modul 8, ujungnya diterjemahkan jadi JavaScript.
 
 Empat pekerjaan yang akan Anda minta darinya, hampir setiap hari:
 
@@ -21,7 +23,7 @@ Empat pekerjaan yang akan Anda minta darinya, hampir setiap hari:
 | Mengolah data jadi bentuk yang siap tampil | Menyaring, mengurutkan, menjumlahkan, memformat rupiah |
 | Mengurus waktu | Menunda pencarian sampai pengguna berhenti mengetik, membatalkan permintaan yang sudah tidak relevan |
 
-Modul ini hanya membahas bagian bahasanya. Cara mengubah halaman dengan hasil olahan itu ada di modul 5.
+Modul ini hanya membahas bagian bahasanya. Cara mengubah halaman dengan hasil olahan itu ada di modul 6.
 
 ## Masalahnya dulu: bahasa besar, yang dipakai sedikit
 
@@ -29,10 +31,10 @@ JavaScript punya tiga puluh tahun tumpukan sejarah. Di dalamnya ada cara lama da
 
 Masalah pemula bukan kekurangan materi, tapi kebanjiran. Tutorial membahas `prototype`, `class`, generator, dan tujuh cara mendeklarasikan fungsi, padahal pekerjaan sehari-hari di frontend modern berputar di sekitar daftar yang jauh lebih pendek.
 
-Yang dipakai hampir setiap hari:
+Yang dipakai hampir setiap hari, dengan empat baris pertama sudah dibereskan di Modul 4:
 
 - `const` dan `let`, tidak pernah `var`
-- Fungsi, terutama arrow function
+- Fungsi, dan di modul ini bentuk singkatnya: arrow function
 - Objek dan array, beserta destructuring dan spread
 - `map`, `filter`, `reduce`, `find`, `some`, `sort`
 - Template literal
@@ -135,7 +137,7 @@ naikkan(); // 1
 naikkan(); // 2
 ```
 
-Variabel `jumlah` tidak bisa disentuh dari luar, tapi tetap hidup selama fungsi yang mengingatnya masih ada. Pola yang sama muncul di custom hook pada modul 9.
+Variabel `jumlah` tidak bisa disentuh dari luar, tapi tetap hidup selama fungsi yang mengingatnya masih ada. Pola yang sama muncul di custom hook pada modul 10.
 
 ## Mengolah data: lima method yang menutup sebagian besar kebutuhan
 
@@ -252,7 +254,7 @@ const data = fetch('/api/cari?q=kopi', { signal: kendali.signal });
 kendali.abort(); // Misalnya karena pengguna mengetik lagi
 ```
 
-`AbortController` akan kembali di modul 11 sebagai jawaban untuk masalah pencarian yang hasilnya datang tidak berurutan.
+`AbortController` akan kembali di modul 12 sebagai jawaban untuk masalah pencarian yang hasilnya datang tidak berurutan.
 
 ## Modul: satu file satu tanggung jawab
 
@@ -276,7 +278,7 @@ import { formatRupiah, PAJAK } from './lib/format.js';
 console.log(formatRupiah(100000 * (1 + PAJAK)));
 ```
 
-Modul punya dua sifat yang membedakannya dari script biasa: nama di dalamnya tidak bocor ke lingkup global, dan setiap file hanya dievaluasi sekali meski diimpor dari sepuluh tempat. Sifat kedua itu yang memungkinkan tooling di modul 6 membuang kode yang tidak dipakai.
+Modul punya dua sifat yang membedakannya dari script biasa: nama di dalamnya tidak bocor ke lingkup global, dan setiap file hanya dievaluasi sekali meski diimpor dari sepuluh tempat. Sifat kedua itu yang memungkinkan tooling di modul 7 membuang kode yang tidak dipakai.
 
 ## Latihan
 
@@ -423,7 +425,7 @@ Tulis fungsi `ambilData(url, { timeoutMs = 8000, percobaan = 2 })` dengan syarat
 > 3. **Jeda yang bertambah** (300ms, 600ms, 1200ms) adalah pola yang dipakai hampir semua klien HTTP serius.
 > 4. **Satu `AbortController` per percobaan.** Controller yang sudah dibatalkan tidak bisa dipakai lagi, jadi membuatnya di luar loop adalah bug yang sering terjadi.
 >
-> Modul 11 akan menunjukkan bahwa semua ini sudah disediakan library data seperti TanStack Query. Tetap penting menulisnya sekali dengan tangan, supaya Anda tahu apa yang dikerjakan library itu dan apa yang perlu dibaca di konfigurasinya.
+> Modul 12 akan menunjukkan bahwa semua ini sudah disediakan library data seperti TanStack Query. Tetap penting menulisnya sekali dengan tangan, supaya Anda tahu apa yang dikerjakan library itu dan apa yang perlu dibaca di konfigurasinya.
 
 ### Latihan 4: Temukan bugnya
 
@@ -467,15 +469,15 @@ Temukan tiga masalah di dalamnya, lalu tulis versi perbaikannya.
 > }
 > ```
 >
-> Fungsi ini sekarang tidak mengubah apa pun di luar dirinya. Sifat itu disebut murni, dan akan jadi syarat kerja saat Anda masuk React di modul 8.
+> Fungsi ini sekarang tidak mengubah apa pun di luar dirinya. Sifat itu disebut murni, dan akan jadi syarat kerja saat Anda masuk React di modul 9.
 
 ## Batasnya
 
 JavaScript yang Anda tulis di modul ini bisa mengolah data, tapi belum menyentuh halaman sama sekali. Semua contohnya berhenti di `console.log`.
 
-Bahasanya juga tidak memberi tahu apa pun tentang bentuk data Anda. `pesanan.jumlh` (salah tulis) tidak akan diprotes siapa pun sampai nilainya jadi `undefined` di tangan pengguna. Itu masalah yang dijawab TypeScript di modul 7.
+Bahasanya juga tidak memberi tahu apa pun tentang bentuk data Anda. `pesanan.jumlh` (salah tulis) tidak akan diprotes siapa pun sampai nilainya jadi `undefined` di tangan pengguna. Itu masalah yang dijawab TypeScript di modul 8.
 
-Dan satu lagi yang akan terasa dalam dua modul ke depan: begitu kode Anda lebih dari satu file, Anda butuh cara memasang dependensi, menggabungkan file, dan menjalankannya di browser lama. Itu pekerjaan tooling di modul 6.
+Dan satu lagi yang akan terasa dalam dua modul ke depan: begitu kode Anda lebih dari satu file, Anda butuh cara memasang dependensi, menggabungkan file, dan menjalankannya di browser lama. Itu pekerjaan tooling di modul 7.
 
 ## Rangkuman
 

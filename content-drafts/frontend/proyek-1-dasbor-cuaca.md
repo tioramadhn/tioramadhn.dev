@@ -1,7 +1,7 @@
 ---
 title: 'Proyek 1: Dasbor Cuaca Tanpa Framework'
 description: Menggabungkan HTML semantik, CSS grid, fetch, dan state yang dikelola tangan jadi satu aplikasi yang benar-benar dipakai, lalu merasakan sendiri di mana pendekatan ini mulai sesak.
-date: 2026-11-12
+date: 2026-11-14
 slug: proyek-1-dasbor-cuaca
 tags: tutorial frontend
 series: Tutorial Frontend
@@ -15,8 +15,9 @@ Lima modul pertama memberi lima hal yang sekarang dipakai sekaligus:
 | 1 | Memeriksa permintaan di DevTools, dan sadar apa yang menunda tampilan pertama |
 | 2 | Landmark, hierarki heading, form pencarian yang benar |
 | 3 | Grid responsif, `clamp()`, custom property, mode gelap |
-| 4 | `fetch` dengan penanganan error, `Promise.all`, pengolahan array |
-| 5 | Satu sumber kebenaran, `render()`, event delegation, state di URL |
+| 4 | Variabel, kondisi, perulangan, fungsi, dan objek yang jadi bentuk datanya |
+| 5 | `fetch` dengan penanganan error, `Promise.all`, pengolahan array |
+| 6 | Satu sumber kebenaran, `render()`, event delegation, state di URL |
 
 Hasil akhirnya satu halaman: dasbor cuaca untuk beberapa kota yang bisa ditambah dan dihapus, dengan prakiraan lima hari. Tanpa framework, tanpa build step, tanpa dependensi. Satu file HTML, satu CSS, satu JavaScript, dibuka langsung di browser.
 
@@ -74,6 +75,18 @@ Ini bagian yang paling sering dilewati pemula, dan yang paling sering ditanyakan
 10. Hasil pencarian dan pembaruan data diumumkan lewat `aria-live`.
 11. Mode gelap mengikuti pengaturan sistem.
 12. Lulus tanpa error di [validator.w3.org](https://validator.w3.org) dan tanpa error di console.
+
+### Garis finis
+
+Dua belas syarat di atas adalah versi lengkapnya, dan **Anda tidak harus menyelesaikan semuanya sebelum beranjak.** Pakai pembagian ini supaya ada garis finis yang jujur:
+
+| Tingkat | Syarat | Artinya |
+| --- | --- | --- |
+| **Inti** | 1, 2, 4, plus keadaan "pertama dibuka", "sedang memuat", dan "gagal" | Proyeknya jalan dan jujur soal keadaannya. Cukup untuk lanjut ke Modul 7 |
+| **Lengkap** | Seluruh 1 sampai 12, plus keenam keadaan | Setara dengan pekerjaan yang pantas dinilai di wawancara |
+| **Bonus** | Bagian "Tantangan bonus" di akhir | Kerjakan kalau sedang menikmati, bukan karena merasa wajib |
+
+Kalau waktu Anda terbatas, kerjakan tingkat Inti sampai benar-benar beres, lalu lanjut. Kembali ke tingkat Lengkap setelah Modul 10, saat Anda punya alat yang membuat sisanya jauh lebih cepat dikerjakan.
 
 ## Struktur file
 
@@ -168,7 +181,7 @@ Empat keputusan yang layak diperhatikan:
 Sebelum menulis logika, putuskan bentuk datanya. Keputusan ini menentukan kerumitan seluruh aplikasi.
 
 ```js
-const state = {
+let state = {
   // Sumber kebenaran: kota yang dipantau
   kota: [
     // { id, nama, negara, lat, lon }
@@ -193,7 +206,7 @@ Tiga keputusan desain yang sengaja diambil, dan masing-masing punya alasan.
 
 **Status disimpan per kota, bukan satu status global.** Dengan satu status global, satu kota yang gagal membuat seluruh dasbor terlihat gagal. Dengan status per kota, lima kartu bisa berada di lima keadaan berbeda secara bersamaan, dan itu memang yang terjadi di jaringan nyata.
 
-**Urutan tidak disimpan sebagai array hasil.** `state.urut` hanya menyimpan pilihannya, dan pengurutan dilakukan saat render. Menyimpan array yang sudah terurut berarti punya dua sumber kebenaran, dan Latihan 2 di modul 5 sudah menunjukkan akibatnya.
+**Urutan tidak disimpan sebagai array hasil.** `state.urut` hanya menyimpan pilihannya, dan pengurutan dilakukan saat render. Menyimpan array yang sudah terurut berarti punya dua sumber kebenaran, dan Latihan 2 di modul 6 sudah menunjukkan akibatnya.
 
 ## Lapisan data
 
@@ -291,8 +304,13 @@ Fungsi `ambilCuaca` melakukan satu hal yang sering dilewati: **mengubah bentuk r
 let timerCari;
 let kendaliCari;
 
+// Satu pembatal per kota, supaya pemuatan baru membatalkan yang lama
+const kendaliCuaca = new Map();
+
 function ubahState(perubahan) {
-  Object.assign(state, perubahan);
+  // State diganti, tidak diubah. Aturan ini dari Modul 6, dan sengaja
+  // dipakai di sini karena jadi syarat kerja saat masuk React di Modul 9.
+  state = { ...state, ...perubahan };
   simpan();
   render();
 }
@@ -347,13 +365,21 @@ async function tambahKota(kota) {
 }
 
 async function muatCuaca(kota) {
+  // Permintaan sebelumnya untuk kota ini sudah tidak relevan
+  kendaliCuaca.get(kota.id)?.abort();
+  const kendali = new AbortController();
+  kendaliCuaca.set(kota.id, kendali);
+
   try {
-    const data = await ambilCuaca(kota);
+    const data = await ambilCuaca(kota, kendali.signal);
     ubahState({
       cuaca: { ...state.cuaca, [kota.id]: { status: 'siap', data } },
       diperbaruiPada: new Date(),
     });
   } catch (error) {
+    // Dibatalkan karena ada pemuatan yang lebih baru, bukan kegagalan
+    if (error.name === 'AbortError') return;
+
     ubahState({
       cuaca: {
         ...state.cuaca,
@@ -384,9 +410,11 @@ async function segarkanSemua() {
 }
 ```
 
-Perhatikan satu pola yang berulang: saat gagal, data lama tetap dipertahankan dan hanya statusnya yang berubah. Kartu yang menunjukkan "suhu 24 derajat, gagal diperbarui" jauh lebih berguna daripada kartu yang jadi kosong.
+Perhatikan dua pola yang berulang. Pertama, saat gagal, data lama tetap dipertahankan dan hanya statusnya yang berubah. Kartu yang menunjukkan "suhu 24 derajat, gagal diperbarui" jauh lebih berguna daripada kartu yang jadi kosong.
 
-Event memakai delegation, seperti di modul 5:
+Kedua, `signal` benar-benar dikirim ke `ambilCuaca`, dan `AbortError` tidak diperlakukan sebagai kegagalan. Keduanya satu paket: parameter `signal` yang dideklarasikan tapi tidak pernah dipakai adalah janji yang tidak ditepati, dan pembatalan yang pesannya ikut ditampilkan membuat pengguna melihat error setiap kali menekan "Segarkan semua" dua kali.
+
+Event memakai delegation, seperti di modul 6:
 
 ```js
 dasbor.addEventListener('click', (peristiwa) => {
@@ -417,19 +445,32 @@ window.addEventListener('offline', () => ubahState({ offline: true }));
 Potongan di atas sengaja tidak lengkap. Empat bagian ini bagian Anda:
 
 1. **`renderDasbor()` dan `renderHasilCari()`.** Gambar kartu dari `state`, tangani keenam keadaan di tabel spesifikasi B, dan jangan lupa kartu dengan status `gagal` yang masih punya `data` lama.
-2. **Pencarian dengan debounce dan pembatalan**, memakai `timerCari` dan `kendaliCari` yang sudah disiapkan. Rujuk Latihan 3 modul 5.
+2. **Pencarian dengan debounce dan pembatalan**, memakai `timerCari` dan `kendaliCari` yang sudah disiapkan. Rujuk Latihan 3 modul 6.
 3. **Urutan dan satuan suhu di URL**, dibaca saat halaman dimuat dan ditulis dengan `history.replaceState`. Tambahkan satuan Fahrenheit sebagai pilihan.
 4. **CSS lengkap**: grid `auto-fit` untuk kartu, `clamp()` untuk judul, custom property untuk warna, mode gelap, `:focus-visible`, dan `prefers-reduced-motion`.
+
+> [!petunjuk]
+> Kerjakan nomor 1 lebih dulu dan jangan menyentuh nomor 2 sampai 4 sebelum ada satu kartu yang benar-benar tampil di layar.
+>
+> **Untuk nomor 1**, mulai dari fungsi kecil yang membuat satu kartu dari satu objek cuaca, lalu uji dengan data yang Anda tulis tangan sendiri di dalam kode. Jangan sambungkan ke jaringan dulu. Begitu satu kartu benar, `renderDasbor()` tinggal memanggilnya untuk setiap kota. Untuk keenam keadaan, jangan tulis `if` berlapis: mulai setiap fungsi render dengan serangkaian pemeriksaan yang langsung mengembalikan tampilannya masing-masing, seperti pola *early return* di Modul 4.
+>
+> **Untuk nomor 2**, dua masalah terpisah yang sering dicampur. Debounce mengurangi jumlah permintaan, pembatalan mencegah jawaban lama menimpa jawaban baru. Kerjakan satu per satu dan buktikan masing-masing di tab Network, bukan dengan menduga.
+>
+> **Untuk nomor 3**, satu arah dulu: tulis ke URL saat pengguna mengubah urutan, dan pastikan alamatnya benar-benar berubah. Baru setelah itu kerjakan arah sebaliknya, yaitu membacanya saat halaman dimuat.
+>
+> **Untuk nomor 4**, tulis seluruh warna sebagai custom property di `:root` sebelum menulis satu aturan gaya pun. Menambahkan mode gelap belakangan pada CSS yang warnanya ditulis langsung berarti menyentuh setiap aturan.
 
 ## Memasang di internet
 
 Hasil kerja yang tidak bisa dibuka orang lain sulit dinilai, dan tautannya berguna untuk lamaran kerja. Karena proyek ini tanpa build step, hostingnya gratis dan cepat:
 
-| Cara | Langkahnya |
-| --- | --- |
-| Cloudflare Pages | Hubungkan repositori GitHub, kosongkan build command, atur output directory ke root |
-| GitHub Pages | Settings, Pages, pilih branch `main` dan folder root |
-| Netlify Drop | Seret folder proyek ke app.netlify.com/drop |
+| Cara | Langkahnya | Butuh Git? |
+| --- | --- | --- |
+| Netlify Drop | Seret folder proyek ke app.netlify.com/drop | Tidak |
+| Cloudflare Pages | Hubungkan repositori GitHub, kosongkan build command, atur output directory ke root | Ya |
+| GitHub Pages | Settings, Pages, pilih branch `main` dan folder root | Ya |
+
+Pakai Netlify Drop sekarang. Git dan GitHub diajarkan di Modul 7, saat proyek Anda sudah punya lockfile dan konfigurasi yang pantas disimpan riwayatnya, dan dua cara lainnya bisa Anda pakai sejak Proyek 2.
 
 Setelah online, jalankan Lighthouse pada URL publiknya. Catat empat angkanya, simpan tangkapan layarnya, dan bandingkan dengan hasil proyek-proyek berikutnya di seri ini.
 

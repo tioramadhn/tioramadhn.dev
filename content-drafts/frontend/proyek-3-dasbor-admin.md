@@ -1,7 +1,7 @@
 ---
 title: 'Proyek 3: Dasbor Admin dengan Tabel, Filter, dan Form'
 description: Bentuk aplikasi yang paling sering Anda temui di pekerjaan nyata. Tabel besar, filter bertumpuk di URL, form di dalam dialog, aksi massal, dan perubahan yang langsung terlihat di seluruh halaman.
-date: 2026-11-21
+date: 2026-11-23
 slug: proyek-3-dasbor-admin
 tags: tutorial frontend
 series: Tutorial Frontend
@@ -14,9 +14,9 @@ Proyek ini memakai tiga modul terakhir sekaligus:
 
 | Dari modul | Yang dipakai |
 | --- | --- |
-| 10 | Design token, tema gelap, komponen tombol dan masukan yang konsisten |
-| 11 | Cache, kunci query yang memuat filter, invalidasi setelah mutasi, pembaruan optimistis |
-| 12 | Skema Zod yang dipakai form dan pemeriksaan respons, pesan error untuk manusia |
+| 11 | Design token, tema gelap, komponen tombol dan masukan yang konsisten |
+| 12 | Cache, kunci query yang memuat filter, invalidasi setelah mutasi, pembaruan optimistis |
+| 13 | Skema Zod yang dipakai form dan pemeriksaan respons, pesan error untuk manusia |
 
 Ditambah satu hal yang baru: **seluruh keadaan tabel tinggal di URL.** Filter, pencarian, pengurutan, dan halaman. Alasannya bukan kerapian, tapi kebutuhan kerja nyata: seorang admin menemukan 12 pesanan bermasalah, lalu mengirim tautannya ke rekan. Kalau keadaan tabel hanya ada di memori, tautan itu membuka tabel kosong.
 
@@ -95,6 +95,16 @@ pnpm dlx json-server db.json --port 4000 --delay 400
 19. Perubahan jumlah hasil dan hasil aksi diumumkan lewat wilayah `aria-live`.
 20. Di bawah 48rem, tabel berubah jadi daftar kartu yang tetap memuat semua informasi.
 21. `pnpm check` bersih, tanpa `any`.
+
+### Garis finis
+
+| Tingkat | Syarat | Artinya |
+| --- | --- | --- |
+| **Inti** | 1, 3, 6, 7, 8, 11, 12, 14, 17, plus keadaan memuat dan gagal | Tabel dengan filter di URL, satu form yang bekerja, satu mutasi optimistis, tabel HTML yang benar |
+| **Lengkap** | Seluruh 1 sampai 21, plus keenam keadaan | Setara aplikasi internal yang benar-benar dipakai |
+| **Bonus** | Bagian "Tantangan bonus" | Opsional sepenuhnya |
+
+Syarat 17 sampai 19 (tabel semantik, dialog yang mengelola fokus, wilayah `aria-live`) sengaja masuk Inti. Ketiganya jauh lebih murah dikerjakan sekarang daripada ditambal di Modul 16, dan itu persis pelajaran yang akan ditagih modul itu.
 
 ## Struktur folder
 
@@ -316,6 +326,17 @@ Lima hal yang membedakannya dari tabel yang asal jadi:
 4. **Komponen notifikasi** dengan wilayah `aria-live`, antrean, dan penutupan otomatis yang tidak berlaku untuk pesan kegagalan.
 
 Poin keempat punya alasan: notifikasi kegagalan yang hilang sendiri dalam tiga detik akan terlewat oleh pengguna yang sedang melihat ke tempat lain, dan mereka akan mengira perubahannya berhasil.
+
+> [!petunjuk]
+> **Kerjakan `useFilterProduk` dan tabelnya sampai benar sebelum menyentuh dialog maupun aksi massal.** Keadaan tabel adalah tulang punggung proyek ini, dan semua fitur lain membacanya. Memperbaikinya setelah ada enam komponen yang bergantung padanya jauh lebih mahal.
+>
+> **Untuk nomor 1**, pakai elemen `dialog` bawaan dengan `showModal()`. Empat dari lima perilaku yang diminta syarat 18 (fokus masuk, fokus terkunci, Escape menutup, fokus kembali ke pemicu) sudah Anda dapat tanpa menulis kode. Membuat dialog sendiri dari `div` berarti menulis keempatnya dengan tangan, dan Modul 16 akan menunjukkan betapa mudahnya salah.
+>
+> **Satu dialog untuk tambah dan ubah, bukan dua.** Bedanya hanya nilai awal form: kosong untuk tambah, terisi untuk ubah. Kalau Anda butuh mereset isi form saat produk yang diubah berganti, ingat teknik `key` dari Latihan 1 Modul 10.
+>
+> **Untuk nomor 2**, aksi massal yang mengirim sepuluh permintaan akan punya sebagian berhasil dan sebagian gagal. Itu bukan keadaan luar biasa, melainkan keadaan normal. `Promise.allSettled` dari Modul 5 memberi Anda kedua kelompoknya sekaligus, dan laporkan jumlahnya terpisah.
+>
+> **Untuk nomor 3**, jangan membuat komponen tabel kedua untuk layar sempit. Satu sumber data, dua tata letak, dengan pilihan yang ditentukan CSS. Menduplikasi komponennya berarti setiap perubahan kolom dikerjakan dua kali, dan suatu hari salah satunya akan terlupa.
 
 ## Checklist penilaian
 

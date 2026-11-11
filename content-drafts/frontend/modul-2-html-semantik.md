@@ -1,7 +1,7 @@
 ---
 title: 'Modul 2: HTML Semantik, Struktur Dokumen, dan Form'
 description: Dua potongan markup bisa identik di layar tapi berbeda jauh bagi keyboard, pembaca layar, dan mesin pencari. Pilihan elemen adalah keputusan teknis, bukan selera.
-date: 2026-11-08
+date: 2026-11-09
 slug: modul-2-html-semantik
 tags: tutorial frontend
 series: Tutorial Frontend
@@ -223,7 +223,7 @@ Dua catatan yang selalu berlaku:
 
 `autocomplete` bukan detail kecil. Untuk form alamat pengiriman, isian yang benar memotong waktu pengisian lebih dari setengah, dan itu langsung terlihat di angka konversi.
 
-Validasi bawaan browser tidak cukup, tapi jangan dimatikan tanpa alasan. Modul 12 membahas cara mengambil alih pesan error supaya seragam dengan desain, tanpa menghapus kemampuan dasarnya.
+Validasi bawaan browser tidak cukup, tapi jangan dimatikan tanpa alasan. Modul 13 membahas cara mengambil alih pesan error supaya seragam dengan desain, tanpa menghapus kemampuan dasarnya.
 
 ## Yang masuk ke `head`
 
@@ -421,7 +421,7 @@ Pilih satu situs yang sering Anda pakai, lalu lakukan empat pemeriksaan:
 3. Jalankan halaman itu di [validator.w3.org](https://validator.w3.org) dan catat tiga kesalahan teratas.
 4. Cari `h1` halaman itu, lalu periksa apakah urutan headingnya melompat.
 
-**Pertanyaannya:** dari temuan Anda, mana yang murni kesalahan markup dan mana yang keputusan desain? Catat jawabannya, karena modul 15 akan kembali ke daftar ini dengan alat ukur yang lebih tajam.
+**Pertanyaannya:** dari temuan Anda, mana yang murni kesalahan markup dan mana yang keputusan desain? Catat jawabannya, karena modul 16 akan kembali ke daftar ini dengan alat ukur yang lebih tajam.
 
 ## Batasnya
 
@@ -429,9 +429,9 @@ HTML semantik menyelesaikan struktur dan makna, dan berhenti di situ. Ada tiga h
 
 Pertama, tampilan. Markup yang benar tetap tampak seperti dokumen tahun 1995 tanpa CSS.
 
-Kedua, widget yang tidak punya padanan bawaan. Combobox dengan pencarian, tab, dan tree view tidak ada di HTML. Membangunnya butuh ARIA dan penanganan keyboard sendiri, dan itu isi modul 15. Aturan praktisnya tetap: pakai elemen bawaan dulu, ARIA hanya saat tidak ada pilihan.
+Kedua, widget yang tidak punya padanan bawaan. Combobox dengan pencarian, tab, dan tree view tidak ada di HTML. Membangunnya butuh ARIA dan penanganan keyboard sendiri, dan itu isi modul 16. Aturan praktisnya tetap: pakai elemen bawaan dulu, ARIA hanya saat tidak ada pilihan.
 
-Ketiga, isi yang berubah tanpa memuat ulang halaman. HTML bisa mengirim form dan pindah halaman, tapi tidak bisa memperbarui sebagian halaman saja. Itu pekerjaan JavaScript di modul 4 dan 5.
+Ketiga, isi yang berubah tanpa memuat ulang halaman. HTML bisa mengirim form dan pindah halaman, tapi tidak bisa memperbarui sebagian halaman saja. Itu pekerjaan JavaScript di modul 5 dan 6.
 
 ## Rangkuman
 

@@ -1,8 +1,8 @@
 ---
-title: 'Modul 5: DOM, Event, dan State yang Dikelola Tangan'
+title: 'Modul 6: DOM, Event, dan State yang Dikelola Tangan'
 description: Satu data ditampilkan di tiga tempat, lalu datanya berubah. Modul ini membangun aplikasi kecil tanpa framework sampai masalah itu terasa, karena di situlah React mulai masuk akal.
-date: 2026-11-11
-slug: modul-5-dom-event-state
+date: 2026-11-13
+slug: modul-6-dom-event-state
 tags: tutorial frontend
 series: Tutorial Frontend
 status: draft
@@ -108,7 +108,7 @@ elemen.textContent = namaDariPengguna;
 elemen.innerHTML = namaDariPengguna;
 ```
 
-Itu celah **XSS**, dan pola "menyusun HTML dari data pengguna" adalah penyebab paling umumnya. Aturannya: `textContent` untuk teks, dan `innerHTML` hanya untuk HTML yang Anda sendiri yang susun, tanpa sisipan dari pengguna. Modul 14 membahasnya lebih jauh, termasuk kenapa React tetap punya celah serupa bernama `dangerouslySetInnerHTML`.
+Itu celah **XSS**, dan pola "menyusun HTML dari data pengguna" adalah penyebab paling umumnya. Aturannya: `textContent` untuk teks, dan `innerHTML` hanya untuk HTML yang Anda sendiri yang susun, tanpa sisipan dari pengguna. Modul 15 membahasnya lebih jauh, termasuk kenapa React tetap punya celah serupa bernama `dangerouslySetInnerHTML`.
 
 Untuk membangun banyak elemen sekaligus, `DocumentFragment` menghemat pekerjaan layout:
 
@@ -177,7 +177,7 @@ window.addEventListener('resize', atur, { signal: kendali.signal });
 kendali.abort(); // Semua listener dengan signal ini ikut dilepas
 ```
 
-Baris terakhir itu jawaban modern untuk kebocoran memori akibat listener yang tidak pernah dilepas, dan konsepnya sama dengan cleanup di `useEffect` pada modul 9.
+Baris terakhir itu jawaban modern untuk kebocoran memori akibat listener yang tidak pernah dilepas, dan konsepnya sama dengan cleanup di `useEffect` pada modul 10.
 
 ## Pola yang benar: state, lalu render
 
@@ -274,7 +274,7 @@ Aturan memilihnya:
 | Hanya berarti selama halaman terbuka | Memori | Dialog yang sedang terbuka, hasil validasi sementara |
 | Sumbernya server | Server, dengan cache di klien | Daftar produk, profil pengguna |
 
-Kesalahan yang paling sering: menaruh filter dan nomor halaman di memori saja. Pengguna memfilter, mengirim tautannya ke rekan, dan rekannya membuka halaman kosong tanpa filter. Modul 13 akan menjadikan URL sebagai state resmi dengan dukungan dari framework.
+Kesalahan yang paling sering: menaruh filter dan nomor halaman di memori saja. Pengguna memfilter, mengirim tautannya ke rekan, dan rekannya membuka halaman kosong tanpa filter. Modul 14 akan menjadikan URL sebagai state resmi dengan dukungan dari framework.
 
 ## Satu hal yang hilang saat halaman berubah sendiri
 
@@ -289,7 +289,7 @@ document.querySelector('#status-cari').textContent =
   `${hasil.length} produk ditemukan`;
 ```
 
-Dua baris itu membuat perubahan diumumkan. Pola ini berlaku untuk hasil pencarian, pesan error form, notifikasi "tersimpan", dan proses yang selesai. Modul 15 membahas pengelolaan fokus yang melengkapinya, misalnya memindahkan fokus ke dialog yang baru terbuka.
+Dua baris itu membuat perubahan diumumkan. Pola ini berlaku untuk hasil pencarian, pesan error form, notifikasi "tersimpan", dan proses yang selesai. Modul 16 membahas pengelolaan fokus yang melengkapinya, misalnya memindahkan fokus ke dialog yang baru terbuka.
 
 ## Latihan
 
@@ -482,7 +482,7 @@ Tambahkan pencarian ke daftar tugas Anda dengan syarat: permintaan dikirim ke se
 > });
 > ```
 >
-> Empat hal yang dikerjakan di sini, dan semuanya akan Anda temukan lagi sebagai fitur bawaan library data di modul 11:
+> Empat hal yang dikerjakan di sini, dan semuanya akan Anda temukan lagi sebagai fitur bawaan library data di modul 12:
 >
 > 1. **Debounce 300ms.** Tanpa ini, mengetik "kopi susu" mengirim sepuluh permintaan.
 > 2. **Membatalkan permintaan lama.** Ini jawaban untuk race condition: permintaan untuk "ko" bisa saja dijawab server lebih lambat daripada permintaan untuk "kopi", dan tanpa pembatalan hasilnya menimpa yang benar.
@@ -495,7 +495,7 @@ Ambil daftar tugas Anda, lalu tambahkan empat fitur berikut di atas kertas saja,
 
 Untuk setiap fitur, catat: baris mana saja di `render()` yang harus berubah, state apa yang bertambah, dan tempat mana yang berisiko lupa diperbarui.
 
-**Pertanyaannya:** pada fitur keberapa `render()` Anda mulai terasa terlalu besar, dan pada fitur keberapa Anda mulai ingin menggambar ulang hanya sebagian halaman? Simpan catatan itu. Modul 8 akan membuka dengan masalah yang persis Anda tulis di sini.
+**Pertanyaannya:** pada fitur keberapa `render()` Anda mulai terasa terlalu besar, dan pada fitur keberapa Anda mulai ingin menggambar ulang hanya sebagian halaman? Simpan catatan itu. Modul 9 akan membuka dengan masalah yang persis Anda tulis di sini.
 
 ## Batasnya
 

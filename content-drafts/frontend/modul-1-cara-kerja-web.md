@@ -1,12 +1,14 @@
 ---
 title: 'Modul 1: Cara Kerja Web dan Peran Frontend'
 description: Antara menekan Enter dan halaman muncul ada belasan langkah. Mengenal langkah-langkah itu adalah bedanya menebak dan tahu, saat nanti ada yang lambat atau layarnya kosong.
-date: 2026-11-07
+date: 2026-11-08
 slug: modul-1-cara-kerja-web
 tags: tutorial frontend
 series: Tutorial Frontend
 status: draft
 ---
+
+Modul sebelumnya ditutup dengan satu halaman berisi judul dan paragraf, terbuka di `localhost`, muncul dalam waktu yang terasa seketika. Pertanyaan yang ditinggalkannya: apa yang sebenarnya terjadi di dalam waktu seketika itu.
 
 Hari ini Anda mungkin sudah membuka tiga puluh halaman web. Masing-masing butuh waktu kurang dari dua detik, dan Anda tidak pernah bertanya apa yang terjadi di dalam dua detik itu. Pekerjaan frontend dimulai tepat di sana.
 
@@ -34,7 +36,7 @@ Lima laporan ini punya penyebab yang sama sekali berbeda, dan tidak satu pun bis
 
 Tanpa model mental tentang perjalanan sebuah halaman, lima laporan itu terasa seperti sihir. Dengan model mental, masing-masing punya tempat yang jelas untuk dicari. Itulah isi modul ini: bukan cara menulis kode, tapi cara kerja mesin yang akan menjalankan kode Anda selama sepuluh tahun ke depan.
 
-> Modul ini satu-satunya modul yang tidak meminta Anda memasang apa pun. Cukup browser yang sudah ada di komputer Anda, karena DevTools di dalamnya adalah alat ukur paling penting dalam seri ini.
+> Modul ini tidak meminta Anda memasang apa pun yang baru. Alatnya sudah disiapkan di Modul 0, dan yang dipakai di sini hanya satu: DevTools di browser Anda, yang kebetulan juga alat ukur paling penting dalam seri ini.
 
 ## Sedikit sejarah
 
@@ -46,7 +48,7 @@ Tanpa model mental tentang perjalanan sebuah halaman, lima laporan itu terasa se
 
 **2009: JavaScript keluar dari browser.** Node.js memungkinkan JavaScript berjalan di komputer biasa. Dampak terbesarnya bukan backend, melainkan tooling: build, bundler, linter, dan test runner yang Anda pakai nanti semuanya hidup di atas Node.
 
-**2013: React dan UI deklaratif.** Daripada memerintahkan perubahan DOM satu per satu, Anda mendeklarasikan tampilan sebagai hasil dari data. Modul 5 dan 8 akan menunjukkan kenapa pergeseran ini terjadi.
+**2013: React dan UI deklaratif.** Daripada memerintahkan perubahan DOM satu per satu, Anda mendeklarasikan tampilan sebagai hasil dari data. Modul 6 dan 9 akan menunjukkan kenapa pergeseran ini terjadi.
 
 **2020: kecepatan jadi angka.** Google memperkenalkan Core Web Vitals, dan kualitas yang tadinya terasa subjektif berubah jadi tiga metrik yang bisa ditagih.
 
@@ -166,7 +168,7 @@ Keputusan ini akan Anda ambil berulang kali sepanjang karier, jadi kenali bentuk
 | **Server-render per permintaan** | Setiap kali halaman diminta | Halaman yang datanya personal atau sering berubah | Server bekerja lebih keras, butuh strategi cache |
 | **Client-render** | Di browser, setelah JavaScript jalan | Aplikasi dengan banyak interaksi di balik login | Pertama kali dibuka terasa lambat, mesin pencari sulit membacanya |
 
-Jawaban yang baik sering campuran: kerangka halaman dirender di server supaya cepat terlihat, bagian interaktifnya diambil alih JavaScript setelahnya. Modul 13 membahas cara memilih dan mencampurnya dengan Next.js.
+Jawaban yang baik sering campuran: kerangka halaman dirender di server supaya cepat terlihat, bagian interaktifnya diambil alih JavaScript setelahnya. Modul 14 membahas cara memilih dan mencampurnya dengan Next.js.
 
 ## Di mana frontend berakhir dan backend dimulai
 
@@ -195,15 +197,15 @@ Yang dinilai pada frontend engineer hari ini, di luar bisa membuat tampilan sesu
 
 ## Alat kerja minimum
 
-Anda tidak perlu memasang semuanya hari ini. Daftar ini supaya Anda tahu apa yang akan dipakai dan untuk apa:
+Sebagian sudah terpasang di Modul 0. Daftar ini supaya Anda tahu apa yang akan dipakai, untuk apa, dan kapan:
 
-| Alat | Fungsinya | Contoh | Kapan dibutuhkan |
-| --- | --- | --- | --- |
-| Browser dengan DevTools | Memeriksa, mengukur, mencari penyebab | Chrome, Firefox | Modul ini |
-| Editor kode | Menulis dan menavigasi proyek | VS Code, Zed | Modul 2 |
-| Runtime dan package manager | Menjalankan tooling dan memasang dependensi | Node LTS, pnpm | Modul 6 |
-| Version control | Menyimpan riwayat dan berkolaborasi | Git, GitHub | Modul 6 |
-| Hosting | Menaruh hasil kerja di internet | Cloudflare Pages, Vercel, Netlify | Proyek 1 |
+| Alat | Fungsinya | Contoh | Terpasang | Mulai dipakai |
+| --- | --- | --- | --- | --- |
+| Browser dengan DevTools | Memeriksa, mengukur, mencari penyebab | Chrome, Firefox | Sudah ada | Modul ini |
+| Editor kode | Menulis dan menavigasi proyek | VS Code, Zed | Modul 0 | Modul 2 |
+| Runtime dan package manager | Menjalankan tooling dan memasang dependensi | Node LTS, pnpm | Modul 0 | Modul 7 |
+| Version control | Menyimpan riwayat dan berkolaborasi | Git, GitHub | Modul 7 | Modul 7 |
+| Hosting | Menaruh hasil kerja di internet | Netlify, Cloudflare Pages, Vercel | Tidak perlu | Proyek 1 |
 
 Satu saran: pakai dua browser sejak awal. Bug yang hanya muncul di satu browser jauh lebih mudah dikenali kalau Anda sudah biasa membandingkan.
 
